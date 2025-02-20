@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hive/hive.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:sairot/performance_page.dart';
-import '../models/event.dart';
 import 'admin_controller.dart'; // Ensure the correct import for AdminController
 
 class AdminHome extends StatefulWidget {
@@ -19,7 +16,6 @@ class _AdminHomeState extends State<AdminHome> {
   @override
   void initState() {
     super.initState();
-    super.initState();
   }
 
   /// Load the selected event from the Hive Box by Date
@@ -29,7 +25,6 @@ class _AdminHomeState extends State<AdminHome> {
       print("❌ No Instructor , Group or Day Selected!");
       return;
     }
-
     try {
       String selectedDate = adminController.selectedDay.value!;
       String eventName = adminController.selectedEvent.value!;
@@ -44,19 +39,14 @@ class _AdminHomeState extends State<AdminHome> {
         print('instructor mode');
         instructorId = adminController.selectedInstructor.value;
       }
-
-      print("📂 Opening Hive Box for Instructor: $instructorId on $selectedDate");
-
       // Fetch event data from Firebase if needed
       if (instructorId!=null) {
-        await adminController.fetchInstructorDays(eventName, selectedDate, instructorId);
+        await adminController.loadEvent(eventName, selectedDate, instructorId);
+
         print("✅ Event Data Loaded Successfully");
       } else {
         print("❌ No Instructor Id");
       }
-
-
-
       // Navigate to the next screen
       Get.toNamed('/grades_page');
     } catch (e) {
@@ -77,7 +67,15 @@ class _AdminHomeState extends State<AdminHome> {
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
+            child: Obx(() {
+              if (adminController.isDownloadingGeneralReport.value) {
+                return SizedBox(
+                  height: 100,
+                  width: 100,
+                  child: CircularProgressIndicator(),
+                );
+              }
+              return Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 SizedBox(height: 10),
@@ -114,7 +112,8 @@ class _AdminHomeState extends State<AdminHome> {
                   ),
                   child: Column(
                     children: [
-                      Obx(() => adminController.isDownloading.value
+                      // 📌 Event Dropdown
+                      Obx(() => false
                           ? SizedBox(width: 150, child: LinearProgressIndicator())
                           : DropdownButton<String>(
                         hint: Text("בחר אירוע"),
@@ -126,7 +125,7 @@ class _AdminHomeState extends State<AdminHome> {
                           adminController.selectedInstructor.value = null;
                           adminController.selectedGroup.value = null;
                           if (newValue != null) {
-                            await adminController.fetchInstructorFiles(newValue, "");
+                            await adminController.fetchEventDays(newValue);
                           }
                           adminController.isDownloading.value = false;
                         },
@@ -137,8 +136,49 @@ class _AdminHomeState extends State<AdminHome> {
                         ))
                             .toList(),
                       )),
-                      // 📌 Event Dropdown
                       SizedBox(height: 30),
+                      // 📊 General Event Report Section
+                      Obx(() {
+                        if (adminController.selectedEvent.value == null) {
+                          return SizedBox.shrink();
+                        }
+                        return Column(
+                          children: [
+                            Text(
+                              'ניתוח כללי לאירוע',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            Container(
+                              margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                              padding: EdgeInsets.only(left: 80, right: 80, top: 10, bottom: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(15),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Center(
+                                child: adminController.isDownloadingGeneralReport.value
+                                    ? SizedBox(height: 48, width: 48, child: CircularProgressIndicator())
+                                    : ElevatedButton(
+                                    onPressed: () async {
+                                      await adminController.LoadGeneralEventReport();
+                                      Get.toNamed('/admin_event_report_page');
+                                    },
+                                    child: Text('דוח כללי')),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                      SizedBox(height: 100),
                       // 📊 Group Report
                       Obx(() {
                         if (adminController.selectedEvent.value == null) {
@@ -183,9 +223,9 @@ class _AdminHomeState extends State<AdminHome> {
                                         adminController.selectedGroup.value = null;
                                         if (newValue != null) {
                                           adminController.isDownloading.value=true;
-                                          await adminController.fetchInstructorFiles(
+                                          await adminController.fetchInstructorsForEvent(
                                               adminController.selectedEvent.value!, newValue);
-                                          await adminController.fetchGroupNumbers(
+                                          await adminController.fetchGroupsForEvent(
                                               adminController.selectedEvent.value!, newValue);
                                           adminController.isDownloading.value=false;
                                         }
@@ -243,9 +283,6 @@ class _AdminHomeState extends State<AdminHome> {
                                     }
                                     var groupNumbers =
                                         adminController.groupNumbers[adminController.selectedDay.value] ?? [];
-                                    print('groupNumbers');
-                                    print(groupNumbers);
-                                    print('adminController.selectedGroup.value,');
                                     print(adminController.selectedGroup.value);
                                     return DropdownButton<String>(
                                       hint: Text("בחר קבוצה"),
@@ -317,52 +354,11 @@ class _AdminHomeState extends State<AdminHome> {
                         );
                       }),
                       SizedBox(height: 30),
-                      // 📊 General Event Report Section
-                      Obx(() {
-                        if (adminController.selectedEvent.value == null) {
-                          return SizedBox.shrink();
-                        }
-                        return Column(
-                          children: [
-                            Text(
-                              'ניתוח כללי לאירוע',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            Container(
-                              margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                              padding: EdgeInsets.only(left: 80, right: 80, top: 10, bottom: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(15),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 6,
-                                    offset: Offset(0, 3),
-                                  ),
-                                ],
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              child: Center(
-                                child: adminController.isDownloadingGeneralReport.value
-                                    ? SizedBox(height: 48, width: 48, child: CircularProgressIndicator())
-                                    : ElevatedButton(
-                                    onPressed: () async {
-                                      adminController.getAllAdminEventData();
-                                      Get.toNamed('/admin_event_report_page');
-                                    },
-                                    child: Text('דוח כללי')),
-                              ),
-                            ),
-                          ],
-                        );
-                      }),
                     ],
                   ),
                 ),
               ],
-            ),
+            );}),
           ),
         ),
       ),

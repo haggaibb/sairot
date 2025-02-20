@@ -52,8 +52,7 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                 style: ElevatedButton.styleFrom(
                                   fixedSize: const Size(10, 20),
                                 ),
-                                onPressed: () async {
-                                  print(eventController.sakimEditModeOn.value);
+                                onPressed: () {
                                   if (eventController.sakimEditModeOn.value) {
                                     eventController.loading.value = true;
                                     if (eventController.currentEvent.value.sakimRounds.length == widget.round.round+1) {
@@ -68,15 +67,13 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                       eventController.currentEvent.value.sakimRounds[widget.round.round+1].participantsInRound
                                           .add(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
                                       eventController.setParticipantSakimPosition(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index], eventController.currentEvent.value.sakimRounds[widget.round.round+1].participantsInRound.length);
-
                                     }
                                     eventController.currentEvent.value.sakimRounds[widget.round.round] = widget.round;
-                                    await eventController.currentEvent.value.save();
-                                    eventController.update();
                                     //setState(() {
-                                      widget.round.participantsInRound.remove(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
-                                      eventController.loading.value = false;
+                                    widget.round.participantsInRound.remove(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
                                     //});
+                                    eventController.loading.value = false;
+                                    eventController.currentEvent.value.saveToFirestore();
                                   }
                                 },
                                 onLongPress: () async {

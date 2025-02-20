@@ -20,7 +20,7 @@ import 'widgets/yes_no.dart';
 import 'admin/admin_home.dart';
 import 'admin/admin_event_report_page.dart';
 import 'admin/admin_live_event_page.dart';
-import '../connectivity_controller.dart';
+//import '../connectivity_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -124,13 +124,12 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   final eventController = Get.put(Controller());
-  final connectivityController = Get.put(ConnectivityController());
+  //final connectivityController = Get.put(ConnectivityController());
 
   //late Timer _connectionTimer;
 
   /// Load Selected Instructor's Event
   Future<void> loadSelectedEvent() async {
-    print('loadSelectedEvent starts');
     eventController.pastEventsLoading.value = true;
     if (eventController.selectedEvent.value == null ||
         eventController.selectedDay.value == null) {
@@ -138,6 +137,7 @@ class _HomeState extends State<Home> {
       eventController.pastEventsLoading.value = false;
       return;
     }
+
     await eventController.loadInstructorEvent(
       eventController.selectedEvent.value!,
       eventController.selectedDay.value!,
@@ -148,7 +148,7 @@ class _HomeState extends State<Home> {
 
   @override
   void initState() {
-    connectivityController.startConnectionCheckInterval();
+    //connectivityController.startConnectionCheckInterval();
     Future.microtask(() async {
       await eventController.getUnfinalizedEvents();
       await eventController.fetchInstructorEvents();
@@ -158,7 +158,7 @@ class _HomeState extends State<Home> {
 
   @override
   void dispose() {
-    connectivityController.stopConnectionCheckInterval();
+    //connectivityController.stopConnectionCheckInterval();
     super.dispose();
   }
 
@@ -207,45 +207,6 @@ class _HomeState extends State<Home> {
                   },
                 ),
 
-                /// backup
-                ListTile(
-                  title: Row(
-                    children: [
-                      Icon(Icons.exit_to_app),
-                      SizedBox(
-                        width: 10,
-                      ),
-                      const Text('גיבוי לענן - '),
-                      Obx(() => connectivityController.isConnected.value
-                          ? Text(
-                              'יש חיבור לרשת',
-                              style:
-                                  TextStyle(fontSize: 16, color: Colors.green),
-                            )
-                          : Text('אין חיבור לרשת',
-                              style:
-                                  TextStyle(fontSize: 16, color: Colors.red))),
-                    ],
-                  ),
-                  onTap: () async {
-                    if (connectivityController.isConnected.value &&
-                        eventController.currentEvent.value.finalized) {
-                      eventController.loading.value = true;
-                      await eventController.hiveStorage.backupHiveToFirebase(
-                          eventController.currentEventName,
-                          eventController.currentEvent.value.date,
-                          eventController.currentInstructor.id);
-                      eventController.loading.value = false;
-                    } else {
-                      eventController.loading.value = false;
-                      showCustomMessageAlert(
-                          context,
-                          "תקלה",
-                          "אין חיבור לרשת או שהארוע עדיין פעיל או שאין ארוע טעון",
-                          Icons.error);
-                    }
-                  },
-                ),
                 Obx(() => eventController.loading.value
                     ? SizedBox(
                         width: 100,
@@ -260,21 +221,6 @@ class _HomeState extends State<Home> {
             title: Text('ימי סיירות'),
             centerTitle: true,
             actions: [
-              Obx(() => Padding(
-                    padding: const EdgeInsets.only(left: 10.0),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.compare_arrows,
-                        size: 30,
-                        color: connectivityController.isConnected.value
-                            ? Colors.green
-                            : Colors.red,
-                      ),
-                      onPressed: () async {
-                        await connectivityController.connectionEnabled();
-                      },
-                    ),
-                  )),
             ],
           ),
           body: Center(
@@ -300,6 +246,7 @@ class _HomeState extends State<Home> {
                             ],
                           ))),
               ),
+
               /// new day button
               Padding(
                 padding: const EdgeInsets.all(1.0),
@@ -321,6 +268,7 @@ class _HomeState extends State<Home> {
               const SizedBox(
                 height: 60,
               ),
+
               /// unfinalized events
               Obx(() {
                 return !eventController.unfinalizedLoading.value
@@ -352,12 +300,7 @@ class _HomeState extends State<Home> {
                                     padding: const EdgeInsets.only(
                                         bottom: 20.0, top: 5),
                                     child: Center(
-                                        child: Text(
-                                            !eventController
-                                                    .unfinalizedEvents[index]
-                                                    .finalized
-                                                ? 'ארוע פעיל'
-                                                : 'ארוע לא מגובה לענן',
+                                        child: Text('ארוע פעיל',
                                             style: const TextStyle(
                                                 fontSize: 22,
                                                 color: Colors.red,
@@ -395,75 +338,7 @@ class _HomeState extends State<Home> {
                                               fontWeight: FontWeight.normal)),
                                     ],
                                   ),
-                                  eventController.unfinalizedEvents[index]
-                                              .finalized &&
-                                          !eventController
-                                              .unfinalizedEvents[index]
-                                              .isBackedUp
-                                      ? ElevatedButton(
-                                          style: const ButtonStyle(
-                                            visualDensity: VisualDensity(
-                                                horizontal: VisualDensity
-                                                    .minimumDensity,
-                                                vertical: VisualDensity
-                                                    .minimumDensity),
-                                          ),
-                                          onPressed: () async {
-                                            connectivityController.isConnected.value;
-                                            if (connectivityController
-                                                .isConnected.value) {
-                                              eventController.loading.value =
-                                                  true;
-                                              eventController
-                                                  .unfinalizedEvents[index]
-                                                  .isBackedUp = true;
-                                              var res = await eventController
-                                                  .hiveStorage
-                                                  .backupHiveToFirebase(
-                                                      eventController
-                                                          .unfinalizedEvents[
-                                                              index]
-                                                          .eventName,
-                                                      eventController
-                                                          .unfinalizedEvents[
-                                                              index]
-                                                          .date,
-                                                      eventController
-                                                          .unfinalizedEvents[
-                                                              index]
-                                                          .instructorId);
-                                              if (res) {
-                                                await eventController
-                                                    .hiveStorage
-                                                    .updateEvent(eventController
-                                                            .unfinalizedEvents[
-                                                        index]);
-                                                eventController
-                                                    .unfinalizedEvents = [];
-                                                await eventController
-                                                    .getUnfinalizedEvents();
-                                              } else {
-                                                eventController
-                                                    .unfinalizedEvents[index]
-                                                    .isBackedUp = false;
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  SnackBar(
-                                                    content:
-                                                        Text(" הגיבוי נכשל ❌ "),
-                                                    backgroundColor: Colors.red,
-                                                    duration:
-                                                        Duration(seconds: 2),
-                                                  ),
-                                                );
-                                              }
-                                              eventController.loading.value =
-                                                  false;
-                                            }
-                                          },
-                                          child: const Text('בצע גיבוי לענן'),
-                                        )
-                                      : Row(
+                                  Row(
                                           children: [
                                             ElevatedButton(
                                               style: const ButtonStyle(
@@ -474,36 +349,35 @@ class _HomeState extends State<Home> {
                                                         .minimumDensity),
                                               ),
                                               onPressed: () async {
-                                                connectivityController
-                                                    .isConnected.value;
-                                                if (connectivityController
-                                                    .isConnected.value) {
+                                                eventController.loading.value =
+                                                    true;
+                                                var res = await showDialog(
+                                                  context: context,
+                                                  builder:
+                                                      (BuildContext context) {
+                                                    return YesNoDialog();
+                                                  },
+                                                );
+                                                if (res) {
                                                   eventController
-                                                      .loading.value = true;
-                                                  var res = await showDialog(
-                                                    context: context,
-                                                    builder:
-                                                        (BuildContext context) {
-                                                      return YesNoDialog();
-                                                    },
-                                                  );
-                                                  if (res) {
-                                                    eventController.unfinalizedLoading.value=true;
-                                                    await eventController
-                                                        .hiveStorage
-                                                        .delEventFromHive(
-                                                            eventController
-                                                                    .unfinalizedEvents[
-                                                                index]);
-                                                    eventController
-                                                        .unfinalizedEvents = [];
-                                                    await eventController
-                                                        .getUnfinalizedEvents();
-                                                  } else {}
+                                                      .unfinalizedLoading
+                                                      .value = true;
+                                                  await eventController.delEvent(eventController
+                                                      .unfinalizedEvents[
+                                                  index]);
                                                   eventController
-                                                      .loading.value = false;
+                                                      .unfinalizedEvents
+                                                      .clear();
+                                                  await eventController
+                                                      .getUnfinalizedEvents();
+                                                } else {
+
                                                 }
-                                                eventController.unfinalizedLoading.value=false;
+                                                eventController.loading.value =
+                                                    false;
+                                                eventController
+                                                    .unfinalizedLoading
+                                                    .value = false;
                                               },
                                               child: const Text('מחק'),
                                             ),
@@ -518,11 +392,11 @@ class _HomeState extends State<Home> {
                                               onPressed: () async {
                                                 eventController.loading.value =
                                                     true;
-                                                await eventController
-                                                    .openHiveBoxAndLoadEvent(
-                                                        eventController
-                                                                .unfinalizedEvents[
-                                                            index]);
+                                                eventController
+                                                        .currentEvent.value =
+                                                    eventController
+                                                            .unfinalizedEvents[
+                                                        index];
                                                 eventController.loading.value =
                                                     false;
                                                 Get.toNamed('/event_home');
@@ -533,7 +407,6 @@ class _HomeState extends State<Home> {
                                           mainAxisAlignment:
                                               MainAxisAlignment.spaceAround,
                                         ),
-
                                   /// participants count
                                 ],
                               ),
@@ -579,8 +452,7 @@ class _HomeState extends State<Home> {
                 child: Column(
                   children: [
                     // 📌 Event Dropdown
-                    Obx(()
-                    {
+                    Obx(() {
                       return DropdownButton<String>(
                         hint: Text("בחר אירוע"),
                         value: eventController.selectedEvent.value,
@@ -592,11 +464,10 @@ class _HomeState extends State<Home> {
                           }
                         },
                         items: eventController.events
-                            .map((event) =>
-                            DropdownMenuItem(
-                              value: event,
-                              child: Text(event),
-                            ))
+                            .map((event) => DropdownMenuItem(
+                                  value: event,
+                                  child: Text(event),
+                                ))
                             .toList(),
                       );
                     }),
@@ -631,9 +502,7 @@ class _HomeState extends State<Home> {
                       }
                       return ElevatedButton(
                           onPressed: () async {
-                            print('clicked');
                             await loadSelectedEvent();
-                            print('post load selected event');
                             Get.toNamed('/event_home');
                           },
                           child: Text('הצג אירוע'));

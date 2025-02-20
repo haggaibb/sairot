@@ -3,19 +3,12 @@ import '../models/event.dart';
 import '../models/participant.dart';
 import '../models/types.dart'; // Assuming ParticipantStatus is defined here
 
-part 'admin_event.g.dart';
 
-@HiveType(typeId: 50)
 class AdminEvent extends HiveObject {
-  AdminEvent({required this.name});
-
-  @HiveField(0)
   final String name;
-
-  @HiveField(1)
   List<Event> eventDays = [];
 
-
+  AdminEvent({required this.name});
 
   /// Returns the number of event days in this object
   int getEventDaysCount() {
@@ -75,7 +68,6 @@ class AdminEvent extends HiveObject {
     }
     return total;
   }
-
 
   @override
   String toString() {

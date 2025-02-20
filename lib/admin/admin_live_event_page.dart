@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'admin_controller.dart';
 import 'package:get/get.dart';
-import '../connectivity_controller.dart';
 import '../widgets/tablet_group_status_bar.dart';
+import '../widgets/last_update_widget.dart';
 
 class AdminLiveEventPage extends StatefulWidget {
   const AdminLiveEventPage({super.key});
@@ -13,18 +13,24 @@ class AdminLiveEventPage extends StatefulWidget {
 
 class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
   final adminController = Get.put(AdminController());
-  final connectivityController = Get.put(ConnectivityController());
+  //final connectivityController = Get.put(ConnectivityController());
 
   @override
   void initState() {
-    adminController.startLiveDayEvent();
+    DateTime today = DateTime.now();
+    String formattedToday =
+        "${today.day.toString().padLeft(2, '0')}-${today.month.toString().padLeft(2, '0')}-${today.year}";
+    //adminController.startLiveListener(formattedToday);
+    /// line below is for debug mode.
+    adminController.startLiveListener('20-02-2025');
     super.initState();
   }
+
 
   @override
   void dispose() {
     adminController
-        .stopLiveEventUpdateTimer(); // ✅ Cancel timer when leaving the screen
+        .stopLiveListener(); // ✅ Cancel timer when leaving the screen
     print("🚫 Timer canceled!");
     super.dispose();
   }
@@ -57,7 +63,9 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
             double availableWidth = constraints.maxWidth;
             return Obx(() {
               if (adminController.isDownloadingLiveEvents.value) {
-                return Center(child: CircularProgressIndicator()); // ✅ Show loader while fetching data
+                return Center(
+                    child:
+                        CircularProgressIndicator()); // ✅ Show loader while fetching data
               }
               if (adminController.liveEvents.isEmpty) {
                 return Center(child: Text("No active groups found."));
@@ -73,7 +81,7 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
               double col2Width = measureMaxColumnWidth(
                   adminController.liveEvents
                       .map((e) =>
-                      adminController.getInstructorName(e.instructorId))
+                          adminController.getInstructorName(e.instructorId))
                       .toList(),
                   textStyle,
                   context);
@@ -81,7 +89,7 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
               double col5Width = measureMaxColumnWidth(
                 adminController.liveEvents
                     .map((e) =>
-                "לפני ${adminController.getMinutesPassedSinceUpdate(e.instructorId)} דקות")
+                        "לפני      דקות")
                     .toList(),
                 textStyle,
                 context,
@@ -96,15 +104,12 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
                 scrollDirection: Axis.vertical, // ✅ Prevents vertical overflow
                 child: Column(
                   children: [
-                    Text(
-                        adminController.liveEvents[0].date,
+                    Text(adminController.liveEvents[0].date,
                         style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold)
-                    ),
+                            fontSize: 20, fontWeight: FontWeight.bold)),
                     Container(
-                      margin:
-                      EdgeInsets.symmetric(horizontal: isTablet?250:80, vertical: 10),
+                      margin: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 250 : 80, vertical: 10),
                       padding: EdgeInsets.only(
                           left: 60, right: 10, top: 10, bottom: 10),
                       decoration: BoxDecoration(
@@ -119,40 +124,73 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
                         ],
                         border: Border.all(color: Colors.grey.shade300),
                       ),
-                      child: Obx(()  {
-
+                      child: Obx(() {
                         return Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          /// number of groups
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              Text(' מספר הקבוצות :' ,style: const TextStyle(fontSize: 18, fontWeight: FontWeight.normal)),
-                              Text(adminController.liveEvents.length
-                                  .toString(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.normal)),
-                            ],
-                          ),
-                          /// active groups
-                          Row(
-                            //mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(' קבוצות פעילות :', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.normal)),
-                              Text(adminController.liveEvents.where((e)=> adminController.getGroupStatus(e.groupNumber.toString())!=-4).length
-                                  .toString(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.normal)),
-                            ],
-                          ),
-                          /// groups that are done
-                          Row(
-                            //mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(' קבוצות שסיימו :', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.normal)),
-                              Text(adminController.liveEvents.where((e)=> adminController.getGroupStatus(e.groupNumber.toString())==-4).length
-                                  .toString(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.normal)),
-                            ],
-                          ),
-                        ],
-                      );}),
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            /// number of groups
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                Text(' מספר הקבוצות :',
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.normal)),
+                                Text(
+                                    adminController.liveEvents.length
+                                        .toString(),
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.normal)),
+                              ],
+                            ),
+
+                            /// active groups
+                            Row(
+                              //mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(' קבוצות פעילות :',
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.normal)),
+                                Text(
+                                    adminController.liveEvents
+                                        .where((e) =>
+                                            adminController.getGroupStatus(
+                                                e.groupNumber.toString()) !=
+                                            -4)
+                                        .length
+                                        .toString(),
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.normal)),
+                              ],
+                            ),
+
+                            /// groups that are done
+                            Row(
+                              //mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(' קבוצות שסיימו :',
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.normal)),
+                                Text(
+                                    adminController.liveEvents
+                                        .where((e) =>
+                                            adminController.getGroupStatus(
+                                                e.groupNumber.toString()) ==
+                                            -4)
+                                        .length
+                                        .toString(),
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.normal)),
+                              ],
+                            ),
+                          ],
+                        );
+                      }),
                     ),
                     SizedBox(
                       height: 30,
@@ -161,7 +199,7 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
                             minWidth:
-                            availableWidth), // ✅ Prevents horizontal overflow
+                                availableWidth), // ✅ Prevents horizontal overflow
                         child: Align(
                           alignment: Alignment.center,
                           child: SingleChildScrollView(
@@ -169,8 +207,8 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
                                 .horizontal, // ✅ Allows scrolling if content overflows
                             child: DataTable(
                               columnSpacing: 10.0,
-                              border:
-                              TableBorder.all(width: 2.0, color: Colors.black26),
+                              border: TableBorder.all(
+                                  width: 2.0, color: Colors.black26),
                               columns: [
                                 DataColumn(
                                     label: SizedBox(
@@ -213,20 +251,25 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
                                 return DataRow(cells: [
                                   DataCell(SizedBox(
                                       width: col1Width,
-                                      child: Text(event.groupNumber.toString()))),
+                                      child:
+                                          Text(event.groupNumber.toString()))),
                                   DataCell(SizedBox(
                                       width: col2Width,
-                                      child: Text(adminController
-                                          .getInstructorName(event.instructorId)))),
+                                      child: Text(
+                                          adminController.getInstructorName(
+                                              event.instructorId)))),
                                   DataCell(SizedBox(
                                       width: isTablet ? 300 : null,
-                                      child: Obx(() =>
-                                      adminController.isDownloadingLiveEvents.value
+                                      child: Obx(() => adminController
+                                              .isDownloadingLiveEvents.value
                                           ? Text('')
                                           : isTablet
-                                          ? TabletGroupStatusBar(event: event)
-                                          : Text(adminController.getGroupStatus(
-                                          event.groupNumber.toString()))))),
+                                              ? TabletGroupStatusBar(
+                                                  event: event)
+                                              : Text(adminController
+                                                  .getGroupStatus(event
+                                                      .groupNumber
+                                                      .toString()))))),
                                   DataCell(
                                     SizedBox(
                                       width: col4Width,
@@ -234,21 +277,16 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
                                         event.finalized
                                             ? Icons.check_circle
                                             : Icons.cancel,
-                                        color:
-                                        event.finalized ? Colors.green : Colors.red,
+                                        color: event.finalized
+                                            ? Colors.green
+                                            : Colors.red,
                                       ),
                                     ),
                                   ),
                                   DataCell(
                                     SizedBox(
                                       width: col5Width,
-                                      child: Obx(() => adminController
-                                          .instructorIsDownloading[
-                                      event.instructorId] ??
-                                          false
-                                          ? LinearProgressIndicator()
-                                          : Text(
-                                          ' לפני ${adminController.getMinutesPassedSinceUpdate(event.instructorId)} דקות ')),
+                                      child: Obx(()=> LastUpdateWidget(lastUpdate: event.lastUpdate!, now: adminController.now.value))
                                     ),
                                   ),
                                 ]);

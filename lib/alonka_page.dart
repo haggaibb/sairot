@@ -105,7 +105,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
                               )
                           );
                           _.loading.value = false;
-                          _.currentEvent.value.save();
+                          _.currentEvent.value.saveToFirestore();
                         //})
                       },
                       child: Text(
@@ -124,7 +124,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
                           _.currentEvent.value.alonkaEndTime = DateTime.now();
                         });
                         _timer.cancel();
-                        await eventController.currentEvent.value.save();
+                        await eventController.currentEvent.value.saveToFirestore();
                       },
                       //eventController.currentEvent.value.save();
                       child: Text('סיום התרגיל'))

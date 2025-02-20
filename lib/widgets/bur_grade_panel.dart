@@ -68,7 +68,7 @@ class _BurGradePanelState extends State<BurGradePanel> {
                         });
                         eventController.currentEvent.value
                             .burGrades[burIndex] = widget.bur;
-                        await eventController.currentEvent.value.save();
+                        await eventController.currentEvent.value.saveToFirestore();
                       },
                     );
                   }).toList(),
@@ -106,7 +106,7 @@ class _BurGradePanelState extends State<BurGradePanel> {
                           widget.bur.burGrade = double.parse(val);
                           eventController.currentEvent.value
                               .burGrades[burIndex] = widget.bur;
-                          await eventController.currentEvent.value.save();
+                          await eventController.currentEvent.value.saveToFirestore();
                           eventController.update();
                           eventController.loading.value = false;
                         },

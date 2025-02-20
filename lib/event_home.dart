@@ -14,20 +14,14 @@ class EventHome extends StatefulWidget {
 
 class _EventHomeState extends State<EventHome> {
   final eventController = Get.put(Controller());
-  final connectivityController = Get.put(ConnectivityController());
 
   @override
   void initState() {
-    if (!eventController.currentEvent.value.finalized) {
-      connectivityController.startLiveEventUpdating();
-    }
     super.initState();
   }
 
   @override
   void dispose() {
-    connectivityController.stopLiveEventUpdating(); // ✅ Cancel the timer when leaving the screen
-    print("🚫 Timer canceled!");
     super.dispose();
   }
 
@@ -102,41 +96,18 @@ class _EventHomeState extends State<EventHome> {
                             eventController.loading.value = true;
                             eventController.currentEvent.value.finalized = true;
                             eventController.currentEvent.refresh();
-                            //await eventController.loadTodayEvent();
-                            if (eventController.isConnected.value) {
-                              eventController.currentEvent.value.isBackedUp =
-                                  true;
-                              await eventController.currentEvent.value.save();
-                              var res = await eventController.hiveStorage
-                                  .backupHiveToFirebase(
-                                      eventController.currentEventName,
-                                      eventController.currentEvent.value.date,
-                                      eventController
-                                          .currentEvent.value.instructorId);
-                              if (res) {
-                                showCustomMessageAlert(
-                                    context,
-                                    "הצלחה",
-                                    "הארוע נסגר בהצלחה וגובה לרשת",
-                                    Icons.check);
-                              } else {
-                                eventController.currentEvent.value.isBackedUp =
-                                    false;
-                                await eventController.currentEvent.value.save();
-                              }
-                            } else {
-                              showCustomMessageAlert(
-                                  context,
-                                  "שים לב",
-                                  "הארוע נסגר בהצלחה! אבל לא ניתן היה לבצע גיבוי כי לא נמצא חיבור לרשת. יש לגבות מהתפריט הראשי שיש חיבור לרשת",
-                                  Icons.error);
+                            if(await eventController.currentEvent.value.saveToFirestore()) {
+                              showCustomMessageAlert(context, "הצלחה",
+                                  "הארוע נסגר בהצלחה", Icons.check);
                             }
-                            eventController.loading.value = false;
-                            //Navigator.pop(context);
+                          } else {
+
                           }
-                        } else {
+                          eventController.loading.value = false;
+                          }
+                        else {
                           showCustomMessageAlert(context, "תקלה",
-                              "לא ניתנו ציונים סופיים לכולם", Icons.error);
+                              "לא ניתנו ציונים סופיים", Icons.check);
                         }
                       },
                     )),
@@ -169,10 +140,7 @@ class _EventHomeState extends State<EventHome> {
                 ),
                 onTap: () async {
                   if (!eventController.currentEvent.value.finalized)
-                    await eventController.currentEvent.value.save();
-                  //connectivityController.stopLiveEventUpdating();
-                  //Get.back();
-                  //Get.back();
+                    eventController.currentEvent.value.saveToFirestore();
                   Get.toNamed('/home');
                 },
               ),
@@ -222,43 +190,42 @@ class _EventHomeState extends State<EventHome> {
                     Padding(
                       padding: const EdgeInsets.all(15.0),
                       child: ElevatedButton(
-                            style: ButtonStyle(
-                                shape: MaterialStateProperty.all<
-                                        RoundedRectangleBorder>(
-                                    RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(70.0),
-                                        side: BorderSide(
-                                            width: 5,
-                                            color: eventController
-                                                        .currentEvent
-                                                        .value
-                                                        .meshulashStartTime ==
-                                                    null
-                                                ? Colors.black
-                                                : eventController
-                                                            .currentEvent
-                                                            .value
-                                                            .meshulashEndTime ==
-                                                        null
-                                                    ? Colors.red
-                                                    : Colors.green)))),
-                            onPressed: () => {Get.toNamed('/meshulash')},
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Image.asset(
-                                  'images/meeshulash.png',
-                                  scale: 5,
-                                ),
-                                const Text('משולש',
-                                    style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold)),
-                              ],
-                            ))
-                      ,
+                          style: ButtonStyle(
+                              shape: MaterialStateProperty.all<
+                                      RoundedRectangleBorder>(
+                                  RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(70.0),
+                                      side: BorderSide(
+                                          width: 5,
+                                          color: eventController
+                                                      .currentEvent
+                                                      .value
+                                                      .meshulashStartTime ==
+                                                  null
+                                              ? Colors.black
+                                              : eventController
+                                                          .currentEvent
+                                                          .value
+                                                          .meshulashEndTime ==
+                                                      null
+                                                  ? Colors.red
+                                                  : Colors.green)))),
+                          onPressed: () => {Get.toNamed('/meshulash')},
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Image.asset(
+                                'images/meeshulash.png',
+                                scale: 5,
+                              ),
+                              const Text('משולש',
+                                  style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold)),
+                            ],
+                          )),
                     ),
+
                     /// Sakim
                     Padding(
                       padding: const EdgeInsets.all(15.0),

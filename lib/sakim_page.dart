@@ -112,7 +112,7 @@ class _SakimPageState extends State<SakimPage> {
                                               _timer.cancel();
                                               _.sakimEditModeOn.value = false;
                                               editModeOn = _.sakimEditModeOn.value;
-                                              eventController.currentEvent.value.save();
+                                              eventController.currentEvent.value.saveToFirestore();
                                             });
                                           },
                                           //eventController.currentEvent.value.save();
@@ -125,7 +125,7 @@ class _SakimPageState extends State<SakimPage> {
                                             if (editModeOn) {
                                               ///save
                                               eventController.currentEvent.value
-                                                  .save();
+                                                  .saveToFirestore();
                                             } else {}
                                             _.sakimEditModeOn.value =
                                                 !_.sakimEditModeOn.value;
@@ -171,7 +171,7 @@ class _SakimPageState extends State<SakimPage> {
                                           .map((participant) => participant.number)
                                           .toList()));
                                 });
-                                await _.currentEvent.value.save();
+                                await _.currentEvent.value.saveToFirestore();
                               },
                               child: const Text(
                                 'תחילת תרגיל',

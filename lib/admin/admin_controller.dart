@@ -1,15 +1,11 @@
 import 'package:get/get.dart';
-import 'package:hive/hive.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:sairot/performance_page.dart';
-import 'dart:io';
 import '../models/instructor.dart';
 import '../models/event.dart';
 import '../models/admin_event.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
-
+import '../ctx.dart';
 
 class AdminController extends GetxController {
   var isLoading = false.obs; // Tracks live event download progress
@@ -18,8 +14,7 @@ class AdminController extends GetxController {
   var instructorFiles =
       <String, List<String>>{}.obs; // Map: Day -> Instructor Files
   var groupNumbers = <String, List<String>>{}.obs; // Map: Day -> Group Numbers
-  var groupNumberToInstructor =
-      <String, String>{}.obs; // Map: groupNumber -> InstructorIs
+  var groupNumberToInstructor = <String, String>{}.obs; // Map: groupNumber -> InstructorIs
   var selectedEvent = RxnString();
   var selectedDay = RxnString();
   var selectedGroup = RxnString();
@@ -28,10 +23,12 @@ class AdminController extends GetxController {
   var isDownloadingGeneralReport = false.obs;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   List<Instructor> allInstructors = [];
-  Box<AdminEvent>? adminEventsBox;
   AdminEvent adminEvent = AdminEvent(name: 'NA');
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   var isInstructorMode = true.obs; // 👈 New toggle switch state
+  Event pastEvent = Event(date: '', instructorId: '', eventName: '');
+  final eventController = Get.put(Controller());
+
 
 
   /// live event
@@ -41,25 +38,31 @@ class AdminController extends GetxController {
   var activeLiveDayEvent = '';
   var currentEventName;
   List<Instructor> instructorList = [];
-  var instructorIdToTimestamp = <String, DateTime>{}.obs; // Map: groupNumber -> InstructorIs
-  var instructorIsDownloading = <String, bool>{}.obs; // Map: groupNumber -> InstructorIs
+  var instructorIdToTimestamp =
+      <String, DateTime>{}.obs; // Map: groupNumber -> InstructorIs
+  var instructorIsDownloading =
+      <String, bool>{}.obs; // Map: groupNumber -> InstructorIs
   Timer? periodicTimer; // Timer for periodic internet checks
+  StreamSubscription? _eventSubscription;
+  Rx<DateTime> now = DateTime.now().obs;
 
   @override
   void onInit() async {
     //isDownloading.value = true;
-    await fetchEventData();
+    await fetchEventsNames();
     await getUpdatedInstructorsList();
     print('done init admin');
     //isDownloading.value = false;
     super.onInit();
   }
+
   /// 🚀 Automatically stops the timer when the controller is destroyed
   @override
   void onClose() {
-    periodicTimer?.cancel();
+    stopLiveListener();
     super.onClose();
   }
+
   /// go over all , it is a mess, function names and duplicate work?
 
   void toggleDropdownMode(bool value) {
@@ -67,315 +70,241 @@ class AdminController extends GetxController {
     selectedInstructor.value = null; // Reset selection when switching modes
     selectedGroup.value = null;
   }
+  getCurrentEventName() async {
+    DocumentSnapshot<Map<String, dynamic>> doc =
+    await firestore.collection('System').doc('config').get();
+    Map<String, dynamic>? docData = doc.data(); // Ensuring correct casting
+    currentEventName = docData?['current_event'] ?? 'NA';
+  }
 
-  /// 📂 Fetch Events from Firebase Storage
-  Future<void> fetchEventData() async {
+
+  /// Past Events
+  ///
+  /// 📂 Fetch Main Event list from firebase Where Current Instructor Has Data for dropdown
+  Future<void> fetchEventsNames() async {
     isDownloading.value = true;
     try {
-      ListResult eventList = await _storage.ref('hive').listAll();
-      for (var eventRef in eventList.prefixes) {
-        String eventName = eventRef.name;
-        events.add(eventName);
-        // Fetch Days inside each event folder
-        ListResult dayList = await _storage.ref('hive/$eventName').listAll();
-        List<String> dayFolders =
-            dayList.prefixes.map((dayRef) => dayRef.name).toList();
-        eventDays[eventName] = dayFolders;
+      QuerySnapshot eventsSnapshot =
+          await firestore.collection('AdminIndex').get();
+      if (eventsSnapshot.docs.isNotEmpty) {
+        events.value = eventsSnapshot.docs.map((doc) => doc.id).toList();
+        print("📂 Got events");
+      } else {
+        print('No Main Events Found');
       }
-      print('done with list of events');
-      isDownloading.value = false;
     } catch (e) {
-      print("❌ Error fetching event data: $e");
-      isDownloading.value = false;
+      print('Error fetching events: $e');
+    }
+    //events.assignAll(instructorEvents.toList());
+    isDownloading.value = false;
+  }
+  /// 📅 Fetch Available Days for Selected Event
+  Future<void> fetchEventDays(String eventName) async {
+    isDownloading.value = true;
+    try {
+      QuerySnapshot daysSnapshot = await firestore
+          .collection('AdminIndex')
+          .doc(eventName)
+          .collection('days')
+          .get();
+      if (daysSnapshot.docs.isNotEmpty) {
+        eventDays[eventName] = daysSnapshot.docs.map((doc) => doc.id).toList();
+      } else {
+        print('No Days for Event Found');
+      }
+    } catch (e) {
+      print('Error fetching events: $e');
     }
     isDownloading.value = false;
   }
-
-  /// 📅 Fetch Instructor Files for a Specific Event & Day
-  Future<void> fetchInstructorFiles(String eventName, String day) async {
+  /// 📅 Fetch Instructors for an Event
+  Future<void> fetchInstructorsForEvent(String eventName, String day) async {
+    isDownloading.value = true;
     try {
-      ListResult instructorList =
-          await _storage.ref('hive/$eventName/$day').listAll();
-      List<String> instructorFileIds = instructorList.items
-          .map((item) => item.name.split('.').first)
-          .toList();
-      instructorFiles[day] = instructorFileIds;
-    } catch (e) {
-      print("❌ Error fetching instructor files: $e");
-    }
-  }
-
-  /// 📥 Download Hive Box from Firebase Storage
-  Future<void> fetchInstructorDays(
-      String eventName, String day, String instructorId) async {
-    try {
-      isDownloading.value = true;
-      final dir = await getApplicationDocumentsDirectory();
-      final eventDir = Directory(
-          '${dir.path}/hive/admin/$eventName/$day'); // 📂 Correct full path
-      final localFilePath = '${eventDir.path}/$instructorId.hive';
-// ✅ Ensure directory exists before downloading
-      if (!eventDir.existsSync()) {
-        eventDir.createSync(recursive: true);
-      }
-      File localFile = File(localFilePath);
-      // ✅ Download only if it doesn't exist
-      if (!localFile.existsSync()) {
-        print("📥 Downloading Hive Box for Instructor: $instructorId...");
-        print('hive/$eventName/$day/$instructorId.hive');
-        await _storage
-            .ref('hive/$eventName/$day/$instructorId.hive')
-            .writeToFile(localFile);
-        print("✅ Download completedd: $localFilePath");
+      DocumentSnapshot daySnapshot = await firestore
+          .collection('AdminIndex')
+          .doc(eventName)
+          .collection('days')
+          .doc(day)
+          .get();
+      if (daySnapshot.exists) {
+        Map<String, dynamic> dayData = daySnapshot.data() as Map<String, dynamic>;
+        instructorFiles[day] = List<String>.from(dayData['instructors'] ?? []);
       } else {
-        print("📂 Hive file already exists: $localFilePath");
+        print('No Days for Event Found');
       }
-
-      // ✅ Open Hive Box and extract event
-      Box<Event> instructorBox = await Hive.openBox<Event>(instructorId,
-          path: '${dir.path}/hive/admin/$eventName/$day');
-      Event? event = instructorBox.get(day);
-      if (event != null) {
-        eventController.currentEvent.value = event;
-        adminEvent.eventDays.add(event);
-        print("📅 Extracted Event for $instructorId on $day: ${event.date}");
-      }
-      await instructorBox.close();
     } catch (e) {
-      print("❌ Error fetching instructor days: $e");
-    } finally {
-      isDownloading.value = false;
+      print('Error fetching instructors for day: $e');
     }
+    isDownloading.value = false;
   }
-
-  /// 📅 Fetch Group Numbers for a Specific Event & Day by Reading Hive Files
-  Future<void> fetchGroupNumbers(String eventName, String day) async {
+  /// 📅 Fetch Instructors for an Event
+  Future<void> fetchGroupsForEvent(String eventName, String day) async {
+    isDownloading.value = true;
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final dayDir = Directory('${dir.path}/hive/admin/$eventName/$day');
-
-      print("📂 Checking Group Numbers in: ${dayDir.path}");
-
-      if (!dayDir.existsSync()) {
-        print("❌ No directory found for $eventName on $day.");
-        return;
-      }
-
-      List<String> groupNumbersList = [];
-      for (var file in dayDir
-          .listSync()
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.hive'))) {
-        try {
-          String instructorId = file.uri.pathSegments.last.split('.').first;
-
-          // ✅ Open the Hive Box
-          Box<Event> instructorBox =
-              await Hive.openBox<Event>(instructorId, path: dayDir.path);
-
-          // 🔍 Retrieve event using `day` as the key
-          Event? event = instructorBox.get(day);
-          await instructorBox.close(); // Close box after reading
-
-          if (event != null) {
-            groupNumbersList.add(event.groupNumber.toString());
-            groupNumberToInstructor[event.groupNumber.toString()] =
-                instructorId;
+      DocumentSnapshot daySnapshot = await firestore
+          .collection('AdminIndex')
+          .doc(eventName)
+          .collection('days')
+          .doc(day)
+          .get();
+      if (daySnapshot.exists) {
+        Map<String, dynamic> dayData = daySnapshot.data() as Map<String, dynamic>;
+        instructorFiles[day] = List<String>.from(dayData['instructors'] ?? []);
+        groupNumbers[day] = List<String>.from(dayData['groups'] ?? []);
+        if (dayData['groupsAndInstructors'] != null) {
+          List<dynamic> groups = dayData['groupsAndInstructors'];
+          // 🌟 Transform into Map<String, String>
+          groupNumberToInstructor.clear(); // Clear existing entries before update
+          for (var group in groups) {
+            if (group is Map<String, dynamic> &&
+                group.containsKey('groupNumber') &&
+                group.containsKey('instructorId')) {
+              String groupNumber = group['groupNumber'].toString();
+              String instructorId = group['instructorId'].toString();
+              groupNumberToInstructor[groupNumber] = instructorId;
+            }
           }
-        } catch (e) {
-          print("❌ Error reading Hive file: ${file.path}, Error: $e");
-        }
-      }
-      // ✅ Remove duplicates and update the controller
-      groupNumbers[day] = groupNumbersList.toSet().toList();
-      print('groupNumbers[day]');
-      print(groupNumbers[day]);
-      print(
-          "✅ Fetched Group Numbers for $eventName on $day: ${groupNumbers[day]}");
-    } catch (e) {
-      print("❌ Error fetching group numbers: $e");
-    }
-  }
 
-  /// 🔄 Generate Full Report for an Event
-  Future<void> getAllAdminEventData() async {
+          print("✅ Updated Map: $groupNumberToInstructor");
+        }
+      } else {
+        print('No Days for Event Found');
+      }
+    } catch (e) {
+      print('Error fetching groups for day $e');
+    }
+    isDownloading.value = false;
+  }
+  /// 📅 Fetch Instructors for an Event
+  Future<void> loadEvent(String eventName, String day, String instructorId) async {
+    isDownloading.value = true;
+    try {
+      DocumentSnapshot eventSnapshot = await FirebaseFirestore.instance
+          .collection('Results')
+          .doc(instructorId)
+          .collection('events')
+          .doc(eventName)
+          .collection('days')
+          .doc(day)
+          .get();
+      if (eventSnapshot.exists) {
+        Map<String, dynamic> eventData = eventSnapshot.data() as Map<String, dynamic>;
+        pastEvent = Event.fromJson(eventData);
+        eventController.currentEvent.value = pastEvent;
+      } else {
+        print('No Event Found');
+      }
+    } catch (e) {
+      print('Error fetching event for instructor: $e');
+    }
+    isDownloading.value = false;
+  }
+  ///
+  /// General Event Report
+  Future<void> LoadGeneralEventReport() async {
     if (selectedEvent.value != null) {
       isDownloadingGeneralReport.value = true;
-      String eventName = selectedEvent.value!;
-      List<String>? days = eventDays[eventName];
-
-      if (days != null) {
-        for (var day in days) {
-          await fetchInstructorFiles(eventName, day);
-          List<String>? instructors = instructorFiles[day];
-          if (instructors != null) {
-            for (var instructorId in instructors) {
-              await fetchInstructorDays(eventName, day, instructorId);
+      try {
+        List<String>? days = eventDays[selectedEvent.value];
+        if (days!=null) {
+          for (String day in days) {
+            await fetchInstructorsForEvent(selectedEvent.value!,day);
+            if (instructorFiles[day] != null) {
+              for (String i in instructorFiles[day]!) {
+                DocumentSnapshot eventSnapshot = await FirebaseFirestore.instance
+                    .collection('Results')
+                    .doc(i)
+                    .collection('events')
+                    .doc(selectedEvent.value)
+                    .collection('days')
+                    .doc(day)
+                    .get();
+                if (eventSnapshot.exists) {
+                  Map<String, dynamic> eventData = eventSnapshot.data() as Map<
+                      String,
+                      dynamic>;
+                  adminEvent.eventDays.add(Event.fromJson(eventData));
+                  print('Added an event day to Admin Events');
+                } else {
+                  print('No Event Found');
+                }
+              }
             }
           }
         }
+      } catch (e) {
+        print('Error fetching event for instructor: $e');
       }
       isDownloadingGeneralReport.value = false;
     }
+
   }
 
-
-
-  /// Live Event /////
+  /// Live
   ///
-  ///
-  /// 📥 Fetch & Download Only Updated Live Events for a Given Day in `hive/admin/live/$eventName/$day`
-  Future<void> fetchAndDownloadLiveEvents(String eventName, String day) async {
-/// for debug!!!!
-    day = '17-02-2025';
-    if (liveEvents.isEmpty) isDownloadingLiveEvents.value =true;
-    try {
-      //isDownloadingLiveEvents.value = true;
-      print("🔄 Fetching live events for $eventName on $day from Firebase...");
-
-      // 🔍 Get list of all instructor event files in `hive/admin/live/$eventName/$day/`
-      ListResult result =
-          await _storage.ref('admin/live/$eventName/$day').listAll();
-      print('admin/live/$eventName/$day');
-      if (result.items.isEmpty) {
-        print("⚠️ No live event files found for $eventName on $day.");
-        //isDownloadingLiveEvents.value = false;
-        return;
-      }
-
-      // 📂 Get local storage directory
-      final dir = await getApplicationDocumentsDirectory();
-      final localLiveDir =
-          Directory('${dir.path}/hive/admin/live/$eventName/$day');
-
-      // ✅ Ensure directory exists
-      if (!localLiveDir.existsSync()) {
-        localLiveDir.createSync(recursive: true);
-      }
-
-      // 🔄 Iterate over each instructor event file and check timestamp before downloading
-      for (var fileRef in result.items) {
-        String instructorId = fileRef.name
-            .split('.')
-            .first; // Extract Instructor ID from filename
-        String localFilePath = '${localLiveDir.path}/$instructorId.hive';
-        File localFile = File(localFilePath);
-
-        // 🕒 Get last modified timestamp from Firebase Storage
-        FullMetadata metadata = await fileRef.getMetadata();
-        DateTime? firebaseTimestamp =
-            metadata.updated; // Get the last modified timestamp
-
-        if (firebaseTimestamp == null) {
-          print("❌ No timestamp found for $instructorId.hive, skipping.");
-          continue;
-        }
-        instructorIdToTimestamp[instructorId] = firebaseTimestamp;
-        // 🖥️ Check local file modification date
-        bool shouldDownload = false;
-        DateTime? localFileTimestamp;
-
-        if (localFile.existsSync()) {
-          localFileTimestamp = localFile.lastModifiedSync();
-          print("📂 Local file exists, last modified: $localFileTimestamp");
-          shouldDownload = firebaseTimestamp.isAfter(localFileTimestamp);
-          //print();
-
-        } else {
-          print("📥 No local file found, downloading...");
-          shouldDownload = true;
-        }
-
-        // ⏳ Only download if Firebase file is newer or no file exists
-        if (shouldDownload) {
-          instructorIsDownloading[instructorId] = true;
-          print("📥 Newer file found for Instructor $instructorId! Downloading...");
-          await fileRef.writeToFile(localFile);
-          print("✅ Downloaded: $localFilePath");
-
-          // 🗂️ Open Hive Box, extract event, and update `liveEvents`
-          await processDownloadedEvent(localFilePath, instructorId);
-          instructorIsDownloading[instructorId] = false;
-        } else {
-          print("⏩ Skipping Download of $instructorId.hive, local file is up to date.");
-          bool exists = liveEvents.any((i) => i.instructorId.toString() == instructorId);
-          print('file exists $exists');
-          if (!exists) await processDownloadedEvent(localFilePath, instructorId);
-        }
-      }
-      print(
-          "🎉 All eligible live events for $eventName on $day have been downloaded!");
-    } catch (e) {
-      print("❌ Error fetching live events: $e");
-    } finally {
-      isDownloadingLiveEvents.value = false;
-    }
-  }
-
-  /// 📂 Process Downloaded Event File, Extract Data & **Update `liveEvents`**
-  Future<void> processDownloadedEvent(
-      String filePath, String instructorId) async {
-    try {
-      // 🗂️ Open Hive Box
-      Box<Event> instructorBox = await Hive.openBox<Event>(instructorId,
-          path: File(filePath).parent.path);
-
-      if (instructorBox.isNotEmpty) {
-        Event? event = instructorBox.get(
-            instructorBox.keys.first); // Assuming the first key holds the event
-        if (event != null) {
-          print(
-              "📅 Extracted event for Instructor $instructorId: ${event.eventName} on ${event.date}");
-
-          // 🔄 Check if the event already exists in `liveEvents`
-          int index =
-              liveEvents.indexWhere((e) => e.instructorId == instructorId);
-
-          if (index != -1) {
-            // ✅ Update the existing event
-            liveEvents[index] = event;
-            print("♻️ Updated existing event for Instructor $instructorId.");
-          } else {
-            // 🔥 Insert new event if not found
-            liveEvents.add(event);
-            print("✅ Added new event for Instructor $instructorId.");
+  void startLiveListener(String day) async {
+    await getCurrentEventName(); // Ensure we have the correct event name
+    liveEvents.clear();
+    _eventSubscription = FirebaseFirestore.instance
+        .collection('Results')
+        .snapshots()
+        .listen((snapshot) {
+      print('######### update ########');
+      for (var doc in snapshot.docs) {
+        print('${doc.id} -> $currentEventName -> $day');
+        String instructorId = doc.id; // ✅ Get instructor ID from Firestore
+        FirebaseFirestore.instance
+            .collection('Results')
+            .doc(instructorId)
+            .collection('events')
+            .doc(currentEventName)
+            .collection('days')
+            .doc(day)
+            .snapshots() // ✅ LISTEN for real-time updates on this specific day
+            .listen((eventSnapshot) {
+          if (eventSnapshot.exists) {
+            try {
+              Map<String, dynamic> eventData = eventSnapshot.data()!;
+              Event updatedEvent = Event.fromJson(eventData);
+              int index = liveEvents.indexWhere((e) => e.instructorId == instructorId);
+              if (index != -1) {
+                // ✅ Update existing event in the list
+                liveEvents[index] = updatedEvent;
+                print("✅ Updated Event for ${updatedEvent.instructorId}");
+              } else {
+                // 🆕 Add new event if it doesn't exist
+                liveEvents.add(updatedEvent);
+                print("➕ Added New Event for ${updatedEvent.instructorId}");
+              }
+            } catch (e) {
+              print("❌ Error parsing event: $e");
+            }
           }
-        }
+        }, onError: (e) {
+          print("❌ Error listening to event: $e");
+        });
       }
-
-      // 🔄 Close Hive Box
-      await instructorBox.close();
-    } catch (e) {
-      print("❌ Error processing event file: $e");
-    }
-  }
-
-  /// start live event
-  Future<void> startLiveDayEvent() async {
-    isDownloadingLiveEvents.value = true;
-    DateTime today = DateTime.now();
-    await getCurrentEventName();
-    String formattedToday =
-        "${today.day.toString().padLeft(2, '0')}-${today.month.toString().padLeft(2, '0')}-${today.year}";
-    await fetchAndDownloadLiveEvents(currentEventName, formattedToday);
-    startLiveEventUpdateTimer(10);
-    isDownloadingLiveEvents.value = false;
-  }
-
-  startLiveEventUpdateTimer(int seconds) {
-    print("🕞 Start Live Update Timer...");
-    periodicTimer = Timer.periodic(Duration(seconds: seconds), (Timer timer) async {
-      for (var entry in instructorIdToTimestamp.entries) {
-        print("🕖 Instructor ID: ${entry.key} - 📅 Last Updated: ${entry.value}");
-        Event instructorEvent = liveEvents.firstWhere((i) => i.instructorId.toString() == entry.key);
-        fetchAndDownloadLiveEvents(instructorEvent.eventName, instructorEvent.date);
-      }
+    }, onError: (e) {
+      print("❌ Error listening to Results collection: $e");
     });
+    periodicTimer =
+        Timer.periodic(Duration(seconds: 30), (Timer timer) {
+          now.value = DateTime.now();
+        });
   }
-
-  stopLiveEventUpdateTimer() {
+  // 🔴 Stop Listening
+  void stopLiveListener() {
+    if (_eventSubscription != null) {
+      _eventSubscription!.cancel();
+      print("🛑 Firestore listener stopped.");
+    }
     periodicTimer?.cancel();
   }
+  ///
+  ///
+
+  /// misc
   getGroupStatus(String groupNumber) {
     int meshulashStatus = 0;
     int alonkaStatus = 0;
@@ -393,8 +322,7 @@ class AdminController extends GetxController {
       } else {
         /// not done yet return also calc duration?
         meshulashStatus = 0;
-        return ' משולש -${groupEvent.meshulashRounds.length-1} ';
-
+        return ' משולש -${groupEvent.meshulashRounds.length - 1} ';
       }
     }
     if (groupEvent.alonkaStartTime != null) {
@@ -428,41 +356,17 @@ class AdminController extends GetxController {
         sakimStatus = 0;
         DateTime now = DateTime.now();
         Duration? difference = now.difference(groupEvent.sakimStartTime!);
-        return ' שקים -${(groupEvent.sakimRounds.length-1).toString()}';
+        return ' שקים -${(groupEvent.sakimRounds.length - 1).toString()}';
       }
     }
+
     /// check finished
-    if (meshulashStatus+alonkaStatus+burStatus+sakimStatus==-4) {
+    if (meshulashStatus + alonkaStatus + burStatus + sakimStatus == -4) {
       return 'הסתיים';
-    } else if(meshulashStatus+alonkaStatus+burStatus+sakimStatus==0) {
+    } else if (meshulashStatus + alonkaStatus + burStatus + sakimStatus == 0) {
       return 'לא התחיל';
     }
     return 'מנוחה';
-
-  }
-
-  /// get last update time
-  int getMinutesPassedSinceUpdate(String instructorId) {
-    DateTime now = DateTime.now();
-    DateTime? pastTime = instructorIdToTimestamp[instructorId];
-    if (pastTime != null) {
-      Duration difference = now.difference(pastTime);
-      return difference.inMinutes;
-    } else {
-      return 0;
-    }
-  }
-
-
-
-
-  /// firestore functions
-  ///
-  getCurrentEventName() async {
-    DocumentSnapshot<Map<String, dynamic>> doc =
-        await firestore.collection('System').doc('config').get();
-    Map<String, dynamic>? docData = doc.data(); // Ensuring correct casting
-    currentEventName = docData?['current_event'] ?? 'NA';
   }
   getUpdatedInstructorsList() async {
     try {

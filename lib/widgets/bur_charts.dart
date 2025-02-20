@@ -8,10 +8,6 @@ import 'package:sairot/models/bur.dart';
 class BurCharts extends StatelessWidget {
   final int number;
 
-  //final List<int> participants= [1, 2, 3, 4, 5, 6, 7 , 8, 9, 10, 11, 12]; // Position of a specific participant
-  //final List<int> participantsGrades = [4, 3, 4, 5, 6, 3, 3 , 3, 6, 5, 5, 4]; // Position of a specific participant
-  //final int participantIndex = 3;
-
   BurCharts({super.key, required this.number}); // The round where our participant is currently competing
 
   @override
@@ -31,10 +27,6 @@ class BurCharts extends StatelessWidget {
                   barGroups: participantsGrades.asMap().entries.map((entry) {
                     int index = entry.key;
                     double grade = entry.value.burGrade;
-                    print('-----');
-                    print(index);
-                    print(entry.value.burGrade);
-
                     return BarChartGroupData(
                       x: participantsGrades[index].id,
                       barRods: [
@@ -71,18 +63,11 @@ class BurCharts extends StatelessWidget {
             Container(
               child: Wrap(
                 spacing: 12,
-                children: [
-                  Chip(
-                label: Text('הבין את התרגיל'),
-                  ),
-                  Chip(
-                      label: Text('לוקח אחריות')
-                  ),
-                  Chip(
-                    label: Text('בור יפה'),
-                  )
-
-                ]
+                children:  eventController.currentEvent.value.burGrades.firstWhere((bur)=> bur.id == number).instructorComments.map((comment) {
+                  return Chip(
+                    label: Text(comment),
+                  );
+                }).toList(),
               ),
             ),
           ],

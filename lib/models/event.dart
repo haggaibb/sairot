@@ -1,5 +1,3 @@
-
-import 'package:hive/hive.dart';
 import 'package:sairot/models/grade_settings.dart';
 import 'package:sairot/models/meshulash_round.dart';
 import 'types.dart';
@@ -7,171 +5,271 @@ import 'alonka_sprint.dart';
 import 'participant.dart';
 import 'sakim_round.dart';
 import 'bur.dart';
-part 'event.g.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-@HiveType(typeId: 0)
-class Event extends HiveObject {
-  Event({required this.date, required this.instructorId, required this.eventName});
+class Event {
+  Event({
+    required this.date,
+    required this.instructorId,
+    required this.eventName,
+  });
 
-  @HiveField(0)
   final String date;
-  @HiveField(1)
-  List<AlonkaSprint> alonkaSprints=[];
-  @HiveField(2)
-  List<SakimRound> sakimRounds=[];
-  @HiveField(3)
-  List<MeshulashRound> meshulashRounds=[];
-  @HiveField(4)
-  List<Participant> participants=[];
-  @HiveField(5)
+  List<AlonkaSprint> alonkaSprints = [];
+  List<SakimRound> sakimRounds = [];
+  List<MeshulashRound> meshulashRounds = [];
+  List<Participant> participants = [];
   double ALONKA_CREDIT = 1.0;
-  @HiveField(6)
   double GERIKAN_CREDIT = 0.5;
-  @HiveField(7)
   double RUNNER_CREDIT = 0.2;
-  @HiveField(8)
-  int groupNumber =0;
-  @HiveField(9)
-  String instructorName='';
-  @HiveField(10)
-  List<Participant> activeParticipants=[];
-  @HiveField(11)
-  List<Bur> burGrades=[];
-  @HiveField(20)
+  int groupNumber = 0;
+  String instructorName = '';
+  List<Participant> activeParticipants = [];
+  List<Bur> burGrades = [];
   GradeSettings gradeSettings = GradeSettings();
-  @HiveField(21)
   DateTime? burStartTime;
-  @HiveField(22)
   DateTime? burEndTime;
-  @HiveField(23)
   DateTime? alonkaStartTime;
-  @HiveField(24)
   DateTime? alonkaEndTime;
-  @HiveField(25)
   DateTime? meshulashStartTime;
-  @HiveField(26)
   DateTime? meshulashEndTime;
-  @HiveField(27)
   DateTime? sakimStartTime;
-  @HiveField(28)
   DateTime? sakimEndTime;
-  @HiveField(29)
   final String instructorId;
-  @HiveField(30)
   bool finalized = false;
-  @HiveField(31)
-  bool isBackedUp= false;
-  @HiveField(32)
+  bool isBackedUp = false;
   final String eventName;
+  DateTime? lastUpdate = DateTime.now();
+
+  /// Converts Event object to JSON format for Firestore
+  Map<String, dynamic> toJson() {
+    return {
+      'date': date,
+      'instructorId': instructorId,
+      'eventName': eventName,
+      'alonkaSprints': alonkaSprints.map((e) => e.toJson()).toList(),
+      'sakimRounds': sakimRounds.map((e) => e.toJson()).toList(),
+      'meshulashRounds': meshulashRounds.map((e) => e.toJson()).toList(),
+      'participants': participants.map((e) => e.toJson()).toList(),
+      'ALONKA_CREDIT': ALONKA_CREDIT,
+      'GERIKAN_CREDIT': GERIKAN_CREDIT,
+      'RUNNER_CREDIT': RUNNER_CREDIT,
+      'groupNumber': groupNumber,
+      'instructorName': instructorName,
+      'activeParticipants': activeParticipants.map((e) => e.toJson()).toList(),
+      'burGrades': burGrades.map((e) => e.toJson()).toList(),
+      'gradeSettings': gradeSettings.toJson(),
+      'burStartTime': burStartTime?.toIso8601String(),
+      'burEndTime': burEndTime?.toIso8601String(),
+      'alonkaStartTime': alonkaStartTime?.toIso8601String(),
+      'alonkaEndTime': alonkaEndTime?.toIso8601String(),
+      'meshulashStartTime': meshulashStartTime?.toIso8601String(),
+      'meshulashEndTime': meshulashEndTime?.toIso8601String(),
+      'sakimStartTime': sakimStartTime?.toIso8601String(),
+      'sakimEndTime': sakimEndTime?.toIso8601String(),
+      'finalized': finalized,
+      'isBackedUp': isBackedUp,
+      'lastUpdate' : lastUpdate?.toIso8601String()
+    };
+  }
+
+  /// Converts JSON data from Firestore to an Event object
+  factory Event.fromJson(Map<String, dynamic> json) {
+    return Event(
+      date: json['date'] ?? '',
+      instructorId: json['instructorId'] ?? '',
+      eventName: json['eventName'] ?? '',
+    )
+      ..alonkaSprints = (json['alonkaSprints'] as List<dynamic>?)
+              ?.map((e) => AlonkaSprint.fromJson(e))
+              .toList() ??
+          []
+      ..sakimRounds = (json['sakimRounds'] as List<dynamic>?)
+              ?.map((e) => SakimRound.fromJson(e))
+              .toList() ??
+          []
+      ..meshulashRounds = (json['meshulashRounds'] as List<dynamic>?)
+              ?.map((e) => MeshulashRound.fromJson(e))
+              .toList() ??
+          []
+      ..participants = (json['participants'] as List<dynamic>?)
+              ?.map((e) => Participant.fromJson(e))
+              .toList() ??
+          []
+      ..ALONKA_CREDIT = (json['ALONKA_CREDIT'] ?? 1.0).toDouble()
+      ..GERIKAN_CREDIT = (json['GERIKAN_CREDIT'] ?? 0.5).toDouble()
+      ..RUNNER_CREDIT = (json['RUNNER_CREDIT'] ?? 0.2).toDouble()
+      ..groupNumber = json['groupNumber'] ?? 0
+      ..instructorName = json['instructorName'] ?? ''
+      ..activeParticipants = (json['activeParticipants'] as List<dynamic>?)
+              ?.map((e) => Participant.fromJson(e))
+              .toList() ??
+          []
+      ..burGrades = (json['burGrades'] as List<dynamic>?)
+              ?.map((e) => Bur.fromJson(e))
+              .toList() ??
+          []
+      ..gradeSettings = GradeSettings.fromJson(json['gradeSettings'] ?? {})
+      ..burStartTime = json['burStartTime'] != null
+          ? DateTime.parse(json['burStartTime'])
+          : null
+      ..burEndTime =
+          json['burEndTime'] != null ? DateTime.parse(json['burEndTime']) : null
+      ..alonkaStartTime = json['alonkaStartTime'] != null
+          ? DateTime.parse(json['alonkaStartTime'])
+          : null
+      ..alonkaEndTime = json['alonkaEndTime'] != null
+          ? DateTime.parse(json['alonkaEndTime'])
+          : null
+      ..meshulashStartTime = json['meshulashStartTime'] != null
+          ? DateTime.parse(json['meshulashStartTime'])
+          : null
+      ..meshulashEndTime = json['meshulashEndTime'] != null
+          ? DateTime.parse(json['meshulashEndTime'])
+          : null
+      ..sakimStartTime = json['sakimStartTime'] != null
+          ? DateTime.parse(json['sakimStartTime'])
+          : null
+      ..sakimEndTime = json['sakimEndTime'] != null
+          ? DateTime.parse(json['sakimEndTime'])
+          : null
+      ..finalized = json['finalized'] ?? false
+      ..isBackedUp = json['isBackedUp'] ?? false
+      ..lastUpdate = json['lastUpdate'] != null
+          ? DateTime.parse(json['lastUpdate'])
+          : null;
+  }
+
+  /// Save Event instance to Firestore
+  Future<bool> saveToFirestore() async {
+    print("Try and Save to Firestore: $eventName - $date");
+    try {
+      lastUpdate = DateTime.now();
+      await FirebaseFirestore.instance
+          .collection('Results')
+          .doc(instructorId)
+          .collection('events')
+          .doc(eventName)
+          .collection('days')
+          .doc(date)
+          .set(toJson());
+      print("✅ Event saved successfully: $eventName - $date");
+      return true;
+    } catch (e) {
+      print("❌ Error saving Event to Firestore: $e");
+      return false;
+    }
+  }
+
+  /// Save Event instance to Firestore
+  Future<bool> createFirestoreEvent() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('Results')
+          .doc(instructorId)
+          .collection('events')
+          .doc(eventName)
+          .collection('days')
+          .doc(date)
+          .set(toJson());
+      await FirebaseFirestore.instance.collection('Results')
+          .doc(instructorId)
+          .set({'exists': true}, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('Results')
+          .doc(instructorId)
+          .collection('events')
+          .doc(eventName)
+          .set({'exists': true}, SetOptions(merge: true));
+
+      await FirebaseFirestore.instance
+          .collection('AdminIndex')
+          .doc(eventName)
+          .collection('days')
+          .doc(date)
+          .set({
+        "instructors": FieldValue.arrayUnion([instructorId]),
+        "groups": FieldValue.arrayUnion([groupNumber.toString()]),
+        "groupsAndInstructors": FieldValue.arrayUnion([{
+          'groupNumber': groupNumber.toString(),
+          'instructorId': instructorId.toString()
+        }])
+      }, SetOptions(merge: true));
+      await FirebaseFirestore.instance.collection('AdminIndex')
+          .doc(eventName)
+          .set({'exists': true}, SetOptions(merge: true));
+      print("✅ Event created successfully: $eventName - $date");
+      return true;
+    } catch (e) {
+      print("❌ Error creating Event to Firestore: $e");
+      return false;
+    }
+  }
 
 
   /// Run times
-  getBurRunTime(){
-    if (burStartTime!=null) {
-      DateTime now = burEndTime??DateTime.now();
-      Duration difference =now.difference(burStartTime!);
+  int getBurRunTime() {
+    if (burStartTime != null) {
+      DateTime now = burEndTime ?? DateTime.now();
+      Duration difference = now.difference(burStartTime!);
       return difference.inMinutes;
-    } else {
-      return 0;
     }
+    return 0;
   }
 
-  getAlonkaRunTime(){
-    if (alonkaStartTime!=null) {
-      DateTime now = alonkaEndTime??DateTime.now();
+  int getAlonkaRunTime() {
+    if (alonkaStartTime != null) {
+      DateTime now = alonkaEndTime ?? DateTime.now();
       Duration difference = now.difference(alonkaStartTime!);
       return difference.inMinutes;
-    } else {
-      return 0;
     }
+    return 0;
   }
 
-  getMeshulashRunTime(){
-    if (meshulashStartTime!=null) {
-      DateTime now = meshulashEndTime??DateTime.now();
+  int getMeshulashRunTime() {
+    if (meshulashStartTime != null) {
+      DateTime now = meshulashEndTime ?? DateTime.now();
       Duration difference = now.difference(meshulashStartTime!);
       return difference.inMinutes;
-    } else {
-      return 0;
     }
+    return 0;
   }
 
-  getSakimRunTime(){
-    if (sakimStartTime!=null) {
-      DateTime now = sakimEndTime??DateTime.now();
+  int getSakimRunTime() {
+    if (sakimStartTime != null) {
+      DateTime now = sakimEndTime ?? DateTime.now();
       Duration difference = now.difference(sakimStartTime!);
       return difference.inMinutes;
-    } else {
-      return 0;
     }
+    return 0;
   }
-
-  /// get participants data
-  ///
-  List <Participant> getParticipantsPassedDay(){
-    List<Participant> finishedDay =[];
-    for (Participant participant in participants) {
-      if (participant.status==ParticipantStatus.Active && participant.instructorGrade>=5) finishedDay.add(participant);
-    }
-    return finishedDay;
-  }
-
-  List <Participant> getParticipantsFinishedDay(){
-    List<Participant> finishedDay =[];
-    for (Participant participant in participants) {
-      if (participant.status==ParticipantStatus.Active) finishedDay.add(participant);
-    }
-    return finishedDay;
-  }
-
-  ////
 
   List<Participant> getParticipantsByStatus(ParticipantStatus status) {
     print(participants
-        .where((participant) => participant.status==status)
-        .toList().length);
+        .where((participant) => participant.status == status)
+        .toList()
+        .length);
     return participants
-        .where((participant) => participant.status==status)
+        .where((participant) => participant.status == status)
         .toList();
   }
 
-  addParticipant(String name,int number) {
-    print('ad participant $name');
-    var participantIndex = participants.indexWhere((element) => element.number==name);
-    /// check if new Participant Number
-    if ( participantIndex < 0) {
-      Participant participantToAdd = Participant(name: name, number:number);
-      participantToAdd.fullName = name;
-      participants.add(participantToAdd);
-      print('participant added $name');
-    }
-    else {
-      print('participant already in $name');
-    }
-
-
+  /// Participants management
+  List<Participant> getParticipantsPassedDay() {
+    return participants
+        .where((p) =>
+            p.status == ParticipantStatus.Active && p.instructorGrade >= 5)
+        .toList();
   }
 
-  updateParticipant(String name,int oldValue, colIndex) {
-
-
+  List<Participant> getParticipantsFinishedDay() {
+    return participants
+        .where((p) => p.status == ParticipantStatus.Active)
+        .toList();
   }
 
-
-  getNumberOfParticipantsFinishedDay(){
-    int count = 0;
-    for (Participant participant in participants) {
-      if (participant.status!='Folded') count++;
+  void addParticipant(String name, int number) {
+    if (!participants.any((p) => p.number == number)) {
+      participants.add(Participant(name: name, number: number));
     }
-    return count;
   }
-
-  getNumberOfParticipantsPassedDay(){
-    int count = 0;
-    for (Participant participant in participants) {
-      if (participant.instructorGrade>=5) count++;
-    }
-    return count;
-  }
-
 }

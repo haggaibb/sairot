@@ -16,25 +16,15 @@ class SystemAdapter extends TypeAdapter<System> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return System()
-      ..loggedIn = fields[0] as String
-      ..instructors = (fields[1] as List).cast<Instructor>()
-      ..gradeSettings = fields[2] as GradeSettings
-      ..systemSettings = fields[3] as SystemSettings;
+    return System()..loggedIn = fields[0] as String;
   }
 
   @override
   void write(BinaryWriter writer, System obj) {
     writer
-      ..writeByte(4)
-      ..writeByte(0)
-      ..write(obj.loggedIn)
       ..writeByte(1)
-      ..write(obj.instructors)
-      ..writeByte(2)
-      ..write(obj.gradeSettings)
-      ..writeByte(3)
-      ..write(obj.systemSettings);
+      ..writeByte(0)
+      ..write(obj.loggedIn);
   }
 
   @override

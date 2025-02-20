@@ -111,7 +111,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                                   DateTime.now();
                                             });
                                             await eventController.currentEvent.value
-                                                .save();
+                                                .saveToFirestore();
                                             _timer.cancel();
                                             _.meshulashEditModeOn.value = false;
                                             editModeOn =
@@ -126,7 +126,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                             if (editModeOn) {
                                               ///save
                                               await eventController.currentEvent.value
-                                                  .save();
+                                                  .saveToFirestore();
                                             } else {}
                                             _.meshulashEditModeOn.value =
                                                 !_.meshulashEditModeOn.value;
@@ -180,7 +180,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                         .toList()));
                             eventController.loading.value = false;
                           });
-                          _.currentEvent.value.save();
+                          _.currentEvent.value.saveToFirestore();
                         },
                         child: const Text(
                           'תחילת תרגיל',

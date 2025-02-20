@@ -137,7 +137,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                           widget.round.activeParticipants=[];
                         });
                         eventController.currentEvent.value.alonkaSprints[widget.round.round]=widget.round;
-                        await eventController.currentEvent.value.save();
+                        await eventController.currentEvent.value.saveToFirestore();
                         eventController.loading.value = false;
                       },
                       child: Text('סיים')),

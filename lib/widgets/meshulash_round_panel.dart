@@ -50,7 +50,7 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                     style: ElevatedButton.styleFrom(
                                       fixedSize: const Size(10, 20),
                                     ),
-                                    onPressed: () async {
+                                    onPressed: () {
                                       if (eventController.meshulashEditModeOn.value) {
                                         eventController.loading.value = true;
                                         if (eventController.currentEvent.value.meshulashRounds.length == widget.round.round+1) {
@@ -66,13 +66,12 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                           eventController.currentEvent.value.meshulashRounds[widget.round.round+1].participantsInRound
                                               .add(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
                                           eventController.setParticipantMeshulashPosition(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index], eventController.currentEvent.value.meshulashRounds[widget.round.round+1].participantsInRound.length);
-
                                         }
                                         eventController.currentEvent.value.meshulashRounds[widget.round.round] = widget.round;
-                                        await eventController.currentEvent.value.save();
+                                        widget.round.participantsInRound.remove(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
                                         eventController.update();
+                                        eventController.currentEvent.value.saveToFirestore();
                                         //setState(() {
-                                          widget.round.participantsInRound.remove(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
                                         //});
                                         eventController.loading.value = false;
                                       }

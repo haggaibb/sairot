@@ -1,22 +1,29 @@
-import 'package:hive/hive.dart';
 import '../models/types.dart';
-part 'sakim_round.g.dart';
 
-
-@HiveType(typeId: 5)
-class SakimRound extends HiveObject {
+class SakimRound {
   SakimRound({required this.round, required this.participantsInRound});
 
-  @HiveField(0)
   final int round;
-
-  @HiveField(1)
   List<int> participantsInRound;
 
+  /// Convert SakimRound to JSON format for Firestore
+  Map<String, dynamic> toJson() {
+    return {
+      'round': round,
+      'participantsInRound': participantsInRound,
+    };
+  }
+
+  /// Create an instance of SakimRound from JSON
+  factory SakimRound.fromJson(Map<String, dynamic> json) {
+    return SakimRound(
+      round: json['round'] ?? 0,
+      participantsInRound: List<int>.from(json['participantsInRound'] ?? []),
+    );
+  }
 
   @override
   String toString() {
     return '$round';
   }
-
 }

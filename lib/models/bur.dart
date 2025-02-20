@@ -1,24 +1,50 @@
-import 'package:hive/hive.dart';
-import '../models/types.dart';
-part 'bur.g.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-
-@HiveType(typeId: 7)
-class Bur extends HiveObject {
+class Bur {
   Bur({required this.id});
 
-  @HiveField(0)
   final int id;
+  double burGrade = 0;
+  List<String> instructorComments = [];
 
-  @HiveField(1)
-  double burGrade=0;
+  /// Convert Bur to JSON format for Firestore
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'burGrade': burGrade,
+      'instructorComments': instructorComments,
+    };
+  }
 
-  @HiveField(2)
-  List<String> instructorComments=[];
+  /// Create an instance of Bur from JSON
+  factory Bur.fromJson(Map<String, dynamic> json) {
+    return Bur(id: json['id'] ?? 0)
+      ..burGrade = (json['burGrade'] ?? 0).toDouble()
+      ..instructorComments = List<String>.from(json['instructorComments'] ?? []);
+  }
+
+  /// Save Bur instance to Firestore
+  Future<void> saveToFirestore(String eventName, String day, String instructorId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('Events')
+          .doc(eventName)
+          .collection('days')
+          .doc(day)
+          .collection('instructors_data')
+          .doc(instructorId)
+          .collection('burGrades') // Nested collection for Bur grades
+          .doc(id.toString()) // Using ID as document name
+          .set(toJson());
+      print("✅ Bur saved successfully: $id");
+    } catch (e) {
+      print("❌ Error saving Bur to Firestore: $e");
+    }
+  }
+
 
   @override
   String toString() {
     return '$id';
   }
-
 }

@@ -234,7 +234,7 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                           } else {
                             print('event settings update');
                             eventController.currentEvent.value = thisEvent;
-                            await eventController.currentEvent.value.save();
+                            await eventController.currentEvent.value.saveToFirestore();
                           }
                           eventController.loading.value = false;
                           Get.back();
