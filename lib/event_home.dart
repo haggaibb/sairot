@@ -180,10 +180,10 @@ class _EventHomeState extends State<EventHome> {
                 return CircularProgressIndicator();
               }
               return SizedBox(
-                height: 450,
+                height: 550,
                 width: 400,
                 child: GridView.count(
-                  childAspectRatio: 1,
+                  childAspectRatio: 1.1,
                   crossAxisCount: 2,
                   children: [
                     /// Meshulash
@@ -225,7 +225,6 @@ class _EventHomeState extends State<EventHome> {
                             ],
                           )),
                     ),
-
                     /// Sakim
                     Padding(
                       padding: const EdgeInsets.all(15.0),
@@ -262,6 +261,7 @@ class _EventHomeState extends State<EventHome> {
                             ],
                           )),
                     ),
+                    /// Bur
                     Padding(
                       padding: const EdgeInsets.all(15.0),
                       child: ElevatedButton(
@@ -296,11 +296,12 @@ class _EventHomeState extends State<EventHome> {
                             ],
                           )),
                     ),
+                    /// Alonka
                     Padding(
                       padding: const EdgeInsets.all(15.0),
                       child: ElevatedButton(
                           style: ButtonStyle(
-                              shape: MaterialStateProperty.all<
+                              shape: WidgetStateProperty.all<
                                       RoundedRectangleBorder>(
                                   RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(70.0),
@@ -334,6 +335,74 @@ class _EventHomeState extends State<EventHome> {
                                   style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold)),
+                            ],
+                          )),
+                    ),
+                    /// Leadership
+                    Padding(
+                      padding: const EdgeInsets.all(15.0),
+                      child: ElevatedButton(
+                          style: ButtonStyle(
+                              shape: WidgetStateProperty.all<
+                                  RoundedRectangleBorder>(
+                                  RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(70.0),
+                                      side: BorderSide(
+                                          width: 5,
+                                          color: eventController.getLeadershipStatus())))),
+                          onPressed: () => {Get.toNamed('/leadership')},
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Icon(
+                                    color: Colors.black,
+                                    size: 80,
+                                    Icons.star
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: const Text('מנהיגות',
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          )),
+                    ),
+                    /// interview
+                    Padding(
+                      padding: const EdgeInsets.all(15.0),
+                      child: ElevatedButton(
+                          style: ButtonStyle(
+                              shape: WidgetStateProperty.all<
+                                  RoundedRectangleBorder>(
+                                  RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(70.0),
+                                      side: BorderSide(
+                                          width: 5,
+                                          color: eventController.getInterviewStatus())))),
+                          onPressed: () => {Get.toNamed('/interview')},
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Icon(
+                                    color: Colors.black,
+                                    size: 70,
+                                    Icons.note_alt_sharp
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: const Text('ראיון אישי',
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold)),
+                              ),
                             ],
                           )),
                     ),

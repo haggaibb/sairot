@@ -10,6 +10,9 @@ class TabletGroupStatusBar extends StatelessWidget {
   Color alonkaColor = Colors.black;
   Color burColor = Colors.black;
   Color sakimColor = Colors.black;
+  Color leadershipColor = Colors.black;
+  Color interviewColor = Colors.black;
+
 
   Widget build(BuildContext context) {
     if (event.meshulashStartTime != null) {
@@ -48,6 +51,35 @@ class TabletGroupStatusBar extends StatelessWidget {
         sakimColor = Colors.red;
       }
     }
+
+    if (event.getLeadershipStatus() == -1) {
+      leadershipColor = Colors.green;
+      /// done
+    }
+    else if (event.getLeadershipStatus() == 1) {
+      /// not done yet return also calc duration?
+      leadershipColor = Colors.red;
+      }
+    else {
+        /// not done yet return also calc duration?
+      leadershipColor = Colors.black;
+      }
+    /// Interview
+    if (event.getInterviewStatus() == -1) {
+
+      interviewColor = Colors.green;
+      /// done
+    }
+    else if (event.getInterviewStatus() == 1) {
+      /// not done yet return also calc duration?
+      interviewColor = Colors.red;
+    }
+    else {
+      /// not done yet return also calc duration?
+      interviewColor = Colors.black;
+    }
+
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
@@ -159,6 +191,39 @@ class TabletGroupStatusBar extends StatelessWidget {
                     ),
                   ),
                 )
+              : SizedBox.shrink(),
+        ]),
+        /// leadership
+        Stack(children: [
+          IconButton(
+            icon: Icon(Icons.star, color: leadershipColor,), // ✅ Use the image as an icon
+            iconSize: 35, // Adjust size
+            onPressed: () {},
+          ),
+          // 🔹 Transparent Number Overlay
+        ]),
+        /// interview
+        Stack(children: [
+          IconButton(
+            icon: Icon(Icons.note_alt_sharp, color: interviewColor,), // ✅ Use the image as an icon
+            iconSize: 30, // Adjust size
+            onPressed: () {},
+          ),
+          // 🔹 Transparent Number Overlay
+          interviewColor == Colors.red
+              ? Positioned(
+            top: 5, // Adjust position
+            right: 5,
+            child: Container(
+              padding: EdgeInsets.all(5),
+              child: Text('##', // Change this dynamically
+                style: TextStyle(
+                    color: Colors.black, // ✅ Text color
+                    fontWeight: FontWeight.bold,
+                    fontSize: 26),
+              ),
+            ),
+          )
               : SizedBox.shrink(),
         ]),
       ],

@@ -1,7 +1,4 @@
 import 'package:hive/hive.dart';
-import 'grade_settings.dart';
-import 'instructor.dart';
-import 'system_settings.dart';
 part 'system.g.dart';
 
 

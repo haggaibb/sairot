@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:sairot/models/event.dart';
 import 'color_schemes.g.dart';
 import 'ctx.dart';
 import 'event_settings_page.dart';
@@ -20,6 +21,10 @@ import 'widgets/yes_no.dart';
 import 'admin/admin_home.dart';
 import 'admin/admin_event_report_page.dart';
 import 'admin/admin_live_event_page.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'interview_page.dart';
+import 'leadership_page.dart';
+
 //import '../connectivity_controller.dart';
 
 void main() async {
@@ -29,6 +34,16 @@ void main() async {
   SystemChrome.setPreferredOrientations(
           [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown])
       .then((_) => runApp(GetMaterialApp(
+    locale: const Locale('he', 'IL'), // Set Hebrew Locale
+    supportedLocales: const [
+      Locale('he', 'IL'), // Hebrew
+      Locale('en', 'US'), // English (optional)
+    ],
+    localizationsDelegates: const [
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
             debugShowCheckedModeBanner: false,
             title: 'ימי סיירות',
             initialRoute: '/front_door',
@@ -94,6 +109,14 @@ void main() async {
               GetPage(
                 name: '/admin_live_event_page',
                 page: () => AdminLiveEventPage(),
+              ),
+              GetPage(
+                name: '/leadership',
+                page: () => LeadershipPage(),
+              ),
+              GetPage(
+                name: '/interview',
+                page: () => InterviewPage(),
               ),
             ],
           )));
@@ -256,6 +279,7 @@ class _HomeState extends State<Home> {
                           context: context,
                           initialDate: DateTime.now(), //get today's date
                           firstDate: DateTime.now(),
+                          locale: const Locale('he', 'IL'),
                           lastDate: DateTime(2101));
                       if (pickedDate != null) {
                         String formattedDate =
@@ -375,6 +399,7 @@ class _HomeState extends State<Home> {
                                                 }
                                                 eventController.loading.value =
                                                     false;
+                                                eventController.currentEvent.value = Event(date: '', instructorId: '', eventName: '');
                                                 eventController
                                                     .unfinalizedLoading
                                                     .value = false;

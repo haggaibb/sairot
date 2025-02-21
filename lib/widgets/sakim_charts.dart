@@ -30,81 +30,107 @@ class SakimCharts extends StatelessWidget {
       //appBar: AppBar(title: Text("Participant Progress Chart")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// Bar Chart - Total Participants in Each Round
-            BarChart(
-              BarChartData(
-                barGroups: rounds.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  int round = entry.value;
-                  bool isCurrentRound = round == currentRound;
-                  return BarChartGroupData(
-                    x: round,
-                    barRods: [
-                      BarChartRodData(
-                        toY: participantCounts[index].toDouble(),
-                        color: isCurrentRound ? Colors.green : Colors.blue, // Highlight the current round
-                        width: 20,
+            Expanded(
+              child: Stack(
+                children: [
+                  /// Bar Chart - Total Participants in Each Round
+                  BarChart(
+                    BarChartData(
+                      barGroups: rounds.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        int round = entry.value;
+                        bool isCurrentRound = round == currentRound;
+                        return BarChartGroupData(
+                          x: round,
+                          barRods: [
+                            BarChartRodData(
+                              toY: participantCounts[index].toDouble(),
+                              color: isCurrentRound ? Colors.green : Colors.blue, // Highlight the current round
+                              width: 20,
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                      titlesData: FlTitlesData(
+                        rightTitles:  AxisTitles(
+                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                        ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                        ),
+                        // bottomTitles: AxisTitles(
+                        //   sideTitles: SideTitles(showTitles: false), // Disable X-axis titles on BarChart
+                        // ),
                       ),
-                    ],
-                  );
-                }).toList(),
-                titlesData: FlTitlesData(
-                  rightTitles:  AxisTitles(
-                    sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                      gridData: FlGridData(show: false),
+                      borderData: FlBorderData(show: false),
+                    ),
                   ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
-                  ),
-                  // bottomTitles: AxisTitles(
-                  //   sideTitles: SideTitles(showTitles: false), // Disable X-axis titles on BarChart
-                  // ),
-                ),
-                gridData: FlGridData(show: false),
-                borderData: FlBorderData(show: false),
-              ),
-            ),
 
-            ///Line Chart - Participant Position (Inverted Y-Axis)
-            LineChart(
-              LineChartData(
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: rounds.asMap().entries.map((entry) {
-                      int index = entry.key;
-                      int round = entry.value;
-                      return FlSpot(round.toDouble(), (index+1 > participantPositions.length ? 0 :participantPositions[index]).toDouble());
-                      // The "20 -" part inverts the y-axis
-                    }).toList(),
-                    isCurved: true,
-                    color: Colors.red,
-                    barWidth: 3,
-                    belowBarData: BarAreaData(show: false),
-                    dotData: FlDotData(show: true),
+                  ///Line Chart - Participant Position (Inverted Y-Axis)
+                  LineChart(
+                    LineChartData(
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: rounds.asMap().entries.map((entry) {
+                            int index = entry.key;
+                            int round = entry.value;
+                            return FlSpot(round.toDouble(), (index+1 > participantPositions.length ? 0 :participantPositions[index]).toDouble());
+                            // The "20 -" part inverts the y-axis
+                          }).toList(),
+                          isCurved: true,
+                          color: Colors.red,
+                          barWidth: 3,
+                          belowBarData: BarAreaData(show: false),
+                          dotData: FlDotData(show: true),
+                        ),
+                      ],
+                      titlesData: FlTitlesData(
+                        rightTitles:  AxisTitles(
+                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                        ),
+                        // leftTitles: AxisTitles(
+                        //   sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                        // ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false), // Disable X-axis titles on BarChart
+                        ),
+                      ),
+                      gridData: FlGridData(
+                        show: false,
+                      ),
+                      borderData: FlBorderData(show: false),
+                    ),
                   ),
                 ],
-                titlesData: FlTitlesData(
-                  rightTitles:  AxisTitles(
-                    sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
-                  ),
-                  // leftTitles: AxisTitles(
-                  //   sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
-                  // ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false), // Disable X-axis titles on BarChart
-                  ),
-                ),
-                gridData: FlGridData(
-                  show: false,
-                ),
-                borderData: FlBorderData(show: false),
+              ),
+            ),
+            const SizedBox(height: 20),
+            /// 📃 Instructor Comments Section
+            p.sakimInstructorComments.isNotEmpty?const Text(
+              'הערות המדריך',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ):SizedBox.shrink(),
+            Container(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: p.sakimInstructorComments.map((comment) {
+                  return Chip(
+                    label: Text(comment),
+                    backgroundColor: Colors.grey.shade200,
+                    labelStyle: TextStyle(color: Colors.black),
+                  );
+                }).toList(),
               ),
             ),
           ],

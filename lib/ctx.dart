@@ -17,6 +17,7 @@ import 'models/instructor.dart';
 import 'models/system.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
+import 'package:flutter/material.dart';
 
 
 class Controller extends GetxController {
@@ -116,7 +117,6 @@ class Controller extends GetxController {
       return null;
     }
   }
-
 
   ///
   Instructor? getInstructor(String id) {
@@ -245,7 +245,12 @@ class Controller extends GetxController {
       .doc(event.eventName)
       .collection('days')
       .doc(event.date);
-
+      // 🔥 Step 2: Delete event document
+      await eventRef.delete();
+      eventRef = firestore.collection('AdminIndex')
+          .doc(event.eventName)
+          .collection('days')
+          .doc(event.date);
       // 🔥 Step 2: Delete event document
       await eventRef.delete();
 
@@ -277,6 +282,24 @@ class Controller extends GetxController {
     currentEvent.value.participants[index].sakimPositions.add(pos);
     //currentEvent.value.saveToFirestore();
   }
+  void addSakimComments(List<String> comments, int participantNumber) {
+    // Find the index of the participant by their number.
+    int index = currentEvent.value.participants
+        .indexWhere((participant) => participant.number == participantNumber);
+    // ✅ Ensure participant exists.
+    if (index != -1) {
+      // Get the existing comments.
+      List<String> existingComments = currentEvent.value.participants[index].sakimInstructorComments;
+      // ✅ Merge new comments without duplicates.
+      existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
+      // ✅ Update the participant's comment list.
+      currentEvent.value.participants[index].sakimInstructorComments = existingComments;
+      print("✅ Comments merged successfully: ${existingComments}");
+      currentEvent.value.saveToFirestore();
+    } else {
+      print("❌ Participant not found with number: $participantNumber");
+    }
+  }
 
   /// Meshulash
   setParticipantMeshulashPosition(int number, int pos) {
@@ -285,6 +308,120 @@ class Controller extends GetxController {
     currentEvent.value.participants[index].meshulashPositions.add(pos);
     //currentEvent.value.saveToFirestore();
   }
+  void addMeshulashComments(List<String> comments, int participantNumber) {
+    // Find the index of the participant by their number.
+    int index = currentEvent.value.participants
+        .indexWhere((participant) => participant.number == participantNumber);
+    // ✅ Ensure participant exists.
+    if (index != -1) {
+      // Get the existing comments.
+      List<String> existingComments = currentEvent.value.participants[index].meshulashInstructorComments;
+      // ✅ Merge new comments without duplicates.
+      existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
+      // ✅ Update the participant's comment list.
+      currentEvent.value.participants[index].meshulashInstructorComments = existingComments;
+      print("✅ Comments merged successfully: ${existingComments}");
+      currentEvent.value.saveToFirestore();
+    } else {
+      print("❌ Participant not found with number: $participantNumber");
+    }
+  }
+
+  /// Alonka
+  void addAlonkaComments(List<String> comments, int participantNumber) {
+    // Find the index of the participant by their number.
+    int index = currentEvent.value.participants
+        .indexWhere((participant) => participant.number == participantNumber);
+    // ✅ Ensure participant exists.
+    if (index != -1) {
+      // Get the existing comments.
+      List<String> existingComments = currentEvent.value.participants[index].alonkaInstructorComments;
+      // ✅ Merge new comments without duplicates.
+      existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
+      // ✅ Update the participant's comment list.
+      currentEvent.value.participants[index].alonkaInstructorComments = existingComments;
+      print("✅ Comments merged successfully: ${existingComments}");
+      currentEvent.value.saveToFirestore();
+    } else {
+      print("❌ Participant not found with number: $participantNumber");
+    }
+  }
+
+  /// Leadership
+  void addInterviewComments(List<String> comments, int participantNumber) {
+    // Find the index of the participant by their number.
+    int index = currentEvent.value.participants
+        .indexWhere((participant) => participant.number == participantNumber);
+    // ✅ Ensure participant exists.
+    if (index != -1) {
+      // Get the existing comments.
+      List<String> existingComments = currentEvent.value.participants[index].interviewInstructorComments;
+      // ✅ Merge new comments without duplicates.
+      existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
+      // ✅ Update the participant's comment list.
+      currentEvent.value.participants[index].interviewInstructorComments = existingComments;
+      print("✅ Comments merged successfully: ${existingComments}");
+      currentEvent.value.saveToFirestore();
+      currentEvent.refresh();
+    } else {
+      print("❌ Participant not found with number: $participantNumber");
+    }
+  }
+  Color getLeadershipStatus(){
+    int count = 0;
+    bool interviewsHaveStarted = false;
+    var list = currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
+    for (Participant p in list) {
+      if (p.leadershipInstructorComments.isNotEmpty) count++;
+      if (p.interviewInstructorComments.isNotEmpty) interviewsHaveStarted = true;
+    }
+    if (count==0) return Colors.black;
+    if (count>0 && interviewsHaveStarted) {
+      return Colors.green;
+    } else {
+      return Colors.red;
+    }
+
+  }
+
+  /// Interview
+  void addLeadershipComments(List<String> comments, int participantNumber) {
+    print('Add Leadership Comments');
+    // Find the index of the participant by their number.
+    int index = currentEvent.value.participants
+        .indexWhere((participant) => participant.number == participantNumber);
+    // ✅ Ensure participant exists.
+    if (index != -1) {
+      // Get the existing comments.
+      print('######');
+      List<String> existingComments = currentEvent.value.participants[index].leadershipInstructorComments;
+      print(existingComments);
+      // ✅ Merge new comments without duplicates.
+      existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
+      print(existingComments);
+      // ✅ Update the participant's comment list.
+      currentEvent.value.participants[index].leadershipInstructorComments = existingComments;
+      print("✅ Comments merged successfully: ${existingComments}");
+      currentEvent.value.saveToFirestore();
+      currentEvent.refresh();
+    } else {
+      print("❌ Participant not found with number: $participantNumber");
+    }
+  }
+  Color getInterviewStatus(){
+    int count = 0;
+    var list = currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
+    for (Participant p in list) {
+      if (p.interviewInstructorComments.isNotEmpty) count++;
+    }
+    if (count==0) return Colors.black;
+    if (count==list.length) {
+      return Colors.green;
+    } else {
+      return Colors.red;
+    }
+
+  }
 
   /// Grades
   gradesUpdate() async {
@@ -292,8 +429,8 @@ class Controller extends GetxController {
       DocumentSnapshot docSnapshot =
       await firestore.collection('System').doc('grades').get();
       if (docSnapshot.exists) {
-        firestoreGradeSettings =
-            GradeSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
+        firestoreGradeSettings = GradeSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
+        gradesData = firestoreGradeSettings;
         print(
             'Grades Updated to version ${firestoreGradeSettings.version} !!!!');
         return true;

@@ -7,6 +7,8 @@ import 'widgets/meshulash_charts.dart';
 import 'widgets/alonka_charts.dart';
 import 'widgets/bur_charts.dart';
 import 'widgets/sakim_charts.dart';
+import 'widgets/interview_chart.dart';
+import 'widgets/leadership_chart.dart';
 
 final eventController = Get.put(Controller());
 const leftStyle = TextStyle(
@@ -104,7 +106,27 @@ class PerformancePage extends StatelessWidget {
                 child: SakimCharts(number: number),
               ),
               const SizedBox(
-                height: 180,
+                height: 40,
+              ),
+              const Text('מנהיגות',
+                  style: TextStyle(decoration: TextDecoration.underline,decorationThickness: 1.0,fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(
+                height: 300,
+                width: 350,
+                child: LeadershipChart(number: number),
+              ),
+              const SizedBox(
+                height: 40,
+              ),
+              const Text('ראיון אישי',
+                  style: TextStyle(decoration: TextDecoration.underline,decorationThickness: 1.0,fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(
+                height: 300,
+                width: 350,
+                child: InterviewChart(number: number),
+              ),
+              const SizedBox(
+                height: 10,
               ),
             ],
           ),

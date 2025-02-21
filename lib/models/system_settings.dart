@@ -1,20 +1,14 @@
-import 'package:hive/hive.dart';
-part 'system_settings.g.dart';
 
 
 
-@HiveType(typeId: 104)
-class SystemSettings extends HiveObject {
+class SystemSettings {
 
   SystemSettings();
 
-  @HiveField(0)
   int minutesInterval = 5;// Interval for backup check
 
-  @HiveField(1)
   int checkIntervalSeconds = 10;// 🔄 Check internet every 10 seconds
 
-  @HiveField(2)
   int totalChecks = 24; // number of checks for connection
 
 

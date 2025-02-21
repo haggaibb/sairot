@@ -106,7 +106,7 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       const SizedBox(height: 200),
                       SizedBox(width: 150, child: LinearProgressIndicator()),
-                      Text('מחפש חיבור לרשת...'),
+                      Text('טוען נתונים...'),
                     ],
                   )
                   ),

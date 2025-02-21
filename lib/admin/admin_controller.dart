@@ -6,6 +6,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import '../ctx.dart';
+import '../models/types.dart';
+import 'package:sairot/models/participant.dart';
 
 class AdminController extends GetxController {
   var isLoading = false.obs; // Tracks live event download progress
@@ -14,7 +16,8 @@ class AdminController extends GetxController {
   var instructorFiles =
       <String, List<String>>{}.obs; // Map: Day -> Instructor Files
   var groupNumbers = <String, List<String>>{}.obs; // Map: Day -> Group Numbers
-  var groupNumberToInstructor = <String, String>{}.obs; // Map: groupNumber -> InstructorIs
+  var groupNumberToInstructor =
+      <String, String>{}.obs; // Map: groupNumber -> InstructorIs
   var selectedEvent = RxnString();
   var selectedDay = RxnString();
   var selectedGroup = RxnString();
@@ -28,8 +31,6 @@ class AdminController extends GetxController {
   var isInstructorMode = true.obs; // 👈 New toggle switch state
   Event pastEvent = Event(date: '', instructorId: '', eventName: '');
   final eventController = Get.put(Controller());
-
-
 
   /// live event
   var liveEvents = <Event>[].obs; // 🔥 Stores downloaded live events
@@ -70,13 +71,13 @@ class AdminController extends GetxController {
     selectedInstructor.value = null; // Reset selection when switching modes
     selectedGroup.value = null;
   }
+
   getCurrentEventName() async {
     DocumentSnapshot<Map<String, dynamic>> doc =
-    await firestore.collection('System').doc('config').get();
+        await firestore.collection('System').doc('config').get();
     Map<String, dynamic>? docData = doc.data(); // Ensuring correct casting
     currentEventName = docData?['current_event'] ?? 'NA';
   }
-
 
   /// Past Events
   ///
@@ -98,6 +99,7 @@ class AdminController extends GetxController {
     //events.assignAll(instructorEvents.toList());
     isDownloading.value = false;
   }
+
   /// 📅 Fetch Available Days for Selected Event
   Future<void> fetchEventDays(String eventName) async {
     isDownloading.value = true;
@@ -117,6 +119,7 @@ class AdminController extends GetxController {
     }
     isDownloading.value = false;
   }
+
   /// 📅 Fetch Instructors for an Event
   Future<void> fetchInstructorsForEvent(String eventName, String day) async {
     isDownloading.value = true;
@@ -128,7 +131,8 @@ class AdminController extends GetxController {
           .doc(day)
           .get();
       if (daySnapshot.exists) {
-        Map<String, dynamic> dayData = daySnapshot.data() as Map<String, dynamic>;
+        Map<String, dynamic> dayData =
+            daySnapshot.data() as Map<String, dynamic>;
         instructorFiles[day] = List<String>.from(dayData['instructors'] ?? []);
       } else {
         print('No Days for Event Found');
@@ -138,6 +142,7 @@ class AdminController extends GetxController {
     }
     isDownloading.value = false;
   }
+
   /// 📅 Fetch Instructors for an Event
   Future<void> fetchGroupsForEvent(String eventName, String day) async {
     isDownloading.value = true;
@@ -149,13 +154,15 @@ class AdminController extends GetxController {
           .doc(day)
           .get();
       if (daySnapshot.exists) {
-        Map<String, dynamic> dayData = daySnapshot.data() as Map<String, dynamic>;
+        Map<String, dynamic> dayData =
+            daySnapshot.data() as Map<String, dynamic>;
         instructorFiles[day] = List<String>.from(dayData['instructors'] ?? []);
         groupNumbers[day] = List<String>.from(dayData['groups'] ?? []);
         if (dayData['groupsAndInstructors'] != null) {
           List<dynamic> groups = dayData['groupsAndInstructors'];
           // 🌟 Transform into Map<String, String>
-          groupNumberToInstructor.clear(); // Clear existing entries before update
+          groupNumberToInstructor
+              .clear(); // Clear existing entries before update
           for (var group in groups) {
             if (group is Map<String, dynamic> &&
                 group.containsKey('groupNumber') &&
@@ -176,8 +183,10 @@ class AdminController extends GetxController {
     }
     isDownloading.value = false;
   }
+
   /// 📅 Fetch Instructors for an Event
-  Future<void> loadEvent(String eventName, String day, String instructorId) async {
+  Future<void> loadEvent(
+      String eventName, String day, String instructorId) async {
     isDownloading.value = true;
     try {
       DocumentSnapshot eventSnapshot = await FirebaseFirestore.instance
@@ -189,7 +198,8 @@ class AdminController extends GetxController {
           .doc(day)
           .get();
       if (eventSnapshot.exists) {
-        Map<String, dynamic> eventData = eventSnapshot.data() as Map<String, dynamic>;
+        Map<String, dynamic> eventData =
+            eventSnapshot.data() as Map<String, dynamic>;
         pastEvent = Event.fromJson(eventData);
         eventController.currentEvent.value = pastEvent;
       } else {
@@ -200,6 +210,7 @@ class AdminController extends GetxController {
     }
     isDownloading.value = false;
   }
+
   ///
   /// General Event Report
   Future<void> LoadGeneralEventReport() async {
@@ -207,12 +218,13 @@ class AdminController extends GetxController {
       isDownloadingGeneralReport.value = true;
       try {
         List<String>? days = eventDays[selectedEvent.value];
-        if (days!=null) {
+        if (days != null) {
           for (String day in days) {
-            await fetchInstructorsForEvent(selectedEvent.value!,day);
+            await fetchInstructorsForEvent(selectedEvent.value!, day);
             if (instructorFiles[day] != null) {
               for (String i in instructorFiles[day]!) {
-                DocumentSnapshot eventSnapshot = await FirebaseFirestore.instance
+                DocumentSnapshot eventSnapshot = await FirebaseFirestore
+                    .instance
                     .collection('Results')
                     .doc(i)
                     .collection('events')
@@ -221,9 +233,8 @@ class AdminController extends GetxController {
                     .doc(day)
                     .get();
                 if (eventSnapshot.exists) {
-                  Map<String, dynamic> eventData = eventSnapshot.data() as Map<
-                      String,
-                      dynamic>;
+                  Map<String, dynamic> eventData =
+                      eventSnapshot.data() as Map<String, dynamic>;
                   adminEvent.eventDays.add(Event.fromJson(eventData));
                   print('Added an event day to Admin Events');
                 } else {
@@ -238,7 +249,6 @@ class AdminController extends GetxController {
       }
       isDownloadingGeneralReport.value = false;
     }
-
   }
 
   /// Live
@@ -267,7 +277,8 @@ class AdminController extends GetxController {
             try {
               Map<String, dynamic> eventData = eventSnapshot.data()!;
               Event updatedEvent = Event.fromJson(eventData);
-              int index = liveEvents.indexWhere((e) => e.instructorId == instructorId);
+              int index =
+                  liveEvents.indexWhere((e) => e.instructorId == instructorId);
               if (index != -1) {
                 // ✅ Update existing event in the list
                 liveEvents[index] = updatedEvent;
@@ -288,11 +299,11 @@ class AdminController extends GetxController {
     }, onError: (e) {
       print("❌ Error listening to Results collection: $e");
     });
-    periodicTimer =
-        Timer.periodic(Duration(seconds: 30), (Timer timer) {
-          now.value = DateTime.now();
-        });
+    periodicTimer = Timer.periodic(Duration(seconds: 30), (Timer timer) {
+      now.value = DateTime.now();
+    });
   }
+
   // 🔴 Stop Listening
   void stopLiveListener() {
     if (_eventSubscription != null) {
@@ -301,6 +312,7 @@ class AdminController extends GetxController {
     }
     periodicTimer?.cancel();
   }
+
   ///
   ///
 
@@ -310,9 +322,11 @@ class AdminController extends GetxController {
     int alonkaStatus = 0;
     int burStatus = 0;
     int sakimStatus = 0;
+    int leadership =0;
+    int interview = 0;
 
     Event groupEvent =
-        liveEvents.firstWhere((i) => i.groupNumber.toString() == groupNumber);
+    liveEvents.firstWhere((i) => i.groupNumber.toString() == groupNumber);
 
     /// check meshulash status
     if (groupEvent.meshulashStartTime != null) {
@@ -347,6 +361,7 @@ class AdminController extends GetxController {
         return ' בור -${difference.inMinutes.toString()} דקות ';
       }
     }
+
     if (groupEvent.sakimStartTime != null) {
       if (groupEvent.sakimEndTime != null) {
         /// its done
@@ -359,15 +374,41 @@ class AdminController extends GetxController {
         return ' שקים -${(groupEvent.sakimRounds.length - 1).toString()}';
       }
     }
-
+    ///
+    var list = groupEvent.getParticipantsByStatus(ParticipantStatus.Active);
+    int interviewsCount = 0;
+    /// interviews
+    for (Participant p in list) {
+      if (p.interviewInstructorComments.isNotEmpty) interviewsCount++;
+    }
+    if (interviewsCount > 0) {
+      if (interviewsCount == list.length) {
+        interview = -1;
+      } else {
+        interview = 0;
+        return ' ראיונות -${(interviewsCount).toString()}/${list.length.toString()}';
+      }
+    }
+    /// Leadership
+    int leaderShipCount =0;
+    for (Participant p in list) {
+      if (p.leadershipInstructorComments.isNotEmpty) leaderShipCount++;
+    }
+    if (leaderShipCount==list.length || interviewsCount>0) {
+      leadership = -1;
+    } else if (leaderShipCount > 0 && interviewsCount==0) {
+      return 'מנהיגות';
+    }
     /// check finished
-    if (meshulashStatus + alonkaStatus + burStatus + sakimStatus == -4) {
+    if (meshulashStatus + alonkaStatus + burStatus + sakimStatus + leadership + interview ==
+        -6) {
       return 'הסתיים';
     } else if (meshulashStatus + alonkaStatus + burStatus + sakimStatus == 0) {
       return 'לא התחיל';
     }
     return 'מנוחה';
   }
+
   getUpdatedInstructorsList() async {
     try {
       QuerySnapshot querySnapshot =
@@ -391,6 +432,7 @@ class AdminController extends GetxController {
       return null;
     }
   }
+
   /// 🔍 Get Full Name of an Instructor by `instructorId`
   String getInstructorName(String instructorId) {
     try {

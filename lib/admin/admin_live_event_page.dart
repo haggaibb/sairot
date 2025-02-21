@@ -22,10 +22,9 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
         "${today.day.toString().padLeft(2, '0')}-${today.month.toString().padLeft(2, '0')}-${today.year}";
     //adminController.startLiveListener(formattedToday);
     /// line below is for debug mode.
-    adminController.startLiveListener('20-02-2025');
+    adminController.startLiveListener('21-02-2025');
     super.initState();
   }
-
 
   @override
   void dispose() {
@@ -88,8 +87,7 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
               double col4Width = 50; // Icon column fixed size
               double col5Width = measureMaxColumnWidth(
                 adminController.liveEvents
-                    .map((e) =>
-                        "לפני      דקות")
+                    .map((e) => "לפני      דקות")
                     .toList(),
                 textStyle,
                 context,
@@ -266,10 +264,27 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
                                           : isTablet
                                               ? TabletGroupStatusBar(
                                                   event: event)
-                                              : Text(adminController
-                                                  .getGroupStatus(event
-                                                      .groupNumber
-                                                      .toString()))))),
+                                              : GestureDetector(
+                                                  child: Text(adminController
+                                                      .getGroupStatus(event
+                                                          .groupNumber
+                                                          .toString())),
+                                                  onLongPress: () async {
+                                                    var res = await showDialog<void>(
+                                                      context: context,
+                                                      builder: (BuildContext
+                                                              context) =>
+                                                          AlertDialog(
+                                                            content: SizedBox(
+                                                              height: 50,
+                                                              width: 60,
+                                                              child: TabletGroupStatusBar(
+                                                                  event: event),
+                                                            ),
+                                                          ),
+                                                    );
+                                                  },
+                                                )))),
                                   DataCell(
                                     SizedBox(
                                       width: col4Width,
@@ -285,9 +300,10 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
                                   ),
                                   DataCell(
                                     SizedBox(
-                                      width: col5Width,
-                                      child: Obx(()=> LastUpdateWidget(lastUpdate: event.lastUpdate!, now: adminController.now.value))
-                                    ),
+                                        width: col5Width,
+                                        child: Obx(() => LastUpdateWidget(
+                                            lastUpdate: event.lastUpdate!,
+                                            now: adminController.now.value))),
                                   ),
                                 ]);
                               }).toList(),

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'models/sakim_round.dart';
 import 'widgets/sakim_round_panel.dart';
 import 'dart:async';
+import 'widgets/yes_no.dart';
 
 class SakimPage extends StatefulWidget {
   const SakimPage({super.key});
@@ -18,6 +19,17 @@ class _SakimPageState extends State<SakimPage> {
   int runTime = 0;
   late Timer _timer;
   late bool editModeOn;
+  final ScrollController _scrollController = ScrollController();
+
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 500),
+        curve: Curves.easeOut,
+      );
+    });
+  }
 
   @override
   void initState() {
@@ -29,7 +41,7 @@ class _SakimPageState extends State<SakimPage> {
       editModeOn = eventController.sakimEditModeOn.value;
     }
     runTime = eventController.currentEvent.value.getSakimRunTime();
-    if (eventController.currentEvent.value.sakimEndTime==null) {
+    if (eventController.currentEvent.value.sakimEndTime == null) {
       _timer = Timer.periodic(Duration(seconds: 5), (Timer timer) {
         setState(() {
           runTime = eventController.currentEvent.value.getSakimRunTime();
@@ -37,12 +49,14 @@ class _SakimPageState extends State<SakimPage> {
         });
       });
     }
+    _scrollToEnd();
     super.initState();
   }
 
   @override
   void dispose() {
-    if (eventController.currentEvent.value.sakimEndTime==null) _timer.cancel(); // Stop timer when widget is disposed
+    if (eventController.currentEvent.value.sakimEndTime == null)
+      _timer.cancel(); // Stop timer when widget is disposed
     super.dispose();
   }
 
@@ -69,6 +83,7 @@ class _SakimPageState extends State<SakimPage> {
         body: GetX<Controller>(builder: (_) {
           editModeOn = _.sakimEditModeOn.value;
           return SingleChildScrollView(
+            controller: _scrollController,
             child: eventController.currentEvent.value.sakimRounds.isNotEmpty
                 ? Center(
                     child: Obx(() => eventController.loading.value
@@ -98,6 +113,9 @@ class _SakimPageState extends State<SakimPage> {
                               const Divider(
                                 thickness: 30,
                               ),
+                              SizedBox(
+                                height: 50,
+                              ),
                               eventController.currentEvent.value.sakimEndTime ==
                                       null
                                   ? Padding(
@@ -106,46 +124,65 @@ class _SakimPageState extends State<SakimPage> {
                                           style: ElevatedButton.styleFrom(
                                             fixedSize: const Size(150, 20),
                                           ),
-                                          onPressed: () {
-                                            setState(() {
-                                              eventController.currentEvent.value.sakimEndTime = DateTime.now();
-                                              _timer.cancel();
-                                              _.sakimEditModeOn.value = false;
-                                              editModeOn = _.sakimEditModeOn.value;
-                                              eventController.currentEvent.value.saveToFirestore();
-                                            });
+                                          onPressed: () async {
+                                            var res = await showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return YesNoDialog();
+                                              },
+                                            );
+                                            if (res) {
+                                              setState(() {
+                                                eventController.currentEvent.value
+                                                    .sakimEndTime =
+                                                    DateTime.now();
+                                                _timer.cancel();
+                                                _.sakimEditModeOn.value = false;
+                                                editModeOn =
+                                                    _.sakimEditModeOn.value;
+                                                eventController.currentEvent.value
+                                                    .saveToFirestore();
+                                              });
+                                            }
                                           },
                                           //eventController.currentEvent.value.save();
                                           child: Text('סיום התרגיל')),
                                     )
                                   : Column(
-                                    children: [
-                                      eventController.currentEvent.value.finalized?SizedBox.shrink():TextButton.icon(
-                                          onPressed: () {
-                                            if (editModeOn) {
-                                              ///save
-                                              eventController.currentEvent.value
-                                                  .saveToFirestore();
-                                            } else {}
-                                            _.sakimEditModeOn.value =
-                                                !_.sakimEditModeOn.value;
-                                            setState(() {
-                                              editModeOn =
-                                                  _.sakimEditModeOn.value;
-                                            });
-                                          },
-                                          icon: editModeOn
-                                              ? const Icon(Icons.save)
-                                              : const Icon(Icons.edit),
-                                          label: editModeOn
-                                              ? const Text('סיים')
-                                              : const Text('עריכה'),
-                                          iconAlignment: IconAlignment.start,
+                                      children: [
+                                        eventController
+                                                .currentEvent.value.finalized
+                                            ? SizedBox.shrink()
+                                            : TextButton.icon(
+                                                onPressed: () {
+                                                  if (editModeOn) {
+                                                    ///save
+                                                    eventController
+                                                        .currentEvent.value
+                                                        .saveToFirestore();
+                                                  } else {}
+                                                  _.sakimEditModeOn.value =
+                                                      !_.sakimEditModeOn.value;
+                                                  setState(() {
+                                                    editModeOn =
+                                                        _.sakimEditModeOn.value;
+                                                  });
+                                                },
+                                                icon: editModeOn
+                                                    ? const Icon(Icons.save)
+                                                    : const Icon(Icons.edit),
+                                                label: editModeOn
+                                                    ? const Text('סיים')
+                                                    : const Text('עריכה'),
+                                                iconAlignment:
+                                                    IconAlignment.start,
+                                              ),
+                                        SizedBox(
+                                          height: 20,
                                         ),
-                                      SizedBox(height: 20,),
-                                      Text('  התרגיל הסתיים  '),
-                                    ],
-                                  ),
+                                        Text('  התרגיל הסתיים  '),
+                                      ],
+                                    ),
                             ],
                           )),
                   )
@@ -153,33 +190,41 @@ class _SakimPageState extends State<SakimPage> {
                     padding: const EdgeInsets.only(top: 200),
                     child: Center(
                       child: Obx(() => eventController.loading.value
-                          ? SizedBox(height: 100, width: 100,child: CircularProgressIndicator(),)
+                          ? SizedBox(
+                              height: 100,
+                              width: 100,
+                              child: CircularProgressIndicator(),
+                            )
                           : Column(
-                        children: [
-                          ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                  fixedSize: const Size(200, 40)),
-                              onPressed: () async {
-                                setState(() {
-                                  eventController.currentEvent.value
-                                      .sakimStartTime = DateTime.now();
-                                  _.currentEvent.value.sakimRounds.add(SakimRound(
-                                      round: 0,
-                                      participantsInRound: _.currentEvent.value
-                                          .getParticipantsByStatus(
-                                          ParticipantStatus.Active)
-                                          .map((participant) => participant.number)
-                                          .toList()));
-                                });
-                                await _.currentEvent.value.saveToFirestore();
-                              },
-                              child: const Text(
-                                'תחילת תרגיל',
-                                style: TextStyle(fontSize: 14),
-                              )),
-                        ],
-                      )
-                      ),
+                              children: [
+                                ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                        fixedSize: const Size(200, 40)),
+                                    onPressed: () async {
+                                      setState(() {
+                                        eventController.currentEvent.value
+                                            .sakimStartTime = DateTime.now();
+                                        _.currentEvent.value.sakimRounds.add(
+                                            SakimRound(
+                                                round: 0,
+                                                participantsInRound: _
+                                                    .currentEvent.value
+                                                    .getParticipantsByStatus(
+                                                        ParticipantStatus
+                                                            .Active)
+                                                    .map((participant) =>
+                                                        participant.number)
+                                                    .toList()));
+                                      });
+                                      await _.currentEvent.value
+                                          .saveToFirestore();
+                                    },
+                                    child: const Text(
+                                      'תחילת תרגיל',
+                                      style: TextStyle(fontSize: 14),
+                                    )),
+                              ],
+                            )),
                     ),
                   ),
           );

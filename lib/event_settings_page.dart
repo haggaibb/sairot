@@ -7,7 +7,6 @@ import 'ctx.dart';
 import 'package:get/get.dart';
 import 'models/event.dart';
 import 'models/participant.dart';
-import 'package:http/http.dart' as http;
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'widgets/yes_no.dart';
 

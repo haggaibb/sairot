@@ -1,28 +1,20 @@
-import 'package:hive/hive.dart';
 import 'dart:convert';
 
-part 'grade_settings.g.dart';
 
-@HiveType(typeId: 200)
-class GradeSettings extends HiveObject {
+class GradeSettings {
   GradeSettings();
-  @HiveField(4)
   int version = 1;
-  @HiveField(5)
   double ALONKA_CREDIT = 1.0;
-  @HiveField(6)
   double GERIKAN_CREDIT = 0.5;
-  @HiveField(7)
   double RUNNER_CREDIT = 0.2;
-  @HiveField(8)
   double PARTICIPATION_CREDIT = 0.1;
-  @HiveField(9)
   List<String> listOfCommentsBur = ['לא הבין את התרגיל','הבין את התרגיל','השקיע','לא השקיע','מתרץ','לוקח אחריות','בור יפה'];
-  @HiveField(10)
-  List<String> listOfCommentsPerformance = ['מרים אגן','מחפף','אגרסיבי','שומר כוח','זוחל יפה','משקיע'];
-  @HiveField(11)
-  List<String> listOfCommentsImpression= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן נעט','התאמן הרבה','ספורטאי'];
-  @HiveField(12)
+  List<String> listOfCommentsMeshulash = ['מרים אגן','מחפף','אגרסיבי','שומר כוח','זוחל יפה','משקיע'];
+  List<String> listOfCommentsAlonka = ['אגרסיבי','שומר כוח','משקיע','מחפף'];
+  List<String> listOfCommentsSakim = ['מחפף','אגרסיבי','שומר כוח','משקיע'];
+  List<String> listOfCommentsLeadership= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן נעט','התאמן הרבה','ספורטאי'];
+  List<String> listOfCommentsInterview= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן נעט','התאמן הרבה','ספורטאי'];
+
   double systemGradeFactor = 0.7;
 
   /// Convert to JSON
@@ -33,8 +25,11 @@ class GradeSettings extends HiveObject {
       "RUNNER_CREDIT": RUNNER_CREDIT,
       "PARTICIPATION_CREDIT": PARTICIPATION_CREDIT,
       "listOfCommentsBur": listOfCommentsBur,
-      "listOfCommentsPerformance": listOfCommentsPerformance,
-      "listOfCommentsImpression": listOfCommentsImpression,
+      "listOfCommentsMeshulash": listOfCommentsMeshulash,
+      "listOfCommentsAlonka": listOfCommentsAlonka,
+      "listOfCommentsSakim": listOfCommentsSakim,
+      "listOfCommentsLeadership": listOfCommentsLeadership,
+      "listOfCommentsInterview": listOfCommentsInterview,
       "systemGradeFactor" : systemGradeFactor,
       "version" : version
     };
@@ -48,8 +43,11 @@ class GradeSettings extends HiveObject {
       ..RUNNER_CREDIT = (json["RUNNER_CREDIT"] ?? 0.2).toDouble()
       ..PARTICIPATION_CREDIT = (json["PARTICIPATION_CREDIT"] ?? 0.1).toDouble()
       ..listOfCommentsBur = List<String>.from(json["listOfCommentsBur"] ?? [])
-      ..listOfCommentsPerformance = List<String>.from(json["listOfCommentsPerformance"] ?? [])
-      ..listOfCommentsImpression = List<String>.from(json["listOfCommentsImpression"] ?? [])
+      ..listOfCommentsMeshulash = List<String>.from(json["listOfCommentsMeshulash"] ?? [])
+      ..listOfCommentsAlonka = List<String>.from(json["listOfCommentsAlonka"] ?? [])
+      ..listOfCommentsSakim = List<String>.from(json["listOfCommentsSakim"] ?? [])
+      ..listOfCommentsLeadership = List<String>.from(json["listOfCommentsLeadership"] ?? [])
+      ..listOfCommentsInterview = List<String>.from(json["listOfCommentsInterview"] ?? [])
       ..systemGradeFactor = (json["system_grade_factor"] ?? 0.2).toDouble()
       ..version = (json["version"] ?? 0).toInt();
   }

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../models/types.dart';
 import 'participant_action_dialog.dart';
 import 'package:sairot/models/meshulash_round.dart';
+import '../widgets/comments_dialog.dart';
 
 class MeshulashRoundPanel extends StatefulWidget {
 
@@ -77,19 +78,12 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                       }
                                     },
                                     onLongPress: () async {
-                                      var res = await showDialog<
-                                          ParticipantStatus>(
+                                      var res = await showDialog<List<String>>(
                                           context: context,
                                           builder: (BuildContext context) =>
-                                          const ParticipantActionDialog());
+                                          CommentsDialog(commentsList: eventController.gradesData.listOfCommentsMeshulash));
                                       if (res!=null){
-                                        if (res == ParticipantStatus.Droped) {
-                                          eventController.updateParticipantStatus(
-                                              eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index], res);
-                                          setState(() {
-                                            widget.round.participantsInRound.remove(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
-                                          });
-                                        }
+                                        eventController.addMeshulashComments(res,eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
                                       }
                                     },
                                     child: Text(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index].toString())),

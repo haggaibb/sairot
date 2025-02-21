@@ -3,7 +3,7 @@ import 'package:sairot/models/alonka_sprint.dart';
 import '../ctx.dart';
 import 'package:get/get.dart';
 import '../models/types.dart';
-import 'participant_action_dialog.dart';
+import 'comments_dialog.dart';
 import 'alonka_credit_panel.dart';
 
 class AlonkaRoundPanel extends StatefulWidget {
@@ -99,23 +99,12 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                     }
                                   },
                                   onLongPress: () async {
-                                    var res = await showDialog<
-                                        ParticipantStatus>(
+                                    var res = await showDialog<List<String>>(
                                         context: context,
                                         builder: (BuildContext context) =>
-                                        const ParticipantActionDialog());
-                                    if (res != null) {
-                                      if (res == ParticipantStatus.Droped) {
-                                        eventController.updateParticipantStatus(
-                                            widget.round
-                                                .activeParticipants[index],
-                                            res);
-                                        setState(() {
-                                          widget.round.activeParticipants
-                                              .remove(widget.round
-                                              .activeParticipants[index]);
-                                        });
-                                      }
+                                            CommentsDialog(commentsList: eventController.gradesData.listOfCommentsAlonka));
+                                    if (res!=null){
+                                      eventController.addAlonkaComments(res,widget.round.activeParticipants[index]);
                                     }
                                   },
                                   child: Text(widget

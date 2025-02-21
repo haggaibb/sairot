@@ -16,6 +16,13 @@ class Participant {
   int groupNumber = 0;
   List<int> meshulashPositions = [];
   List<int> sakimPositions = [];
+  List<String> meshulashInstructorComments = [];
+  List<String> alonkaInstructorComments = [];
+  List<String> sakimInstructorComments = [];
+  List<String> leadershipInstructorComments = [];
+  List<String> interviewInstructorComments = [];
+
+
 
   /// Set final instructor grade
   setFinalGrade(int grade) {
@@ -38,6 +45,11 @@ class Participant {
       'groupNumber': groupNumber,
       'meshulashPositions': meshulashPositions,
       'sakimPositions': sakimPositions,
+      'meshulashInstructorComments' : meshulashInstructorComments,
+      'alonkaInstructorComments' : alonkaInstructorComments,
+      'sakimInstructorComments' : sakimInstructorComments,
+      'leadershipInstructorComments' : leadershipInstructorComments,
+      'interviewInstructorComments' : interviewInstructorComments,
     };
   }
 
@@ -60,7 +72,12 @@ class Participant {
       ..groupNumber = json['groupNumber'] ?? 0
       ..meshulashPositions =
       List<int>.from(json['meshulashPositions'] ?? [])
-      ..sakimPositions = List<int>.from(json['sakimPositions'] ?? []);
+      ..sakimPositions = List<int>.from(json['sakimPositions'] ?? [])
+      ..meshulashInstructorComments =  List<String>.from(json['meshulashInstructorComments'] ?? [])
+      ..alonkaInstructorComments =  List<String>.from(json['alonkaInstructorComments'] ?? [])
+      ..sakimInstructorComments =  List<String>.from(json['sakimInstructorComments'] ?? [])
+      ..leadershipInstructorComments =  List<String>.from(json['leadershipInstructorComments'] ?? [])
+      ..interviewInstructorComments =  List<String>.from(json['interviewInstructorComments'] ?? []);
   }
 }
 

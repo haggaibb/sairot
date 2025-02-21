@@ -243,6 +243,36 @@ class Event {
     return 0;
   }
 
+  int getLeadershipStatus(){
+    int count = 0;
+    bool interviewsHaveStarted = false;
+    var list = getParticipantsByStatus(ParticipantStatus.Active);
+    for (Participant p in list) {
+      if (p.leadershipInstructorComments.isNotEmpty) count++;
+      if (p.interviewInstructorComments.isNotEmpty) interviewsHaveStarted = true;
+    }
+    if (count==0) return 0;
+    if (count>0 && interviewsHaveStarted) {
+      return -1;
+    } else if (count>0)  {
+      return 1;
+    } else {
+      return 0;
+    }
+
+  }
+  int getInterviewStatus(){
+    int count = 0;
+    var list = getParticipantsByStatus(ParticipantStatus.Active);
+    for (Participant p in list) {
+      if (p.interviewInstructorComments.isNotEmpty) count++;
+    }
+    if (count==0) return 0;
+    if (count == list.length) return -1;
+        else return 1;
+  }
+
+
   List<Participant> getParticipantsByStatus(ParticipantStatus status) {
     print(participants
         .where((participant) => participant.status == status)
@@ -272,4 +302,6 @@ class Event {
       participants.add(Participant(name: name, number: number));
     }
   }
+
+
 }

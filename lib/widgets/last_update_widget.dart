@@ -10,7 +10,11 @@ class LastUpdateWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     String lastUpdateStr = '';
     Duration difference = now.difference(lastUpdate);
-    lastUpdateStr = ' לפני ${difference.inMinutes} דקות ';
+    if (difference.inMinutes>=0) {
+      lastUpdateStr = ' לפני ${difference.inMinutes} דקות ';
+    } else {
+      lastUpdateStr = ' איו מידע ';
+    }
     return Text(lastUpdateStr);
   }
 }

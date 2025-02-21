@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'models/meshulash_round.dart';
 import 'widgets/meshulash_round_panel.dart';
 import 'dart:async';
+import 'widgets/yes_no.dart';
 
 class MeshulashPage extends StatefulWidget {
   const MeshulashPage({super.key});
@@ -18,6 +19,18 @@ class _MeshulashPageState extends State<MeshulashPage> {
   int runTime = 0;
   late Timer _timer;
   late bool editModeOn;
+  final ScrollController _scrollController = ScrollController();
+
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 500),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   @override
   void initState() {
     if (eventController.currentEvent.value.meshulashEndTime != null) {
@@ -28,19 +41,21 @@ class _MeshulashPageState extends State<MeshulashPage> {
       editModeOn = eventController.meshulashEditModeOn.value;
     }
     runTime = eventController.currentEvent.value.getMeshulashRunTime();
-    if (eventController.currentEvent.value.meshulashEndTime==null) {
+    if (eventController.currentEvent.value.meshulashEndTime == null) {
       _timer = Timer.periodic(Duration(seconds: 5), (Timer timer) {
         setState(() {
           runTime = eventController.currentEvent.value.getMeshulashRunTime();
         });
       });
     }
+    _scrollToEnd();
     super.initState();
   }
 
   @override
   void dispose() {
-    if (eventController.currentEvent.value.meshulashEndTime==null) _timer.cancel(); // Stop timer when widget is disposed
+    if (eventController.currentEvent.value.meshulashEndTime == null)
+      _timer.cancel(); // Stop timer when widget is disposed
     super.dispose();
   }
 
@@ -66,6 +81,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
         ),
         body: GetX<Controller>(builder: (_) {
           return SingleChildScrollView(
+            controller: _scrollController,
             child: eventController.currentEvent.value.meshulashRounds.isNotEmpty
                 ? Center(
                     child: Obx(() => eventController.loading.value
@@ -105,93 +121,124 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                             fixedSize: const Size(150, 20),
                                           ),
                                           onPressed: () async {
-                                            setState(() {
-                                              eventController.currentEvent.value
-                                                      .meshulashEndTime =
-                                                  DateTime.now();
-                                            });
-                                            await eventController.currentEvent.value
-                                                .saveToFirestore();
-                                            _timer.cancel();
-                                            _.meshulashEditModeOn.value = false;
-                                            editModeOn =
-                                                _.meshulashEditModeOn.value;
+                                            var res = await showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return YesNoDialog();
+                                              },
+                                            );
+                                            if (res) {
+                                              setState(() {
+                                                eventController.currentEvent.value
+                                                    .meshulashEndTime =
+                                                    DateTime.now();
+                                              });
+                                              await eventController
+                                                  .currentEvent.value
+                                                  .saveToFirestore();
+                                              _timer.cancel();
+                                              _.meshulashEditModeOn.value = false;
+                                              editModeOn =
+                                                  _.meshulashEditModeOn.value;
+                                            }
                                           },
                                           child: Text('סיום התרגיל')),
                                     )
                                   : Column(
-                                    children: [
-                                      eventController.currentEvent.value.finalized?SizedBox.shrink():TextButton.icon(
-                                          onPressed: () async {
-                                            if (editModeOn) {
-                                              ///save
-                                              await eventController.currentEvent.value
-                                                  .saveToFirestore();
-                                            } else {}
-                                            _.meshulashEditModeOn.value =
-                                                !_.meshulashEditModeOn.value;
-                                            setState(() {
-                                              editModeOn =
-                                                  _.meshulashEditModeOn.value;
-                                            });
-                                          },
-                                          icon: editModeOn
-                                              ? const Icon(Icons.save)
-                                              : const Icon(Icons.edit),
-                                          label: editModeOn
-                                              ? const Text('סיים')
-                                              : const Text('עריכה'),
-                                          iconAlignment: IconAlignment.start,
+                                      children: [
+                                        eventController
+                                                .currentEvent.value.finalized
+                                            ? SizedBox.shrink()
+                                            : TextButton.icon(
+                                                onPressed: () async {
+                                                  if (editModeOn) {
+                                                    ///save
+                                                    await eventController
+                                                        .currentEvent.value
+                                                        .saveToFirestore();
+                                                  } else {}
+                                                  _.meshulashEditModeOn.value =
+                                                      !_.meshulashEditModeOn
+                                                          .value;
+                                                  setState(() {
+                                                    editModeOn = _
+                                                        .meshulashEditModeOn
+                                                        .value;
+                                                  });
+                                                },
+                                                icon: editModeOn
+                                                    ? const Icon(Icons.save)
+                                                    : const Icon(Icons.edit),
+                                                label: editModeOn
+                                                    ? const Text('סיים')
+                                                    : const Text('עריכה'),
+                                                iconAlignment:
+                                                    IconAlignment.start,
+                                              ),
+                                        SizedBox(
+                                          height: 20,
                                         ),
-                                      SizedBox(height: 20,),
-                                      Text('  התרגיל הסתיים  '),
-                                    ],
-                                  ),
+                                        Text('  התרגיל הסתיים  '),
+                                      ],
+                                    ),
                             ],
                           )),
                   )
                 : Obx(() => eventController.loading.value
-                ? SizedBox(height: 100, width: 100,child: CircularProgressIndicator(),)
-                : Padding(
-              padding: const EdgeInsets.only(top: 200),
-              child: Column(
-                children: [
-                  Obx(() => eventController.loading.value
-                      ? SizedBox(width: 100, child: LinearProgressIndicator(),)
-                      : SizedBox.shrink()
-                  ),
-                  Center(
-                    child: Obx(() =>  eventController.loading.value
-                        ? SizedBox(height: 100, width: 100,child: CircularProgressIndicator(),)
-                        : ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                            fixedSize: const Size(200, 40)),
-                        onPressed: () async {
-                          setState(() {
-                            eventController.loading.value = true;
-                            eventController.currentEvent.value.meshulashStartTime = DateTime.now();
-                            _.currentEvent.value.meshulashRounds.add(MeshulashRound(
-                                    round: 0,
-                                    participantsInRound: _.currentEvent.value
-                                        .getParticipantsByStatus(
-                                        ParticipantStatus.Active)
-                                        .map((participant) =>
-                                    participant.number)
-                                        .toList()));
-                            eventController.loading.value = false;
-                          });
-                          _.currentEvent.value.saveToFirestore();
-                        },
-                        child: const Text(
-                          'תחילת תרגיל',
-                          style: TextStyle(fontSize: 14),
-                        ))
-                    ),
-                  ),
-                ],
-              ),
-            )
-            ),
+                    ? SizedBox(
+                        height: 100,
+                        width: 100,
+                        child: CircularProgressIndicator(),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.only(top: 200),
+                        child: Column(
+                          children: [
+                            Obx(() => eventController.loading.value
+                                ? SizedBox(
+                                    width: 100,
+                                    child: LinearProgressIndicator(),
+                                  )
+                                : SizedBox.shrink()),
+                            Center(
+                              child: Obx(() => eventController.loading.value
+                                  ? SizedBox(
+                                      height: 100,
+                                      width: 100,
+                                      child: CircularProgressIndicator(),
+                                    )
+                                  : ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                          fixedSize: const Size(200, 40)),
+                                      onPressed: () async {
+                                        setState(() {
+                                          eventController.loading.value = true;
+                                          eventController.currentEvent.value
+                                                  .meshulashStartTime =
+                                              DateTime.now();
+                                          _.currentEvent.value.meshulashRounds
+                                              .add(MeshulashRound(
+                                                  round: 0,
+                                                  participantsInRound: _
+                                                      .currentEvent.value
+                                                      .getParticipantsByStatus(
+                                                          ParticipantStatus
+                                                              .Active)
+                                                      .map((participant) =>
+                                                          participant.number)
+                                                      .toList()));
+                                          eventController.loading.value = false;
+                                        });
+                                        _.currentEvent.value.saveToFirestore();
+                                      },
+                                      child: const Text(
+                                        'תחילת תרגיל',
+                                        style: TextStyle(fontSize: 14),
+                                      ))),
+                            ),
+                          ],
+                        ),
+                      )),
           );
         }));
   }
