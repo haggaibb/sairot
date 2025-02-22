@@ -14,7 +14,6 @@ class GradeSettings {
   List<String> listOfCommentsSakim = ['מחפף','אגרסיבי','שומר כוח','משקיע'];
   List<String> listOfCommentsLeadership= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן נעט','התאמן הרבה','ספורטאי'];
   List<String> listOfCommentsInterview= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן נעט','התאמן הרבה','ספורטאי'];
-
   double systemGradeFactor = 0.7;
 
   /// Convert to JSON
@@ -48,7 +47,7 @@ class GradeSettings {
       ..listOfCommentsSakim = List<String>.from(json["listOfCommentsSakim"] ?? [])
       ..listOfCommentsLeadership = List<String>.from(json["listOfCommentsLeadership"] ?? [])
       ..listOfCommentsInterview = List<String>.from(json["listOfCommentsInterview"] ?? [])
-      ..systemGradeFactor = (json["system_grade_factor"] ?? 0.2).toDouble()
+      ..systemGradeFactor = (json["systemGradeFactor"] ?? 1).toDouble()
       ..version = (json["version"] ?? 0).toInt();
   }
 

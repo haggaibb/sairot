@@ -179,234 +179,236 @@ class _EventHomeState extends State<EventHome> {
               if (eventController.loading.value) {
                 return CircularProgressIndicator();
               }
-              return SizedBox(
-                height: 550,
-                width: 400,
-                child: GridView.count(
-                  childAspectRatio: 1.1,
-                  crossAxisCount: 2,
-                  children: [
-                    /// Meshulash
-                    Padding(
-                      padding: const EdgeInsets.all(15.0),
-                      child: ElevatedButton(
-                          style: ButtonStyle(
-                              shape: MaterialStateProperty.all<
-                                      RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(70.0),
-                                      side: BorderSide(
-                                          width: 5,
-                                          color: eventController
-                                                      .currentEvent
-                                                      .value
-                                                      .meshulashStartTime ==
-                                                  null
-                                              ? Colors.black
-                                              : eventController
-                                                          .currentEvent
-                                                          .value
-                                                          .meshulashEndTime ==
-                                                      null
-                                                  ? Colors.red
-                                                  : Colors.green)))),
-                          onPressed: () => {Get.toNamed('/meshulash')},
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Image.asset(
-                                'images/meeshulash.png',
-                                scale: 5,
-                              ),
-                              const Text('משולש',
-                                  style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold)),
-                            ],
-                          )),
-                    ),
-                    /// Sakim
-                    Padding(
-                      padding: const EdgeInsets.all(15.0),
-                      child: ElevatedButton(
-                          style: ButtonStyle(
-                              shape: MaterialStateProperty.all<
-                                      RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(70.0),
-                                      side: BorderSide(
-                                          width: 5,
-                                          color: eventController.currentEvent
-                                                      .value.sakimStartTime ==
-                                                  null
-                                              ? Colors.black
-                                              : eventController.currentEvent
-                                                          .value.sakimEndTime ==
-                                                      null
-                                                  ? Colors.red
-                                                  : Colors.green)))),
-                          onPressed: () => {Get.toNamed('/sakim')},
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Image.asset(
-                                color: Colors.black,
-                                'images/sakim.png',
-                                scale: 5,
-                              ),
-                              const Text('שקים',
-                                  style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold)),
-                            ],
-                          )),
-                    ),
-                    /// Bur
-                    Padding(
-                      padding: const EdgeInsets.all(15.0),
-                      child: ElevatedButton(
-                          style: ButtonStyle(
-                              shape: MaterialStateProperty.all<
-                                      RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(70.0),
-                                      side: BorderSide(
-                                          width: 5,
-                                          color: eventController.currentEvent
-                                                      .value.burStartTime ==
-                                                  null
-                                              ? Colors.black
-                                              : eventController.currentEvent
-                                                          .value.burEndTime ==
-                                                      null
-                                                  ? Colors.red
-                                                  : Colors.green)))),
-                          onPressed: () => {Get.toNamed('/bur')},
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Image.asset(
-                                'images/bur.png',
-                                scale: 5,
-                              ),
-                              const Text('בור',
-                                  style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold)),
-                            ],
-                          )),
-                    ),
-                    /// Alonka
-                    Padding(
-                      padding: const EdgeInsets.all(15.0),
-                      child: ElevatedButton(
-                          style: ButtonStyle(
-                              shape: WidgetStateProperty.all<
-                                      RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(70.0),
-                                      side: BorderSide(
-                                          width: 5,
-                                          color: eventController.currentEvent
-                                                      .value.alonkaStartTime ==
-                                                  null
-                                              ? Colors.black
-                                              : eventController
-                                                          .currentEvent
-                                                          .value
-                                                          .alonkaEndTime ==
-                                                      null
-                                                  ? Colors.red
-                                                  : Colors.green)))),
-                          onPressed: () {
-                            eventController.currentAlonkaRound.value =
-                                eventController
-                                    .currentEvent.value.alonkaSprints.length;
-                            Get.toNamed('/alonka');
-                          },
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Image.asset(
-                                'images/alonka.png',
-                                scale: 5,
-                              ),
-                              const Text('אלונקה',
-                                  style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold)),
-                            ],
-                          )),
-                    ),
-                    /// Leadership
-                    Padding(
-                      padding: const EdgeInsets.all(15.0),
-                      child: ElevatedButton(
-                          style: ButtonStyle(
-                              shape: WidgetStateProperty.all<
-                                  RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(70.0),
-                                      side: BorderSide(
-                                          width: 5,
-                                          color: eventController.getLeadershipStatus())))),
-                          onPressed: () => {Get.toNamed('/leadership')},
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Icon(
-                                    color: Colors.black,
-                                    size: 80,
-                                    Icons.star
+              return SingleChildScrollView(
+                child: SizedBox(
+                  height: 500,
+                  width: 400,
+                  child: GridView.count(
+                    childAspectRatio: 1.2,
+                    crossAxisCount: 2,
+                    children: [
+                      /// Meshulash
+                      Padding(
+                        padding: const EdgeInsets.all(15.0),
+                        child: ElevatedButton(
+                            style: ButtonStyle(
+                                shape: MaterialStateProperty.all<
+                                        RoundedRectangleBorder>(
+                                    RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(70.0),
+                                        side: BorderSide(
+                                            width: 5,
+                                            color: eventController
+                                                        .currentEvent
+                                                        .value
+                                                        .meshulashStartTime ==
+                                                    null
+                                                ? Colors.black
+                                                : eventController
+                                                            .currentEvent
+                                                            .value
+                                                            .meshulashEndTime ==
+                                                        null
+                                                    ? Colors.red
+                                                    : Colors.green)))),
+                            onPressed: () => {Get.toNamed('/meshulash')},
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Image.asset(
+                                  'images/meeshulash.png',
+                                  scale : 6,
                                 ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: const Text('מנהיגות',
+                                const Text('משולש',
                                     style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          )),
-                    ),
-                    /// interview
-                    Padding(
-                      padding: const EdgeInsets.all(15.0),
-                      child: ElevatedButton(
-                          style: ButtonStyle(
-                              shape: WidgetStateProperty.all<
-                                  RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(70.0),
-                                      side: BorderSide(
-                                          width: 5,
-                                          color: eventController.getInterviewStatus())))),
-                          onPressed: () => {Get.toNamed('/interview')},
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Icon(
-                                    color: Colors.black,
-                                    size: 70,
-                                    Icons.note_alt_sharp
+                              ],
+                            )),
+                      ),
+                      /// Sakim
+                      Padding(
+                        padding: const EdgeInsets.all(15.0),
+                        child: ElevatedButton(
+                            style: ButtonStyle(
+                                shape: MaterialStateProperty.all<
+                                        RoundedRectangleBorder>(
+                                    RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(70.0),
+                                        side: BorderSide(
+                                            width: 5,
+                                            color: eventController.currentEvent
+                                                        .value.sakimStartTime ==
+                                                    null
+                                                ? Colors.black
+                                                : eventController.currentEvent
+                                                            .value.sakimEndTime ==
+                                                        null
+                                                    ? Colors.red
+                                                    : Colors.green)))),
+                            onPressed: () => {Get.toNamed('/sakim')},
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Image.asset(
+                                  color: Colors.black,
+                                  'images/sakim.png',
+                                  scale : 6,
                                 ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: const Text('ראיון אישי',
+                                const Text('שקים',
                                     style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          )),
-                    ),
-                  ],
+                              ],
+                            )),
+                      ),
+                      /// Bur
+                      Padding(
+                        padding: const EdgeInsets.all(15.0),
+                        child: ElevatedButton(
+                            style: ButtonStyle(
+                                shape: MaterialStateProperty.all<
+                                        RoundedRectangleBorder>(
+                                    RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(70.0),
+                                        side: BorderSide(
+                                            width: 5,
+                                            color: eventController.currentEvent
+                                                        .value.burStartTime ==
+                                                    null
+                                                ? Colors.black
+                                                : eventController.currentEvent
+                                                            .value.burEndTime ==
+                                                        null
+                                                    ? Colors.red
+                                                    : Colors.green)))),
+                            onPressed: () => {Get.toNamed('/bur')},
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Image.asset(
+                                  'images/bur.png',
+                                  scale : 6,
+                                ),
+                                const Text('בור',
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold)),
+                              ],
+                            )),
+                      ),
+                      /// Alonka
+                      Padding(
+                        padding: const EdgeInsets.all(15.0),
+                        child: ElevatedButton(
+                            style: ButtonStyle(
+                                shape: WidgetStateProperty.all<
+                                        RoundedRectangleBorder>(
+                                    RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(70.0),
+                                        side: BorderSide(
+                                            width: 5,
+                                            color: eventController.currentEvent
+                                                        .value.alonkaStartTime ==
+                                                    null
+                                                ? Colors.black
+                                                : eventController
+                                                            .currentEvent
+                                                            .value
+                                                            .alonkaEndTime ==
+                                                        null
+                                                    ? Colors.red
+                                                    : Colors.green)))),
+                            onPressed: () {
+                              eventController.currentAlonkaRound.value =
+                                  eventController
+                                      .currentEvent.value.alonkaSprints.length;
+                              Get.toNamed('/alonka');
+                            },
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Image.asset(
+                                  'images/alonka.png',
+                                  scale : 6,
+                                ),
+                                const Text('אלונקה',
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold)),
+                              ],
+                            )),
+                      ),
+                      /// Leadership
+                      Padding(
+                        padding: const EdgeInsets.all(15.0),
+                        child: ElevatedButton(
+                            style: ButtonStyle(
+                                shape: WidgetStateProperty.all<
+                                    RoundedRectangleBorder>(
+                                    RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(70.0),
+                                        side: BorderSide(
+                                            width: 5,
+                                            color: eventController.getLeadershipStatus())))),
+                            onPressed: () => {Get.toNamed('/leadership')},
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(0.0),
+                                  child: Icon(
+                                      color: Colors.black,
+                                      size: 80,
+                                      Icons.star
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(0.0),
+                                  child: const Text('מנהיגות',
+                                      style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            )),
+                      ),
+                      /// interview
+                      Padding(
+                        padding: const EdgeInsets.all(15.0),
+                        child: ElevatedButton(
+                            style: ButtonStyle(
+                                shape: WidgetStateProperty.all<
+                                    RoundedRectangleBorder>(
+                                    RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(70.0),
+                                        side: BorderSide(
+                                            width: 5,
+                                            color: eventController.getInterviewStatus())))),
+                            onPressed: () => {Get.toNamed('/interview')},
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(0.0),
+                                  child: Icon(
+                                      color: Colors.black,
+                                      size: 70,
+                                      Icons.note_alt_sharp
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(0.0),
+                                  child: const Text('ראיון אישי',
+                                      style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            )),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }),

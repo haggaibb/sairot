@@ -458,10 +458,10 @@ class Controller extends GetxController {
 
   double getMeshulashGrade(int number) {
     if (currentEvent.value.meshulashRounds.isEmpty) return 0;
-    int maxRound = currentEvent.value.meshulashRounds.length;
+    int maxRound = currentEvent.value.meshulashRounds.length-1;
     int participantPosition = currentEvent.value.meshulashRounds.indexWhere(
             (MeshulashRound round) => round.participantsInRound.contains(number));
-    double meshulashGrade = (((participantPosition + 1) / maxRound) * 10) *
+    double meshulashGrade = (((participantPosition) / maxRound) * 10) *
         gradesData.systemGradeFactor;
     return meshulashGrade;
   }
@@ -503,9 +503,10 @@ class Controller extends GetxController {
 
   double getSakimGrade(int number) {
     if (currentEvent.value.sakimRounds.isEmpty) return 0;
-    int maxRound = currentEvent.value.sakimRounds.length;
+    int maxRound = currentEvent.value.sakimRounds.length-1;
     int participantPosition = currentEvent.value.sakimRounds.indexWhere(
             (SakimRound round) => round.participantsInRound.contains(number));
+    print(participantPosition);
     double sakimGrade = (((participantPosition + 1) / maxRound) * 10) *
         gradesData.systemGradeFactor;
     return sakimGrade;
@@ -519,7 +520,7 @@ class Controller extends GetxController {
   }
 
   calculateGrades() {
-    for (Participant p in currentEvent.value.participants) {
+    for (Participant p in currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active)) {
       p.alonkaGrade = getAlonkaGrade(p.number);
       p.sakimGrade = getSakimGrade(p.number);
       p.burGrade = getBurGrade(p.number);

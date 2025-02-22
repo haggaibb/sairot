@@ -22,7 +22,7 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
         "${today.day.toString().padLeft(2, '0')}-${today.month.toString().padLeft(2, '0')}-${today.year}";
     //adminController.startLiveListener(formattedToday);
     /// line below is for debug mode.
-    adminController.startLiveListener('21-02-2025');
+    adminController.startLiveListener('22-02-2025');
     super.initState();
   }
 
@@ -213,21 +213,21 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
                                         width: col1Width,
                                         child: Text('#',
                                             style: TextStyle(
-                                                fontSize: 20,
+                                                fontSize: isTablet ? 20 : 17,
                                                 fontWeight: FontWeight.bold)))),
                                 DataColumn(
                                     label: Container(
                                         width: col2Width,
                                         child: Text('מדריך',
                                             style: TextStyle(
-                                                fontSize: 20,
+                                                fontSize: isTablet ? 20 : 17,
                                                 fontWeight: FontWeight.bold)))),
                                 DataColumn(
                                     label: SizedBox(
                                         width: isTablet ? 100 : null,
                                         child: Text('סטטוס',
                                             style: TextStyle(
-                                                fontSize: 20,
+                                                fontSize: isTablet ? 20 : 17,
                                                 fontWeight: FontWeight
                                                     .bold)))), // ✅ Uses remaining space
                                 DataColumn(
@@ -235,14 +235,14 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
                                         width: col4Width,
                                         child: Text('סגור',
                                             style: TextStyle(
-                                                fontSize: 20,
+                                                fontSize: isTablet ? 20 : 17,
                                                 fontWeight: FontWeight.bold)))),
                                 DataColumn(
                                     label: SizedBox(
                                         width: col5Width,
                                         child: Text('עדכון אחרון',
                                             style: TextStyle(
-                                                fontSize: 20,
+                                                fontSize: isTablet ? 20 : 17,
                                                 fontWeight: FontWeight.bold)))),
                               ],
                               rows: adminController.liveEvents.map((event) {

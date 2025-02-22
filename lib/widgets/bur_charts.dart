@@ -33,7 +33,7 @@ class BurCharts extends StatelessWidget {
                       barRods: [
                         BarChartRodData(
                           toY:  grade,
-                          color: participantIndex==index ? Colors.green : Colors.blue, // Highlight the current round
+                          color: participantIndex==index ? Colors.green : Colors.black, // Highlight the current round
                           width: 20,
                         ),
                       ],
@@ -61,7 +61,8 @@ class BurCharts extends StatelessWidget {
             SizedBox(height: 20,),
             const Text('הערות המדריך',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-            Container(
+            eventController.currentEvent.value.burGrades.isNotEmpty
+                ? Container(
               child: Wrap(
                 spacing: 12,
                 children:  eventController.currentEvent.value.burGrades.firstWhere((bur)=> bur.id == number).instructorComments.map((comment) {
@@ -70,7 +71,8 @@ class BurCharts extends StatelessWidget {
                   );
                 }).toList(),
               ),
-            ),
+            )
+                 : SizedBox.shrink(),
           ],
         ),
       ),

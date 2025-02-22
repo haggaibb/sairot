@@ -102,7 +102,7 @@ class PerformancePage extends StatelessWidget {
               ),
               SizedBox(
                 height: 300,
-                width: 350,
+                width: 400,
                 child: SakimCharts(number: number),
               ),
               const SizedBox(

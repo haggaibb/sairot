@@ -8,9 +8,6 @@ import 'package:sairot/models/alonka_sprint.dart';
 class AlonkaCharts extends StatelessWidget {
   final int number;
 
-  //final List<int> rounds = [1, 2, 3, 4, 5,6,7,8,9,10,11,12]; // Rounds
-  //final List<int> participantCredit = [7, 3, 7, 7, 7, 3, 7, 1, 7, 7, 7, 7];
-
   AlonkaCharts({super.key, required this.number}); // The round where our participant is currently competing
 
   @override
@@ -37,10 +34,9 @@ class AlonkaCharts extends StatelessWidget {
                           spots: rounds.asMap().entries.map((entry) {
                             int index = entry.key;
                             int round = entry.value;
-                            return FlSpot(round.toDouble(), ( participantsSprintCredit[index]).toDouble());
-                            // The "20 -" part inverts the y-axis
+                            return FlSpot(round.toDouble() + 1, participantsSprintCredit[index].toDouble());
                           }).toList(),
-                          isCurved: true,
+                          isCurved: false,
                           color: Colors.red,
                           barWidth: 3,
                           belowBarData: BarAreaData(show: false),
@@ -48,22 +44,44 @@ class AlonkaCharts extends StatelessWidget {
                         ),
                       ],
                       titlesData: FlTitlesData(
-                        rightTitles:  AxisTitles(
-                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 60,
+                            interval: 0.1,
+                            getTitlesWidget: (value, meta) {
+                              int roundedValue = (value * 10).round(); // Workaround for floating-point precision
+                              switch (roundedValue) {
+                                case 10: // 1.0 * 10
+                                  return const Text('Alonka', style: TextStyle(fontSize: 12));
+                                case 5:  // 0.5 * 10
+                                  return const Text('Gerikan', style: TextStyle(fontSize: 12));
+                                case 2:  // 0.2 * 10
+                                  return const Text('Run', style: TextStyle(fontSize: 12));
+                                case 0:
+                                  return const Text('0', style: TextStyle(fontSize: 12));
+                                default:
+                                  return const SizedBox.shrink();
+                              }
+                            },
+                          ),
                         ),
-                        // leftTitles: AxisTitles(
-                        //   sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
-                        // ),
-                        topTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) => Text(value.toInt().toString()),
+                            reservedSize: 30,
+                          ),
                         ),
                       ),
-                      gridData: FlGridData(
-                        show: false,
-                      ),
+                      gridData: FlGridData(show: true),
                       borderData: FlBorderData(show: false),
+                      minX: 1,
+                      maxX: rounds.length.toDouble(),
+                      minY: 0.0,
+                      maxY: 1.0,
                     ),
-                  ),
+                  )
                 ],
               ),
             ),

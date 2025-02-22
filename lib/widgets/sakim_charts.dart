@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/participant.dart';
+import 'package:sairot/models/types.dart';
 import '../ctx.dart';
 import 'package:sairot/models/sakim_round.dart';
 
@@ -24,7 +25,7 @@ class SakimCharts extends StatelessWidget {
     Participant p = eventController.getParticipant(number);
     final List<int> participantPositions = p.sakimPositions;
     int currentRound = participantPositions.length;
-    print(participantPositions);
+    int numberOfParticipants =  eventController.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active).length;
 //int worstPosition = participantPositions.reduce((a, b) => a > b ? a : b);
     return Scaffold(
       //appBar: AppBar(title: Text("Participant Progress Chart")),
@@ -37,54 +38,69 @@ class SakimCharts extends StatelessWidget {
               child: Stack(
                 children: [
                   /// Bar Chart - Total Participants in Each Round
-                  BarChart(
-                    BarChartData(
-                      barGroups: rounds.asMap().entries.map((entry) {
-                        int index = entry.key;
-                        int round = entry.value;
-                        bool isCurrentRound = round == currentRound;
-                        return BarChartGroupData(
-                          x: round,
-                          barRods: [
-                            BarChartRodData(
-                              toY: participantCounts[index].toDouble(),
-                              color: isCurrentRound ? Colors.green : Colors.blue, // Highlight the current round
-                              width: 20,
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                      titlesData: FlTitlesData(
-                        rightTitles:  AxisTitles(
-                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                  Padding(
+                    padding: const EdgeInsets.only(bottom :20.0,right: 0),
+                    child: BarChart(
+                      BarChartData(
+                        barGroups: rounds.asMap().entries
+                            .where((entry) => entry.key > 0 && entry.key < participantCounts.length)
+                            .map((entry) {
+                          int index = entry.key;
+                          int round = entry.value;
+                          bool isCurrentRound = round == currentRound;
+                          return BarChartGroupData(
+                            x: round,
+                            barRods: [
+                              BarChartRodData(
+                                toY: participantCounts[index].toDouble(),
+                                color: isCurrentRound ? Colors.green : Colors.black,
+                                width: 20,
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                        titlesData: FlTitlesData(
+                          rightTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
                         ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
-                        ),
-                        topTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
-                        ),
-                        // bottomTitles: AxisTitles(
-                        //   sideTitles: SideTitles(showTitles: false), // Disable X-axis titles on BarChart
-                        // ),
+                        gridData: FlGridData(show: false),
+                        borderData: FlBorderData(show: false),
                       ),
-                      gridData: FlGridData(show: false),
-                      borderData: FlBorderData(show: false),
                     ),
                   ),
 
                   ///Line Chart - Participant Position (Inverted Y-Axis)
                   LineChart(
                     LineChartData(
+                      minY: 1,  // Ensure Y-axis starts from 1
+                      maxY: numberOfParticipants.toDouble(),
+                      maxX: rounds.length.toDouble()-1,
                       lineBarsData: [
                         LineChartBarData(
-                          spots: rounds.asMap().entries.map((entry) {
+                          spots: rounds
+                              .asMap()
+                              .entries
+                              .where((entry) =>
+                          entry.key > 0 &&
+                              entry.key < rounds.length - 1 &&
+                              entry.key < participantPositions.length)
+                              .map((entry) {
                             int index = entry.key;
                             int round = entry.value;
-                            return FlSpot(round.toDouble(), (index+1 > participantPositions.length ? 0 :participantPositions[index]).toDouble());
-                            // The "20 -" part inverts the y-axis
+                            double position = participantPositions[index].toDouble();
+                            return FlSpot(round.toDouble(), position);
                           }).toList(),
-                          isCurved: true,
+                          isCurved: false,  // Ensure straight lines
                           color: Colors.red,
                           barWidth: 3,
                           belowBarData: BarAreaData(show: false),
@@ -92,26 +108,51 @@ class SakimCharts extends StatelessWidget {
                         ),
                       ],
                       titlesData: FlTitlesData(
-                        rightTitles:  AxisTitles(
-                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 40,
+                            getTitlesWidget: (value, meta) {
+                              // Skip 0 and only show integers greater than 0
+                              if (value > 0 && value % 1 == 0 && value <= numberOfParticipants.toDouble()) {
+                                return Text(value.toInt().toString(), style: TextStyle(fontSize: 12));
+                              }
+                              return SizedBox.shrink();
+                            },
+                            interval: 1,  // Ensure Y-axis ticks at every integer
+                          ),
                         ),
-                        // leftTitles: AxisTitles(
-                        //   sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
-                        // ),
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                         topTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false), // Disable Y-axis titles on BarChart
+                          sideTitles: SideTitles(showTitles: false),
                         ),
                         bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false), // Disable X-axis titles on BarChart
+                          sideTitles: SideTitles(showTitles: true),
                         ),
                       ),
                       gridData: FlGridData(
-                        show: false,
+                        show: true,
+                        drawHorizontalLine: true,
+                        drawVerticalLine: true,
+                        horizontalInterval: 1,  // Ensure grid lines match Y-axis ticks
+                        verticalInterval: 1,
+                        getDrawingHorizontalLine: (value) => FlLine(
+                          color: Colors.grey.withOpacity(0.3),
+                          strokeWidth: 1,
+                        ),
+                        getDrawingVerticalLine: (value) => FlLine(
+                          color: Colors.grey.withOpacity(0.3),
+                          strokeWidth: 1,
+                        ),
                       ),
-                      borderData: FlBorderData(show: false),
+                      borderData: FlBorderData(
+                        show: true,
+                        border: Border.all(color: Colors.black26),
+                      ),
                     ),
-                  ),
-                ],
+                  ),             ],
               ),
             ),
             const SizedBox(height: 20),
