@@ -1,0 +1,9 @@
+<resources>
+    <!-- App Colors (Optional but helpful for themes) -->
+    <color name="splash_background">#004288</color>
+
+    <!-- Ensure the post-splash theme is defined -->
+    <style name="PostSplashScreenTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>

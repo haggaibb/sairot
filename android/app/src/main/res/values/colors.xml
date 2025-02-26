@@ -1,0 +1,5 @@
+<resources>
+    <color name="primary">#004288</color> <!-- Your splash background color -->
+    <color name="onPrimary">#FFFFFF</color> <!-- Text on primary color -->
+    <color name="white">#FFFFFF</color> <!-- White color definition -->
+</resources>

@@ -79,6 +79,7 @@ class Participant {
       ..leadershipInstructorComments =  List<String>.from(json['leadershipInstructorComments'] ?? [])
       ..interviewInstructorComments =  List<String>.from(json['interviewInstructorComments'] ?? []);
   }
+
 }
 
 /// Extension to convert ParticipantStatus to a string

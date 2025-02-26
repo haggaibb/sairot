@@ -28,7 +28,7 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
       var h = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound.length / 3 + 2;
       if (eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound.isEmpty) return SizedBox();
       return SizedBox(
-          height: h < 2 ? 120 : h * 50,
+          height: h < 2 ? 120 : h * 55,
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -41,7 +41,7 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                     TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                 Expanded(
                     child: GridView.count(
-                        childAspectRatio: 3,
+                        childAspectRatio: eventController.userChildAspectRatio.value,
                         crossAxisCount: eventController.numberOfCols,
                         children: List.generate(
                             eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound.length, (index) {
@@ -49,7 +49,8 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                             padding: const EdgeInsets.all(5.0),
                             child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  fixedSize: const Size(10, 20),
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                                 ),
                                 onPressed: () {
                                   if (eventController.sakimEditModeOn.value) {
@@ -84,7 +85,11 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                     eventController.addSakimComments(res,eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
                                   }
                                 },
-                                child: Text(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index].toString())),
+                                child: Text(
+                                    eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index].toString(),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                ),
+                            ),
                           );
                         }))),
               ],

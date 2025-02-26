@@ -48,7 +48,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                       TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   Expanded(
                       child: GridView.count(
-                          childAspectRatio: 3,
+                          childAspectRatio: eventController.userChildAspectRatio.value,
                           crossAxisCount: eventController.numberOfCols,
                           children: List.generate(
                               widget.round.activeParticipants.length, (index) {
@@ -56,7 +56,8 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                               padding: const EdgeInsets.all(5.0),
                               child: ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                    fixedSize: const Size(10, 20),
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
                                   ),
                                   onPressed: () async {
                                     var res =
@@ -109,15 +110,18 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                   },
                                   child: Text(widget
                                       .round.activeParticipants[index]
-                                      .toString())),
+                                      .toString(),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                  )),
                             );
                           }))),
                   ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        fixedSize: const Size(120, 20),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       ),
                       onPressed: () async {
-                        eventController.loading.value = true;
+                        //eventController.loading.value = true;
                         for (var participantNumber in widget.round.activeParticipants) {
                           widget.round.participationCredits.add(participantNumber);
                         }
@@ -127,9 +131,11 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                         });
                         eventController.currentEvent.value.alonkaSprints[widget.round.round]=widget.round;
                         await eventController.currentEvent.value.saveToFirestore();
-                        eventController.loading.value = false;
+                        //eventController.loading.value = false;
                       },
-                      child: Text('סיים')),
+                      child: Text('סיים',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                      )),
                   SizedBox(
                       height: 110,
                       child: Center(

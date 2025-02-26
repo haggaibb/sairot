@@ -18,6 +18,7 @@ import 'models/system.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'theme_controller.dart';
 
 
 class Controller extends GetxController {
@@ -26,6 +27,7 @@ class Controller extends GetxController {
   var pastEventsLoading = false.obs;
 
   GradeSettings gradesData = GradeSettings();
+  final themeController = Get.put(ThemeController());
 
   /// Event Days
   String currentEventName = '';
@@ -69,21 +71,29 @@ class Controller extends GetxController {
   /// Hive
   var systemBox;
 
+  /// Settings
+  RxDouble userFontSize = 18.0.obs;
+  RxDouble userChildAspectRatio = 3.0.obs;
+
+
 
   @override
   onInit() async {
     loading.value = true;
     var dir = await getApplicationDocumentsDirectory();
     if (!Hive.isAdapterRegistered(102)) Hive.registerAdapter(SystemAdapter());
+    if (!Hive.isAdapterRegistered(200)) Hive.registerAdapter(AccessibilityAdapter());
     await Hive.initFlutter(dir.path);
-    //await Hive.deleteBoxFromDisk('system');
     await initSystemHiveBox();
-    //await connectionEnabled();
     await gradesUpdate();
     await getSystemSettings();
     await getCurrentEventName();
     await getUpdatedInstructorsList();
     await checkForLocalLogin();
+    if (loggedIn.value) {
+      await getUnfinalizedEvents();
+      await fetchInstructorEvents();
+    }
     super.onInit();
     print('done ctx init');
     loading.value = false;
@@ -95,6 +105,54 @@ class Controller extends GetxController {
     super.onClose();
   }
 
+  /// Settings
+  setUserAccessibility(Accessibility accessibility) {
+    switch (accessibility) {
+      case Accessibility.normal:
+        print("🔹 Setting to NORMAL mode.");
+        userFontSize.value = systemSettings.accessibilitySettings['normal']['font_size'].toDouble() ?? 18;
+        userChildAspectRatio.value = systemSettings.accessibilitySettings['normal']['child_aspect_ratio'].toDouble() ?? 3;
+        system.value.userFontSize = userFontSize.value;
+        system.value.save();
+        break;
+      case Accessibility.big:
+        print("🔹 Setting to BIG mode.");
+        userFontSize.value = systemSettings.accessibilitySettings['big']['font_size'].toDouble() ?? 26;
+        userChildAspectRatio.value = systemSettings.accessibilitySettings['big']['child_aspect_ratio'].toDouble() ?? 2.5;        system.value.userFontSize = userFontSize.value;
+        system.value.save();
+        break;
+      case Accessibility.biggest:
+        print("🔹 Setting BIGGEST mode.");
+        userFontSize.value = (systemSettings.accessibilitySettings['biggest']?['font_size'] as num?)?.toDouble() ?? 30.0;
+        userChildAspectRatio.value = systemSettings.accessibilitySettings['biggest']['child_aspect_ratio'].toDouble() ?? 2;        system.value.userFontSize = userFontSize.value;
+        system.value.save();
+        break;
+    }
+    system.refresh(); // Ensure UI updates
+    update(); // Notify GetX listeners
+  }
+
+
+  /// Hive
+  initSystemHiveBox() async {
+    systemBox = await Hive.openBox<System>('system');
+    print('system > 0?');
+    print(systemBox.length);
+    if (systemBox.length > 0) {
+      system.value = systemBox.get('login') as System;
+    } else {
+      /// one time event to create System
+      print('NO system');
+      await systemBox.put('login', system.value);
+      return false;
+    }
+  }
+  deleteSystemHiveBox() async {
+    print('Delete System Hive Box');
+    await Hive.deleteBoxFromDisk('system');
+    Get.offAllNamed('/front_door');
+  }
+
   /// get the system settings from firebase
   getSystemSettings() async {
     try {
@@ -103,6 +161,7 @@ class Controller extends GetxController {
       if (docSnapshot.exists) {
         systemSettings =
             SystemSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
+        setUserAccessibility(system.value.accessibility);
         print(
             'Updated System Settings.');
         return true;
@@ -527,7 +586,7 @@ class Controller extends GetxController {
       p.meshulashGrade = getMeshulashGrade(p.number);
       p.systemGrade =
           (p.meshulashGrade + p.alonkaGrade + p.sakimGrade + p.burGrade) / 4;
-      currentEvent.value.saveToFirestore();
+      if (!currentEvent.value.finalized) currentEvent.value.saveToFirestore();
     }
   }
 
@@ -616,14 +675,13 @@ class Controller extends GetxController {
 
   checkForLocalLogin() async {
     systemBox = await Hive.openBox<System>('system');
-    print('system > 0?');
-    print(systemBox.length);
     if (systemBox.length > 0) {
-      print(system.value.loggedIn);
       if (system.value.loggedIn != '') {
         print('logged in');
         loggedIn.value = true;
+        toggleTheme(system.value.isDarkMode);
         currentInstructor = getInstructor(system.value.loggedIn)?? currentInstructor;
+
         return true;
       } else {
         print('NOT logged in');
@@ -632,19 +690,13 @@ class Controller extends GetxController {
     }
   }
 
-  initSystemHiveBox() async {
-    systemBox = await Hive.openBox<System>('system');
-    print('system > 0?');
-    print(systemBox.length);
-    if (systemBox.length > 0) {
-      system.value = systemBox.get('login') as System;
-    } else {
-      /// one time event to create System
-      print('NO system');
-      await systemBox.put('login', system.value);
-      return false;
-    }
+  void toggleTheme(bool isDark) {
+    themeController.toggleTheme(isDark);
+    Get.changeThemeMode(isDark ? ThemeMode.dark : ThemeMode.light);
+    system.value.isDarkMode = isDark;
+    system.value.save();
   }
+
   /// 🔍 Get Full Name of an Instructor by `instructorId`
   String getInstructorName(String instructorId) {
     try {

@@ -1,0 +1,20 @@
+flutter_native_splash:
+  # Splash screen for older Android versions
+  color: "#004288"
+  image: images/logo_1024.png
+  #background_image: images/splash_background.png
+  # Dark mode support
+  #color_dark: "#000000"
+  #image_dark: images/wings-logo-dark.png
+
+  # Android 12+ Configuration
+  android_12:
+    color: "#004288" # Background color for Android 12+
+    image: images/logo_1024.png # Custom splash icon (not mipmap)
+    #icon_background_color: "#42a5f5" # Optional background behind the image
+    #background_image: images/splash_background.png
+    fullscreen: true
+
+  android: true
+  ios: false
+  web: false

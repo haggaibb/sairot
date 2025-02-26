@@ -18,7 +18,8 @@ class AlonkaCreditPanel extends StatelessWidget {
                     AlonkaCreditTypes
                         .Alonka),
             icon: Image.asset(
-              width: 60,
+                color: Theme.of(context).brightness == Brightness.dark?Theme.of(context).colorScheme.primary:Colors.black,
+                width: 60,
                 'images/alonka.png')
         ),
         IconButton(
@@ -29,6 +30,7 @@ class AlonkaCreditPanel extends StatelessWidget {
                     AlonkaCreditTypes
                         .Gerikan),
             icon: Image.asset(
+                color: Theme.of(context).brightness == Brightness.dark?Theme.of(context).colorScheme.primary:Colors.black,
                 width: 60,
                 'images/gerikan.png')
         ),
@@ -40,6 +42,7 @@ class AlonkaCreditPanel extends StatelessWidget {
                     AlonkaCreditTypes
                         .Runner),
             icon: Image.asset(
+                color: Theme.of(context).brightness == Brightness.dark?Theme.of(context).colorScheme.primary:Colors.black,
                 width: 60,
                 'images/run.png')
         ),

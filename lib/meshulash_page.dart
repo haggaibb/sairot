@@ -61,185 +61,214 @@ class _MeshulashPageState extends State<MeshulashPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          title: Column(
-            children: [
-              Text('משולש'),
-              Text(style: TextStyle(fontSize: 12), 'משך התרגיל $runTime דקות '),
-            ],
-          ),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back), // 🔄 Custom back arrow
-            onPressed: () {
-              eventController.loading.value = true;
-              Get.back(); // ⬅️ Go back using GetX
-              eventController.loading.value = false;
-            },
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blueAccent, Color.fromARGB(255, 0, 66, 136)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        body: GetX<Controller>(builder: (_) {
-          return SingleChildScrollView(
-            controller: _scrollController,
-            child: eventController.currentEvent.value.meshulashRounds.isNotEmpty
-                ? Center(
-                    child: Obx(() => eventController.loading.value
-                        ? LinearProgressIndicator()
-                        : Column(
-                            children: [
-                              SizedBox(
-                                height: 15,
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: List.generate(
-                                    _.currentEvent.value.meshulashRounds.length,
-                                    (index) {
-                                  return Padding(
-                                    padding: const EdgeInsets.all(5.0),
-                                    child:
-                                        Obx(() => eventController.loading.value
-                                            ? CircularProgressIndicator()
-                                            : MeshulashRoundPanel(
-                                                round: _.currentEvent.value
-                                                    .meshulashRounds[index],
-                                              )),
-                                  );
-                                }),
-                              ),
-                              const Divider(
-                                thickness: 30,
-                              ),
-                              eventController.currentEvent.value
-                                          .meshulashEndTime ==
-                                      null
-                                  ? Padding(
-                                      padding: const EdgeInsets.all(30.0),
-                                      child: ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            fixedSize: const Size(150, 20),
-                                          ),
-                                          onPressed: () async {
-                                            var res = await showDialog(
-                                              context: context,
-                                              builder: (BuildContext context) {
-                                                return YesNoDialog();
-                                              },
-                                            );
-                                            if (res) {
-                                              setState(() {
-                                                eventController.currentEvent.value
-                                                    .meshulashEndTime =
-                                                    DateTime.now();
-                                              });
-                                              await eventController
-                                                  .currentEvent.value
-                                                  .saveToFirestore();
-                                              _timer.cancel();
-                                              _.meshulashEditModeOn.value = false;
-                                              editModeOn =
-                                                  _.meshulashEditModeOn.value;
-                                            }
-                                          },
-                                          child: Text('סיום התרגיל')),
-                                    )
-                                  : Column(
-                                      children: [
-                                        eventController
-                                                .currentEvent.value.finalized
-                                            ? SizedBox.shrink()
-                                            : TextButton.icon(
-                                                onPressed: () async {
-                                                  if (editModeOn) {
-                                                    ///save
-                                                    await eventController
-                                                        .currentEvent.value
-                                                        .saveToFirestore();
-                                                  } else {}
-                                                  _.meshulashEditModeOn.value =
-                                                      !_.meshulashEditModeOn
-                                                          .value;
-                                                  setState(() {
-                                                    editModeOn = _
-                                                        .meshulashEditModeOn
-                                                        .value;
-                                                  });
+      ),
+      child: Scaffold(
+          appBar: AppBar(
+            //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            centerTitle: true,
+            title: Column(
+              children: [
+                Text('משולש'),
+                Text(style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold), 'משך התרגיל $runTime דקות ',
+                ),
+              ],
+            ),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back), // 🔄 Custom back arrow
+              onPressed: () {
+                eventController.loading.value = true;
+                Get.back(); // ⬅️ Go back using GetX
+                eventController.loading.value = false;
+              },
+            ),
+          ),
+          body: GetX<Controller>(builder: (_) {
+            return SingleChildScrollView(
+              controller: _scrollController,
+              child: eventController.currentEvent.value.meshulashRounds.isNotEmpty
+                  ? Center(
+                      child: Obx(() => eventController.loading.value
+                          ? LinearProgressIndicator()
+                          : Column(
+                              children: [
+                                SizedBox(
+                                  height: 15,
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: List.generate(
+                                      _.currentEvent.value.meshulashRounds.length,
+                                      (index) {
+                                    return Padding(
+                                      padding: const EdgeInsets.all(5.0),
+                                      child:
+                                          Obx(() => eventController.loading.value
+                                              ? CircularProgressIndicator()
+                                              : MeshulashRoundPanel(
+                                                  round: _.currentEvent.value
+                                                      .meshulashRounds[index],
+                                                )),
+                                    );
+                                  }),
+                                ),
+                                const Divider(
+                                  thickness: 30,
+                                ),
+                                eventController.currentEvent.value
+                                            .meshulashEndTime ==
+                                        null
+                                    ? Padding(
+                                        padding: const EdgeInsets.all(30.0),
+                                        child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Theme.of(context).colorScheme.primary,
+                                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                            ),
+                                            onPressed: () async {
+                                              var res = await showDialog(
+                                                context: context,
+                                                builder: (BuildContext context) {
+                                                  return YesNoDialog();
                                                 },
-                                                icon: editModeOn
-                                                    ? const Icon(Icons.save)
-                                                    : const Icon(Icons.edit),
-                                                label: editModeOn
-                                                    ? const Text('סיים')
-                                                    : const Text('עריכה'),
-                                                iconAlignment:
-                                                    IconAlignment.start,
-                                              ),
-                                        SizedBox(
-                                          height: 20,
-                                        ),
-                                        Text('  התרגיל הסתיים  '),
-                                      ],
-                                    ),
-                            ],
-                          )),
-                  )
-                : Obx(() => eventController.loading.value
-                    ? SizedBox(
-                        height: 100,
-                        width: 100,
-                        child: CircularProgressIndicator(),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.only(top: 200),
-                        child: Column(
-                          children: [
-                            Obx(() => eventController.loading.value
-                                ? SizedBox(
-                                    width: 100,
-                                    child: LinearProgressIndicator(),
-                                  )
-                                : SizedBox.shrink()),
-                            Center(
-                              child: Obx(() => eventController.loading.value
+                                              );
+                                              if (res) {
+                                                setState(() {
+                                                  eventController
+                                                          .currentEvent
+                                                          .value
+                                                          .meshulashEndTime =
+                                                      DateTime.now();
+                                                });
+                                                await eventController
+                                                    .currentEvent.value
+                                                    .saveToFirestore();
+                                                _timer.cancel();
+                                                _.meshulashEditModeOn.value =
+                                                    false;
+                                                editModeOn =
+                                                    _.meshulashEditModeOn.value;
+                                              }
+                                            },
+                                            child: Text('סיום התרגיל',
+                                              style: TextStyle(fontWeight: FontWeight.bold),
+                                            )),
+                                      )
+                                    : Column(
+                                        children: [
+                                          eventController
+                                                  .currentEvent.value.finalized
+                                              ? SizedBox.shrink()
+                                              : TextButton.icon(
+                                                  onPressed: () async {
+                                                    if (editModeOn) {
+                                                      ///save
+                                                      await eventController
+                                                          .currentEvent.value
+                                                          .saveToFirestore();
+                                                    } else {}
+                                                    _.meshulashEditModeOn.value =
+                                                        !_.meshulashEditModeOn
+                                                            .value;
+                                                    setState(() {
+                                                      editModeOn = _
+                                                          .meshulashEditModeOn
+                                                          .value;
+                                                    });
+                                                  },
+                                                  icon: editModeOn
+                                                      ? const Icon(Icons.save)
+                                                      : const Icon(Icons.edit),
+                                                  label: editModeOn
+                                                      ? const Text('סיים',
+                                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                                  )
+                                                      : const Text('עריכה',
+                                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                                  ),
+                                                  iconAlignment:
+                                                      IconAlignment.start,
+                                                ),
+                                          SizedBox(
+                                            height: 20,
+                                          ),
+                                          Text('  התרגיל הסתיים  ',
+                                            style: TextStyle(fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                              ],
+                            )),
+                    )
+                  : Obx(() => eventController.loading.value
+                      ? SizedBox(
+                          height: 100,
+                          width: 100,
+                          child: CircularProgressIndicator(),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 200),
+                          child: Column(
+                            children: [
+                              Obx(() => eventController.loading.value
                                   ? SizedBox(
-                                      height: 100,
                                       width: 100,
-                                      child: CircularProgressIndicator(),
+                                      child: LinearProgressIndicator(),
                                     )
-                                  : ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                          fixedSize: const Size(200, 40)),
-                                      onPressed: () async {
-                                        setState(() {
-                                          eventController.loading.value = true;
-                                          eventController.currentEvent.value
-                                                  .meshulashStartTime =
-                                              DateTime.now();
-                                          _.currentEvent.value.meshulashRounds
-                                              .add(MeshulashRound(
-                                                  round: 0,
-                                                  participantsInRound: _
-                                                      .currentEvent.value
-                                                      .getParticipantsByStatus(
-                                                          ParticipantStatus
-                                                              .Active)
-                                                      .map((participant) =>
-                                                          participant.number)
-                                                      .toList()));
-                                          eventController.loading.value = false;
-                                        });
-                                        _.currentEvent.value.saveToFirestore();
-                                      },
-                                      child: const Text(
-                                        'תחילת תרגיל',
-                                        style: TextStyle(fontSize: 14),
-                                      ))),
-                            ),
-                          ],
-                        ),
-                      )),
-          );
-        }));
+                                  : SizedBox.shrink()),
+                              Center(
+                                child: Obx(() => eventController.loading.value
+                                    ? SizedBox(
+                                        height: 100,
+                                        width: 100,
+                                        child: CircularProgressIndicator(),
+                                      )
+                                    : ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          foregroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary,
+                                        ),
+                                        onPressed: () async {
+                                          setState(() {
+                                            eventController.loading.value = true;
+                                            eventController.currentEvent.value
+                                                    .meshulashStartTime =
+                                                DateTime.now();
+                                            _.currentEvent.value.meshulashRounds
+                                                .add(MeshulashRound(
+                                                    round: 0,
+                                                    participantsInRound: _
+                                                        .currentEvent.value
+                                                        .getParticipantsByStatus(
+                                                            ParticipantStatus
+                                                                .Active)
+                                                        .map((participant) =>
+                                                            participant.number)
+                                                        .toList()));
+                                            eventController.loading.value = false;
+                                          });
+                                          _.currentEvent.value.saveToFirestore();
+                                        },
+                                        child: const Text(
+                                          'תחילת תרגיל',
+                                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold ),
+                                        ))),
+                              ),
+                            ],
+                          ),
+                        )),
+            );
+          })),
+    );
   }
 }
