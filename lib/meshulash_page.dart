@@ -157,7 +157,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                               }
                                             },
                                             child: Text('סיום התרגיל',
-                                              style: TextStyle(fontWeight: FontWeight.bold),
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
                                             )),
                                       )
                                     : Column(
@@ -186,11 +186,11 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                                       ? const Icon(Icons.save)
                                                       : const Icon(Icons.edit),
                                                   label: editModeOn
-                                                      ? const Text('סיים',
-                                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                                      ? Text('סיים',
+                                                    style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value-5),
                                                   )
-                                                      : const Text('עריכה',
-                                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                                      : Text('עריכה',
+                                                    style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
                                                   ),
                                                   iconAlignment:
                                                       IconAlignment.start,
@@ -199,7 +199,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                             height: 20,
                                           ),
                                           Text('  התרגיל הסתיים  ',
-                                            style: TextStyle(fontWeight: FontWeight.bold),
+                                            style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
                                           ),
                                         ],
                                       ),
@@ -259,9 +259,9 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                           });
                                           _.currentEvent.value.saveToFirestore();
                                         },
-                                        child: const Text(
+                                        child: Text(
                                           'תחילת תרגיל',
-                                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold ),
+                                          style: TextStyle(fontSize: eventController.userFontSize.value-5, fontWeight: FontWeight.bold ),
                                         ))),
                               ),
                             ],

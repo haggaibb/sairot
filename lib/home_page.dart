@@ -85,6 +85,29 @@ class _HomeState extends State<Home> {
                         Text('תפריט',
                             style: TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 20)),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 0.0, top: 10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${eventController.currentInstructor.firstName} ${eventController.currentInstructor.lastName}',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  //fontWeight: FontWeight.bold,
+                                  //color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                eventController.currentInstructor.id,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  //color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -110,7 +133,7 @@ class _HomeState extends State<Home> {
                   ListTile(
                     title: Row(
                       children: [
-                        Icon(Icons.person),
+                        Icon(Icons.exit_to_app_sharp),
                         SizedBox(
                           width: 10,
                         ),
@@ -126,29 +149,6 @@ class _HomeState extends State<Home> {
                       eventController.loading.value = false;
                       Get.offAllNamed('/front_door');
                     },
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 50.0, top: 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${eventController.currentInstructor.firstName} ${eventController.currentInstructor.lastName}',
-                          style: TextStyle(
-                            fontSize: 18,
-                            //fontWeight: FontWeight.bold,
-                            //color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          eventController.currentInstructor.id,
-                          style: TextStyle(
-                            fontSize: 18,
-                            //color: Colors.white.withOpacity(0.9),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                   /// FontSize
                   Padding(
@@ -295,7 +295,7 @@ class _HomeState extends State<Home> {
                   padding: const EdgeInsets.all(1.0),
                   child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        elevation: 10,
+                        elevation: 5,
                         backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       ),

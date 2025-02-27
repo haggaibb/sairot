@@ -6,6 +6,7 @@ import 'widgets/yes_no.dart';
 import 'theme_controller.dart';
 import 'widgets/strobe_button.dart';
 import 'models/system.dart';
+import 'models/instructor.dart';
 
 class EventHome extends StatefulWidget {
   const EventHome({super.key});
@@ -78,22 +79,24 @@ class _EventHomeState extends State<EventHome> {
                     ],
                   ),
                 ),
+                /// Loading
                 Obx(() => eventController.loading.value
                     ? SizedBox(
                         width: 100,
                         child: LinearProgressIndicator(),
                       )
                     : SizedBox.shrink()),
+                /// Close Event
                 Obx(() => eventController.currentEvent.value.finalized
                     ? SizedBox.shrink()
                     : ListTile(
                         title: Row(
                           children: [
-                            Icon(Icons.close),
+                            Icon(Icons.save),
                             SizedBox(
                               width: 10,
                             ),
-                            const Text('סגירת הארוע'),
+                            const Text('שמירה וסגירת הארוע'),
                           ],
                         ),
                         onTap: () async {
@@ -123,6 +126,7 @@ class _EventHomeState extends State<EventHome> {
                           }
                         },
                       )),
+                /// Edit Event Settings
                 Obx(() => eventController.currentEvent.value.finalized
                     ? SizedBox.shrink()
                     : ListTile(
@@ -140,6 +144,7 @@ class _EventHomeState extends State<EventHome> {
                               '/event_settings/${eventController.currentEvent.value.date}');
                         },
                       )),
+                /// Back to Home Page
                 ListTile(
                   title: Row(
                     children: [
@@ -153,14 +158,37 @@ class _EventHomeState extends State<EventHome> {
                   onTap: () async {
                     if (!eventController.currentEvent.value.finalized)
                       eventController.currentEvent.value.saveToFirestore();
+                    await eventController.getUnfinalizedEvents();
                     Get.toNamed('/home');
                   },
                 ),
+                /// Exit
+                ListTile(
+                  title: Row(
+                    children: [
+                      Icon(Icons.exit_to_app_sharp),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      const Text('יציאה מהמערכת'),
+                    ],
+                  ),
+                  onTap: () async {
+                    eventController.loading.value = true;
+                    eventController.system.value.loggedIn = '';
+                    await eventController.system.value.save();
+                    eventController.currentInstructor = Instructor(
+                        id: '', firstName: '', lastName: '', mobile: '');
+                    eventController.loading.value = false;
+                    Get.offAllNamed('/front_door');
+                  },
+                ),
+                /// Dark Mode
                 Obx(() => SwitchListTile(
                   title: Text(
                     themeController.isDarkMode.value
-                        ? 'Dark Mode'
-                        : 'Light Mode',
+                        ? 'מצב לילה'
+                        : 'מצב יום',
                     style: TextStyle(fontSize: 18),
                   ),
                   secondary: Icon(
@@ -173,6 +201,7 @@ class _EventHomeState extends State<EventHome> {
                     eventController.toggleTheme(value);
                   },
                 )),
+                /// Accessibility
                 Padding(
                   padding: const EdgeInsets.all(50.0),
                   child: Column(
@@ -244,6 +273,7 @@ class _EventHomeState extends State<EventHome> {
           body: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
+              /// Group Data
               Column(
                 children: [
                   Text(
@@ -266,6 +296,7 @@ class _EventHomeState extends State<EventHome> {
                   )
                 ],
               ),
+              /// Loading
               Obx(() {
                 if (eventController.loading.value) {
                   return CircularProgressIndicator();
@@ -305,63 +336,6 @@ class _EventHomeState extends State<EventHome> {
                             ),
                           ),
                         ),
-
-                        /// Sakim
-                        Padding(
-                          padding: const EdgeInsets.all(15.0),
-                          child: ShiningButton(
-                            onPressed: () => Get.toNamed('/sakim'),
-                            borderColor: eventController.currentEvent.value.sakimStartTime == null
-                                ? Colors.black
-                                : eventController.currentEvent.value.sakimEndTime == null
-                                ? Colors.red
-                                : Colors.green,
-                            noneActiveColor: Theme.of(context).colorScheme.primary,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Image.asset(
-                                  'images/sakim.png',
-                                  scale: 6,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
-                                      : Colors.black,
-                                ),
-                                const Text('שקים',
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        /// Bur
-                        Padding(
-                          padding: const EdgeInsets.all(15.0),
-                          child: ShiningButton(
-                            onPressed: () => Get.toNamed('/bur'),
-                            borderColor: eventController.currentEvent.value.burStartTime == null
-                                ? Colors.black
-                                : eventController.currentEvent.value.burEndTime == null
-                                ? Colors.red
-                                : Colors.green,
-                            noneActiveColor: Theme.of(context).colorScheme.primary,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Image.asset(
-                                  'images/bur.png',
-                                  scale: 6,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
-                                      : Colors.black,
-                                ),
-                                const Text('בור',
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                        ),
-
                         /// Alonka
                         Padding(
                           padding: const EdgeInsets.all(15.0),
@@ -393,7 +367,60 @@ class _EventHomeState extends State<EventHome> {
                             ),
                           ),
                         ),
-
+                        /// Bur
+                        Padding(
+                          padding: const EdgeInsets.all(15.0),
+                          child: ShiningButton(
+                            onPressed: () => Get.toNamed('/bur'),
+                            borderColor: eventController.currentEvent.value.burStartTime == null
+                                ? Colors.black
+                                : eventController.currentEvent.value.burEndTime == null
+                                ? Colors.red
+                                : Colors.green,
+                            noneActiveColor: Theme.of(context).colorScheme.primary,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Image.asset(
+                                  'images/bur.png',
+                                  scale: 6,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
+                                      : Colors.black,
+                                ),
+                                const Text('בור',
+                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        /// Sakim
+                        Padding(
+                          padding: const EdgeInsets.all(15.0),
+                          child: ShiningButton(
+                            onPressed: () => Get.toNamed('/sakim'),
+                            borderColor: eventController.currentEvent.value.sakimStartTime == null
+                                ? Colors.black
+                                : eventController.currentEvent.value.sakimEndTime == null
+                                ? Colors.red
+                                : Colors.green,
+                            noneActiveColor: Theme.of(context).colorScheme.primary,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                Image.asset(
+                                  'images/sakim.png',
+                                  scale: 6,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
+                                      : Colors.black,
+                                ),
+                                const Text('שקים',
+                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
                         /// Leadership
                         Padding(
                           padding: const EdgeInsets.all(15.0),
@@ -417,7 +444,6 @@ class _EventHomeState extends State<EventHome> {
                             ),
                           ),
                         ),
-
                         /// Interview
                         Padding(
                           padding: const EdgeInsets.all(15.0),
@@ -446,7 +472,9 @@ class _EventHomeState extends State<EventHome> {
                   ),
                 );
               }),
-              Row(
+              /// Grades and Status Buttons
+              Obx (() {
+                return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton(
@@ -460,7 +488,8 @@ class _EventHomeState extends State<EventHome> {
                       child: Text('סטטוס חניכים',
                           style: TextStyle(fontSize: eventController.userFontSize.value-5, fontWeight: FontWeight.bold))),
                 ],
-              ),
+              );
+              }),
             ],
           ),
         ),
