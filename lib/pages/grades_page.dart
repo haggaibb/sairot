@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'ctx.dart';
+import '../event_controller.dart';
 import 'package:get/get.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 

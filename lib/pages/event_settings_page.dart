@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'ctx.dart';
+import '../event_controller.dart';
 import 'package:get/get.dart';
-import 'models/event.dart';
-import 'models/participant.dart';
+import '../models/event.dart';
+import '../models/participant.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
-import 'widgets/yes_no.dart';
+import '../widgets/yes_no.dart';
 
 
 class EventSettingsPage extends StatefulWidget {

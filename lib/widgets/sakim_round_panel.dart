@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../ctx.dart';
+import '../event_controller.dart';
 import 'package:get/get.dart';
 import 'comments_dialog.dart';
 import 'package:sairot/models/sakim_round.dart';

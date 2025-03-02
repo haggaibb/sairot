@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sairot/performance_page.dart';
+import 'package:sairot/pages/performance_page.dart';
 import 'admin_controller.dart'; // Ensure the correct import for AdminController
 import '../theme_controller.dart';
 class AdminHome extends StatefulWidget {

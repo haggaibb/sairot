@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/event.dart';
 import 'package:get/get.dart';
-import '../ctx.dart';
+import '../event_controller.dart';
 import 'yes_no.dart';
 
 

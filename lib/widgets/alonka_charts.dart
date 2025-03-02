@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:sairot/models/participant.dart';
-import '../ctx.dart';
+import '../event_controller.dart';
 import 'package:sairot/models/alonka_sprint.dart';
 
 class ChartToggleController extends GetxController {

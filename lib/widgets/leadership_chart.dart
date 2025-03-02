@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/participant.dart';
-import '../ctx.dart';
+import '../event_controller.dart';
 
 class LeadershipChart extends StatelessWidget {
   final int number;

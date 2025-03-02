@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/types.dart';
-import 'ctx.dart';
+import 'event_controller.dart';
 import 'widgets/yes_no.dart';
 import 'theme_controller.dart';
 import 'widgets/strobe_button.dart';

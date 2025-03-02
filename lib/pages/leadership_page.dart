@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:sairot/models/participant.dart';
-import 'models/types.dart';
-import 'ctx.dart';
+import '../models/types.dart';
+import '../event_controller.dart';
 import 'package:get/get.dart';
-import 'widgets/comments_dialog.dart';
+import '../widgets/comments_dialog.dart';
 
 
 class LeadershipPage extends StatefulWidget {

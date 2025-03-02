@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/types.dart';
-import 'ctx.dart';
-import 'models/participant.dart';
+import '../event_controller.dart';
+import '../models/participant.dart';
 
 class ParticipantsStatusPage extends StatefulWidget {
   const ParticipantsStatusPage({super.key});

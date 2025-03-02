@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sairot/models/alonka_sprint.dart';
-import '../ctx.dart';
+import '../event_controller.dart';
 import 'package:get/get.dart';
 import '../models/types.dart';
 import 'comments_dialog.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../ctx.dart';
+import '../event_controller.dart';
 import 'package:get/get.dart';
 import '../models/types.dart';
 import 'participant_action_dialog.dart';

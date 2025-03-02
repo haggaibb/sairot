@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
-import 'ctx.dart';
+import 'event_controller.dart';
 
 class ConnectivityController extends GetxController {
   var isConnected = false.obs; // Tracks internet connectivity

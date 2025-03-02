@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:sairot/models/alonka_sprint.dart';
 import 'package:sairot/models/types.dart';
-import 'ctx.dart';
+import '../event_controller.dart';
 import 'package:get/get.dart';
-import 'widgets/alonka_round_panel.dart';
+import '../widgets/alonka_round_panel.dart';
 import 'dart:async';
-import 'widgets/yes_no.dart';
+import '../widgets/yes_no.dart';
 
 class AlonkaPage extends StatefulWidget {
   const AlonkaPage({super.key});

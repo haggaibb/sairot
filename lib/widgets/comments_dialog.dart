@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sairot/performance_page.dart';
+import 'package:sairot/pages/performance_page.dart';
 
 class CommentsDialog extends StatefulWidget {
   final List<String> commentsList; // Predefined comments

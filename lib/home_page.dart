@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'ctx.dart';
+import 'event_controller.dart';
 import 'models/instructor.dart';
 import 'dart:async';
 import 'widgets/unfinalized_panel.dart';

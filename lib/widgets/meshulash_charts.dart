@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/participant.dart';
 import 'package:sairot/models/types.dart';
-import '../ctx.dart';
+import '../event_controller.dart';
 import 'package:sairot/models/meshulash_round.dart';
 
 

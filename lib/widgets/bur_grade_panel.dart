@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/bur.dart';
-import '../ctx.dart';
+import '../event_controller.dart';
 
 class BurGradePanel extends StatefulWidget {
   final Bur bur;

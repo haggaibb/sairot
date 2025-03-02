@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../ctx.dart';
+import '../event_controller.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/meshulash_round.dart';
 import '../widgets/comments_dialog.dart';

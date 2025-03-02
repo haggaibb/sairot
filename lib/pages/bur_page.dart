@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:sairot/models/participant.dart';
-import 'models/types.dart';
-import 'ctx.dart';
+import '../models/types.dart';
+import '../event_controller.dart';
 import 'package:get/get.dart';
-import 'models/bur.dart';
-import 'widgets/bur_grade_panel.dart';
+import '../models/bur.dart';
+import '../widgets/bur_grade_panel.dart';
 import 'dart:async';
-import 'widgets/yes_no.dart';
+import '../widgets/yes_no.dart';
 
 class BurPage extends StatefulWidget {
   const BurPage({super.key});

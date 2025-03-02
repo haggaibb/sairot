@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sairot/performance_page.dart';
+import 'package:sairot/pages/performance_page.dart';
 import 'admin_controller.dart';
 import 'package:get/get.dart';
 import '../widgets/event_grades_distribution_charts.dart';

@@ -1,15 +1,15 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:sairot/models/participant.dart';
-import 'ctx.dart';
+import '../event_controller.dart';
 import 'package:get/get.dart';
-import 'widgets/meshulash_charts.dart';
-import 'widgets/alonka_charts.dart';
-import 'widgets/bur_charts.dart';
-import 'widgets/sakim_charts.dart';
-import 'widgets/interview_chart.dart';
-import 'widgets/leadership_chart.dart';
-import 'widgets/animated_wheels.dart';
+import '../widgets/meshulash_charts.dart';
+import '../widgets/alonka_charts.dart';
+import '../widgets/bur_charts.dart';
+import '../widgets/sakim_charts.dart';
+import '../widgets/interview_chart.dart';
+import '../widgets/leadership_chart.dart';
+import '../widgets/animated_wheels.dart';
 
 final eventController = Get.put(Controller());
 const leftStyle = TextStyle(

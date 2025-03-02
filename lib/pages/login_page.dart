@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'ctx.dart';
+import '../event_controller.dart';
 import 'dart:async';
-import 'widgets/logo.dart';
+import '../widgets/logo.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

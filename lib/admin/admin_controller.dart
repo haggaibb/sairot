@@ -5,7 +5,7 @@ import '../models/admin_event.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
-import '../ctx.dart';
+import '../event_controller.dart';
 import '../models/types.dart';
 import 'package:sairot/models/participant.dart';
 
