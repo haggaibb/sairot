@@ -20,6 +20,27 @@ class _EventHomeState extends State<EventHome> {
   final themeController = Get.put(ThemeController());
 
 
+
+  Widget _buildShiningButton(dynamic icon, String title, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.all(15.0),
+      child: ShiningButton(
+        onPressed: onTap,
+        borderColor: Colors.black,
+        noneActiveColor: Get.theme.colorScheme.primary,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            icon is String
+                ? Image.asset(icon, scale: 6, color: Colors.black)
+                : Icon(icon, size: 80, color: Colors.black),
+            Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -162,27 +183,6 @@ class _EventHomeState extends State<EventHome> {
                     Get.toNamed('/home');
                   },
                 ),
-                /// Exit
-                ListTile(
-                  title: Row(
-                    children: [
-                      Icon(Icons.exit_to_app_sharp),
-                      SizedBox(
-                        width: 10,
-                      ),
-                      const Text('יציאה מהמערכת'),
-                    ],
-                  ),
-                  onTap: () async {
-                    eventController.loading.value = true;
-                    eventController.system.value.loggedIn = '';
-                    await eventController.system.value.save();
-                    eventController.currentInstructor = Instructor(
-                        id: '', firstName: '', lastName: '', mobile: '');
-                    eventController.loading.value = false;
-                    Get.offAllNamed('/front_door');
-                  },
-                ),
                 /// Dark Mode
                 Obx(() => SwitchListTile(
                   title: Text(
@@ -270,227 +270,90 @@ class _EventHomeState extends State<EventHome> {
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             title: Center(child: Text('ימי סיירות')),
           ),
-          body: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              /// Group Data
-              Column(
-                children: [
-                  Text(
-                    ' קבוצה ${eventController.currentEvent.value.groupNumber} ',
-                    style: const TextStyle(
-                        fontSize: 26, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '${eventController.currentEvent.value.date}',
-                    style: const TextStyle(
-                        fontSize: 26, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '${eventController.currentInstructor.firstName} ${eventController.currentInstructor.lastName}',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  Text(
-                    eventController.currentInstructor.id,
-                    style: TextStyle(fontSize: 12),
-                  )
-                ],
-              ),
-              /// Loading
-              Obx(() {
-                if (eventController.loading.value) {
-                  return CircularProgressIndicator();
-                }
-                return SingleChildScrollView(
-                  child: SizedBox(
-                    height: 500,
-                    width: 400,
+          body:SingleChildScrollView(
+            child: Column(
+              children: [
+                /// Group Data
+                Column(
+                  children: [
+                    Text(
+                      ' קבוצה ${eventController.currentEvent.value.groupNumber} ',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      '${eventController.currentEvent.value.date}',
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      '${eventController.currentInstructor.firstName} ${eventController.currentInstructor.lastName}',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    Text(
+                      eventController.currentInstructor.id,
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+
+                /// **Push Content Down**
+                SizedBox(height: 20),
+
+                /// **Events Grid**
+                Obx(() {
+                  if (eventController.loading.value) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: GridView.count(
-                      childAspectRatio: 1.2,
                       crossAxisCount: 2,
+                      childAspectRatio: 1.2,
+                      physics: NeverScrollableScrollPhysics(), // 🔹 Prevents internal scrolling
+                      shrinkWrap: true, // 🔹 Allows it to wrap only required space
                       children: [
-                        /// Meshulash
-                        Padding(
-                          padding: const EdgeInsets.all(15.0),
-                          child: ShiningButton(
-                            onPressed: () => Get.toNamed('/meshulash'),
-                            borderColor: eventController.currentEvent.value.meshulashStartTime == null
-                                ? Colors.black
-                                : eventController.currentEvent.value.meshulashEndTime == null
-                                ? Colors.red
-                                : Colors.green,
-                            noneActiveColor: Theme.of(context).colorScheme.primary,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Image.asset(
-                                  'images/meeshulash.png',
-                                  scale: 6,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
-                                      : Colors.black,
-                                ),
-                                const Text('משולש',
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        /// Alonka
-                        Padding(
-                          padding: const EdgeInsets.all(15.0),
-                          child: ShiningButton(
-                            onPressed: () {
-                              eventController.currentAlonkaRound.value =
-                                  eventController.currentEvent.value.alonkaSprints.length;
-                              Get.toNamed('/alonka');
-                            },
-                            borderColor: eventController.currentEvent.value.alonkaStartTime == null
-                                ? Colors.black
-                                : eventController.currentEvent.value.alonkaEndTime == null
-                                ? Colors.red
-                                : Colors.green,
-                            noneActiveColor: Theme.of(context).colorScheme.primary,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Image.asset(
-                                  'images/alonka.png',
-                                  scale: 6,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
-                                      : Colors.black,
-                                ),
-                                const Text('אלונקה',
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        /// Bur
-                        Padding(
-                          padding: const EdgeInsets.all(15.0),
-                          child: ShiningButton(
-                            onPressed: () => Get.toNamed('/bur'),
-                            borderColor: eventController.currentEvent.value.burStartTime == null
-                                ? Colors.black
-                                : eventController.currentEvent.value.burEndTime == null
-                                ? Colors.red
-                                : Colors.green,
-                            noneActiveColor: Theme.of(context).colorScheme.primary,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Image.asset(
-                                  'images/bur.png',
-                                  scale: 6,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
-                                      : Colors.black,
-                                ),
-                                const Text('בור',
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        /// Sakim
-                        Padding(
-                          padding: const EdgeInsets.all(15.0),
-                          child: ShiningButton(
-                            onPressed: () => Get.toNamed('/sakim'),
-                            borderColor: eventController.currentEvent.value.sakimStartTime == null
-                                ? Colors.black
-                                : eventController.currentEvent.value.sakimEndTime == null
-                                ? Colors.red
-                                : Colors.green,
-                            noneActiveColor: Theme.of(context).colorScheme.primary,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Image.asset(
-                                  'images/sakim.png',
-                                  scale: 6,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
-                                      : Colors.black,
-                                ),
-                                const Text('שקים',
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        /// Leadership
-                        Padding(
-                          padding: const EdgeInsets.all(15.0),
-                          child: ShiningButton(
-                            onPressed: () => Get.toNamed('/leadership'),
-                            borderColor: eventController.getLeadershipStatus(),
-                            noneActiveColor: Theme.of(context).colorScheme.primary,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Icon(
-                                  Icons.star,
-                                  size: 80,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
-                                      : Colors.black,
-                                ),
-                                const Text('מנהיגות',
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                        ),
-                        /// Interview
-                        Padding(
-                          padding: const EdgeInsets.all(15.0),
-                          child: ShiningButton(
-                            onPressed: () => Get.toNamed('/interview'),
-                            borderColor: eventController.getInterviewStatus(),
-                            noneActiveColor: Theme.of(context).colorScheme.primary,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                Icon(
-                                  Icons.note_alt_sharp,
-                                  size: 70,
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
-                                      : Colors.black,
-                                ),
-                                const Text('ראיון אישי',
-                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
-                        ),
+                        _buildShiningButton('images/meeshulash.png', 'משולש', () => Get.toNamed('/meshulash')),
+                        _buildShiningButton('images/alonka.png', 'אלונקה', () {
+                          eventController.currentAlonkaRound.value = eventController.currentEvent.value.alonkaSprints.length;
+                          Get.toNamed('/alonka');
+                        }),
+                        _buildShiningButton('images/bur.png', 'בור', () => Get.toNamed('/bur')),
+                        _buildShiningButton('images/sakim.png', 'שקים', () => Get.toNamed('/sakim')),
+                        _buildShiningButton(Icons.star, 'מנהיגות', () => Get.toNamed('/leadership')),
+                        _buildShiningButton(Icons.note_alt_sharp, 'ראיון אישי', () => Get.toNamed('/interview')),
                       ],
-                    )
-                  ),
-                );
-              }),
-              /// Grades and Status Buttons
-              Obx (() {
-                return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton(
-                      onPressed: () => {Get.toNamed('/grades_page')},
-                      child: Text(
-                        'ציונים',
-                        style: TextStyle(fontSize: eventController.userFontSize.value-5,fontWeight: FontWeight.bold),
-                      )),
-                  ElevatedButton(
-                      onPressed: () => {Get.toNamed('/participants_status')},
-                      child: Text('סטטוס חניכים',
-                          style: TextStyle(fontSize: eventController.userFontSize.value-5, fontWeight: FontWeight.bold))),
-                ],
-              );
-              }),
-            ],
+                    ),
+                  );
+                }),
+
+                /// **Push Content Evenly**
+                SizedBox(height: 20),
+
+                /// Grades and Status Buttons
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  child: Obx(() {
+                    return SizedBox(
+                      height: 100,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ElevatedButton(
+                              onPressed: () => Get.toNamed('/grades_page'),
+                              child: Text(
+                                'ציונים',
+                                style: TextStyle(fontSize: eventController.userFontSize.value - 5, fontWeight: FontWeight.bold),
+                              )),
+                          ElevatedButton(
+                              onPressed: () => Get.toNamed('/participants_status'),
+                              child: Text('סטטוס חניכים',
+                                  style: TextStyle(fontSize: eventController.userFontSize.value - 5, fontWeight: FontWeight.bold))),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
           ),
         ),
       ),

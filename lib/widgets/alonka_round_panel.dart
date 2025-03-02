@@ -33,7 +33,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
       if (widget.round.activeParticipants.isNotEmpty) {
         var h = widget.round.activeParticipants.length / 3 + 2;
         return SizedBox(
-            height: h < 3 ? 300 : h * 80,
+            height: h <= 3 ? 300 : h * 80,
             child: Center(
               child: Obx(() => eventController.loading.value
                   ? LinearProgressIndicator()
@@ -103,7 +103,10 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                     var res = await showDialog<List<String>>(
                                         context: context,
                                         builder: (BuildContext context) =>
-                                            CommentsDialog(commentsList: eventController.gradesData.listOfCommentsAlonka));
+                                            CommentsDialog(
+                                                commentsList: eventController.gradesData.listOfCommentsAlonka,
+                                              selectedComments: (eventController.getParticipant(widget.round.activeParticipants[index])).alonkaInstructorComments
+                                            ));
                                     if (res!=null){
                                       eventController.addAlonkaComments(res,widget.round.activeParticipants[index]);
                                     }

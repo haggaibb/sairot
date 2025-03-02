@@ -80,7 +80,10 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                   var res = await showDialog<List<String>>(
                                       context: context,
                                       builder: (BuildContext context) =>
-                                          CommentsDialog(commentsList: eventController.gradesData.listOfCommentsSakim));
+                                          CommentsDialog(
+                                              commentsList: eventController.gradesData.listOfCommentsSakim,
+                                            selectedComments: (eventController.getParticipant(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index])).sakimInstructorComments,
+                                          ));
                                   if (res!=null){
                                     eventController.addSakimComments(res,eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
                                   }

@@ -66,7 +66,6 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
         [Content.multi([prompt,imagePart],
         )
     ]);
-    //print(response.text);
     try {
       // ✅ Now decode JSON properly
       var jsonData = jsonDecode(response.text??'');
@@ -128,13 +127,9 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
       instructorId.text = eventController.currentInstructor.id;
       thisEvent = eventController.currentEvent.value;
       participants =  eventController.currentEvent.value.participants;
-      print('current event:');
-      print(thisEvent.date);
       isNew = false;
     } else {
       thisEvent = Event(date: dateKey, instructorId:eventController.currentInstructor.id, eventName: eventController.currentEventName);
-      print('new event:');
-      print(thisEvent.date);
       isNew = true;
     }
     super.initState();
@@ -211,55 +206,6 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                     participants.sort((a, b) => a.number.compareTo(b.number));
                     return Column(
                     children: [
-                      // /// Save
-                      // ElevatedButton(
-                      //     style: ElevatedButton.styleFrom(
-                      //       backgroundColor: Theme.of(context)
-                      //           .colorScheme
-                      //           .primary,
-                      //       foregroundColor: Theme.of(context)
-                      //           .colorScheme
-                      //           .onPrimary,
-                      //     ),
-                      //     onPressed: () async {
-                      //       if (participants.isNotEmpty && groupNumber.text !='') {
-                      //         eventController.loading.value = true;
-                      //         thisEvent.groupNumber = int.parse(groupNumber.text);
-                      //         thisEvent.participants = participants;
-                      //         if (eventController.firestoreGradeSettings.version>thisEvent.gradeSettings.version) {
-                      //           thisEvent.gradeSettings = eventController.firestoreGradeSettings;
-                      //         }
-                      //         if (isNew) {
-                      //           print('new event to create');
-                      //           print(thisEvent.date);
-                      //           await eventController.createNewEvent(thisEvent);
-                      //           // eventController.currentEvent.value = thisEvent;
-                      //           // await eventController.currentEvent.value.save();
-                      //           //eventController.unfinalizedEvents =[];
-                      //           //await eventController.getUnfinalizedEvents();
-                      //           Get.toNamed('/event_home');
-                      //           return;
-                      //         }
-                      //         else {
-                      //           print('event settings update');
-                      //           eventController.currentEvent.value = thisEvent;
-                      //           await eventController.currentEvent.value.saveToFirestore();
-                      //         }
-                      //         eventController.loading.value = false;
-                      //         Get.back();
-                      //         Get.back();
-                      //       }
-                      //       else {
-                      //         ScaffoldMessenger.of(context).showSnackBar(
-                      //           SnackBar(
-                      //             content: Text("לא הוזו מספר קבוצה או לא הוזנו משתתפים!"),
-                      //             backgroundColor: Colors.red,
-                      //             duration: Duration(seconds: 3),
-                      //           ),
-                      //         );
-                      //       }
-                      //     },
-                      //     child: const Text('שמור')),
                       SizedBox(height: 10,),
                       SizedBox(
                         width: 125,
@@ -377,8 +323,6 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                                 thisEvent.gradeSettings = eventController.firestoreGradeSettings;
                               }
                               if (isNew) {
-                                print('new event to create');
-                                print(thisEvent.date);
                                 await eventController.createNewEvent(thisEvent);
                                 // eventController.currentEvent.value = thisEvent;
                                 // await eventController.currentEvent.value.save();
@@ -388,7 +332,6 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                                 return;
                               }
                               else {
-                                print('event settings update');
                                 eventController.currentEvent.value = thisEvent;
                                 await eventController.currentEvent.value.saveToFirestore();
                               }

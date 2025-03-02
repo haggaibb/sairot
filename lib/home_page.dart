@@ -337,8 +337,6 @@ class _HomeState extends State<Home> {
                     child: LinearProgressIndicator(),
                   );
                 }),
-
-                ///
                 /// Past Events
                 const Text(
                   'ארועי עבר',

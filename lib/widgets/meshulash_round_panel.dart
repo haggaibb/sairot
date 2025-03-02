@@ -80,7 +80,10 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                       var res = await showDialog<List<String>>(
                                           context: context,
                                           builder: (BuildContext context) =>
-                                          CommentsDialog(commentsList: eventController.gradesData.listOfCommentsMeshulash));
+                                          CommentsDialog(
+                                              commentsList: eventController.gradesData.listOfCommentsMeshulash,
+                                            selectedComments: (eventController.getParticipant(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]).meshulashInstructorComments),
+                                          ));
                                       if (res!=null){
                                         eventController.addMeshulashComments(res,eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
                                       }

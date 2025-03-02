@@ -25,7 +25,6 @@ class Controller extends GetxController {
   var loading = false.obs;
   var unfinalizedLoading = false.obs;
   var pastEventsLoading = false.obs;
-
   GradeSettings gradesData = GradeSettings();
   final themeController = Get.put(ThemeController());
 
@@ -104,7 +103,6 @@ class Controller extends GetxController {
   void onClose() {
     super.onClose();
   }
-
   /// Settings
   setUserAccessibility(Accessibility accessibility) {
     switch (accessibility) {
@@ -132,17 +130,12 @@ class Controller extends GetxController {
     update(); // Notify GetX listeners
   }
 
-
   /// Hive
   initSystemHiveBox() async {
     systemBox = await Hive.openBox<System>('system');
-    print('system > 0?');
-    print(systemBox.length);
     if (systemBox.length > 0) {
       system.value = systemBox.get('login') as System;
     } else {
-      /// one time event to create System
-      print('NO system');
       await systemBox.put('login', system.value);
       return false;
     }
@@ -162,8 +155,8 @@ class Controller extends GetxController {
         systemSettings =
             SystemSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
         setUserAccessibility(system.value.accessibility);
-        print(
-            'Updated System Settings.');
+        // print(
+        //     'Updated System Settings.');
         return true;
       } else {
         systemSettings = SystemSettings();
@@ -319,7 +312,6 @@ class Controller extends GetxController {
     }
   }
 
-
   /// participants
   updateParticipantStatus(int id, ParticipantStatus newStatus) {
     int index = currentEvent.value.participants
@@ -374,12 +366,12 @@ class Controller extends GetxController {
     // ✅ Ensure participant exists.
     if (index != -1) {
       // Get the existing comments.
-      List<String> existingComments = currentEvent.value.participants[index].meshulashInstructorComments;
+      //List<String> existingComments = currentEvent.value.participants[index].meshulashInstructorComments;
       // ✅ Merge new comments without duplicates.
-      existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
+      //existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
       // ✅ Update the participant's comment list.
-      currentEvent.value.participants[index].meshulashInstructorComments = existingComments;
-      print("✅ Comments merged successfully: ${existingComments}");
+      currentEvent.value.participants[index].meshulashInstructorComments = comments;
+      print("✅ Comments saved successfully: ${comments}");
       currentEvent.value.saveToFirestore();
     } else {
       print("❌ Participant not found with number: $participantNumber");
@@ -394,12 +386,12 @@ class Controller extends GetxController {
     // ✅ Ensure participant exists.
     if (index != -1) {
       // Get the existing comments.
-      List<String> existingComments = currentEvent.value.participants[index].alonkaInstructorComments;
+      //List<String> existingComments = currentEvent.value.participants[index].alonkaInstructorComments;
       // ✅ Merge new comments without duplicates.
-      existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
+      //existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
       // ✅ Update the participant's comment list.
-      currentEvent.value.participants[index].alonkaInstructorComments = existingComments;
-      print("✅ Comments merged successfully: ${existingComments}");
+      currentEvent.value.participants[index].alonkaInstructorComments = comments;
+      print("✅ Comments to save : ${comments}");
       currentEvent.value.saveToFirestore();
     } else {
       print("❌ Participant not found with number: $participantNumber");
@@ -414,12 +406,13 @@ class Controller extends GetxController {
     // ✅ Ensure participant exists.
     if (index != -1) {
       // Get the existing comments.
-      List<String> existingComments = currentEvent.value.participants[index].interviewInstructorComments;
+     // List<String> existingComments = currentEvent.value.participants[index].interviewInstructorComments;
       // ✅ Merge new comments without duplicates.
-      existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
+      //existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
+
       // ✅ Update the participant's comment list.
-      currentEvent.value.participants[index].interviewInstructorComments = existingComments;
-      print("✅ Comments merged successfully: ${existingComments}");
+      currentEvent.value.participants[index].interviewInstructorComments = comments;
+      print("✅ Comments saved successfully: ${comments}");
       currentEvent.value.saveToFirestore();
       currentEvent.refresh();
     } else {
@@ -453,14 +446,12 @@ class Controller extends GetxController {
     if (index != -1) {
       // Get the existing comments.
       print('######');
-      List<String> existingComments = currentEvent.value.participants[index].leadershipInstructorComments;
-      print(existingComments);
+      //List<String> existingComments = currentEvent.value.participants[index].leadershipInstructorComments;
       // ✅ Merge new comments without duplicates.
-      existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
-      print(existingComments);
+      //existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
       // ✅ Update the participant's comment list.
-      currentEvent.value.participants[index].leadershipInstructorComments = existingComments;
-      print("✅ Comments merged successfully: ${existingComments}");
+      currentEvent.value.participants[index].leadershipInstructorComments = comments;
+      print("✅ Comments to save: ${comments}");
       currentEvent.value.saveToFirestore();
       currentEvent.refresh();
     } else {
@@ -490,8 +481,8 @@ class Controller extends GetxController {
       if (docSnapshot.exists) {
         firestoreGradeSettings = GradeSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
         gradesData = firestoreGradeSettings;
-        print(
-            'Grades Updated to version ${firestoreGradeSettings.version} !!!!');
+        // print(
+        //     'Grades Updated to version ${firestoreGradeSettings.version} !!!!');
         return true;
       } else {
         firestoreGradeSettings = GradeSettings();
@@ -517,12 +508,26 @@ class Controller extends GetxController {
 
   double getMeshulashGrade(int number) {
     if (currentEvent.value.meshulashRounds.isEmpty) return 0;
-    int maxRound = currentEvent.value.meshulashRounds.length-1;
+
+    int maxRound = currentEvent.value.meshulashRounds.length - 1;
+
+    // Find the first occupied round (ignoring empty ones)
+    int minRound = currentEvent.value.meshulashRounds.indexWhere(
+            (MeshulashRound round) => round.participantsInRound.isNotEmpty);
+
+    // Find the participant's position
     int participantPosition = currentEvent.value.meshulashRounds.indexWhere(
             (MeshulashRound round) => round.participantsInRound.contains(number));
-    double meshulashGrade = (((participantPosition) / maxRound) * 10) *
-        gradesData.systemGradeFactor;
-    return meshulashGrade;
+
+    // Ensure valid position
+    if (participantPosition == -1 || minRound == -1 || maxRound == minRound) {
+      return 1 * gradesData.systemGradeFactor; // Default to lowest score if invalid
+    }
+
+    // Normalize the grade between 10 (maxRound) and 1 (minRound)
+    double meshulashGrade = 1 + ((participantPosition - minRound) / (maxRound - minRound)) * (10 - 1);
+
+    return meshulashGrade * gradesData.systemGradeFactor;
   }
 
   double getAlonkaGrade(int number) {
@@ -562,13 +567,26 @@ class Controller extends GetxController {
 
   double getSakimGrade(int number) {
     if (currentEvent.value.sakimRounds.isEmpty) return 0;
-    int maxRound = currentEvent.value.sakimRounds.length-1;
+
+    int maxRound = currentEvent.value.sakimRounds.length - 1;
+
+    // Find the first occupied round (ignoring empty ones)
+    int minRound = currentEvent.value.sakimRounds.indexWhere(
+            (SakimRound round) => round.participantsInRound.isNotEmpty);
+
+    // Find the participant's position
     int participantPosition = currentEvent.value.sakimRounds.indexWhere(
             (SakimRound round) => round.participantsInRound.contains(number));
-    print(participantPosition);
-    double sakimGrade = (((participantPosition + 1) / maxRound) * 10) *
-        gradesData.systemGradeFactor;
-    return sakimGrade;
+
+    // Ensure valid position
+    if (participantPosition == -1 || minRound == -1 || maxRound == minRound) {
+      return 1 * gradesData.systemGradeFactor; // Default to lowest score if invalid
+    }
+
+    // Normalize the grade between 10 (maxRound) and 1 (minRound)
+    double sakimGrade = 1 + ((participantPosition - minRound) / (maxRound - minRound)) * (10 - 1);
+
+    return sakimGrade * gradesData.systemGradeFactor;
   }
 
   double getBurGrade(int number) {
@@ -677,14 +695,13 @@ class Controller extends GetxController {
     systemBox = await Hive.openBox<System>('system');
     if (systemBox.length > 0) {
       if (system.value.loggedIn != '') {
-        print('logged in');
+        //print('logged in');
         loggedIn.value = true;
         toggleTheme(system.value.isDarkMode);
         currentInstructor = getInstructor(system.value.loggedIn)?? currentInstructor;
-
         return true;
       } else {
-        print('NOT logged in');
+        print('Not logged in');
         return false;
       }
     }

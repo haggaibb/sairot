@@ -48,15 +48,17 @@ class SakimCharts extends StatelessWidget {
                           int index = entry.key;
                           int round = entry.value;
                           bool isCurrentRound = round == currentRound;
+                          double value = participantCounts[index].toDouble();
                           return BarChartGroupData(
                             x: round,
                             barRods: [
                               BarChartRodData(
-                                toY: participantCounts[index].toDouble(),
+                                toY: value,
                                 color: isCurrentRound ? Colors.green : Colors.black,
                                 width: 20,
                               ),
                             ],
+                            showingTooltipIndicators: [0],
                           );
                         }).toList(),
                         titlesData: FlTitlesData(
@@ -75,6 +77,29 @@ class SakimCharts extends StatelessWidget {
                         ),
                         gridData: FlGridData(show: false),
                         borderData: FlBorderData(show: false),
+                        barTouchData: BarTouchData(
+                          enabled: false, // Disable touch interactions
+                          touchTooltipData: BarTouchTooltipData(
+                            tooltipPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                            tooltipMargin: 0,
+                            fitInsideHorizontally: true,
+                            fitInsideVertically: true,
+                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                              return rod.toY.toInt()!=0
+                                  ? BarTooltipItem(
+                                '${rod.toY.toInt()}', // Display the value
+                                TextStyle(
+                                  color: Colors.black,
+                                  fontSize: eventController.userFontSize.value,
+                                  fontWeight: FontWeight.bold,
+                                  backgroundColor: Colors.white,
+                                ),
+                              )
+                                  : null
+                              ;
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -84,7 +109,7 @@ class SakimCharts extends StatelessWidget {
                     LineChartData(
                       minY: 1,  // Ensure Y-axis starts from 1
                       maxY: numberOfParticipants.toDouble(),
-                      maxX: rounds.length.toDouble()-1,
+                      maxX: rounds.length.toDouble() - 1,
                       lineBarsData: [
                         LineChartBarData(
                           spots: rounds
@@ -107,6 +132,28 @@ class SakimCharts extends StatelessWidget {
                           dotData: FlDotData(show: true),
                         ),
                       ],
+                      lineTouchData: LineTouchData(
+                        enabled: true,
+                        touchTooltipData: LineTouchTooltipData(
+                          tooltipPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2), // Wider padding
+                          tooltipMargin: 16, // Space between tooltip and dot
+                          fitInsideHorizontally: true, // Ensures tooltip stays in the chart
+                          fitInsideVertically: true,
+                          getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                            return touchedSpots.map((touchedSpot) {
+                              return LineTooltipItem(
+                                '   ${touchedSpot.y.toInt()} מקום ', // Ensures two decimal places
+                                TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  backgroundColor: Colors.white, // Force white background
+                                ),
+                              );
+                            }).toList();
+                          },
+                        ),
+                      ),
                       titlesData: FlTitlesData(
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:sairot/models/grade_settings.dart';
-import 'package:sairot/models/participant.dart';
-import '../ctx.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/bur.dart';
+import '../ctx.dart';
 
 class BurGradePanel extends StatefulWidget {
   final Bur bur;
@@ -16,135 +14,260 @@ class BurGradePanel extends StatefulWidget {
 class _BurGradePanelState extends State<BurGradePanel> {
   final eventController = Get.put(Controller());
   TextEditingController gradeCtrl = TextEditingController();
-  int burIndex=0;
+  TextEditingController customCommentCtrl = TextEditingController();
+
+  late List<String> predefinedComments;
+  late List<String> customComments;
+  late List<String> instructorComments;
+  int burIndex = 0;
+
   @override
   void initState() {
-    burIndex = eventController
-        .currentEvent.value.burGrades
-        .indexWhere((Bur bur) => bur.id == widget.bur.id);
-    gradeCtrl.text = eventController.currentEvent.value.burGrades[burIndex].burGrade.toString();
     super.initState();
+
+    burIndex = eventController.currentEvent.value.burGrades
+        .indexWhere((Bur bur) => bur.id == widget.bur.id);
+
+    gradeCtrl.text =
+        eventController.currentEvent.value.burGrades[burIndex].burGrade.toString();
+
+    instructorComments = List.from(widget.bur.instructorComments);
+
+    predefinedComments = List<String>.from(eventController.currentEvent.value.gradeSettings.listOfCommentsBur);
+
+    // **Identify which selected comments are custom**
+    customComments = instructorComments.where((comment) => !predefinedComments.contains(comment)).toList();
+  }
+
+  /// **Adds a New Custom Comment**
+  void addCustomComment() async {
+    String newComment = customCommentCtrl.text.trim();
+    if (newComment.isNotEmpty &&
+        !predefinedComments.contains(newComment) &&
+        !customComments.contains(newComment)) {
+      setState(() {
+        customComments.add(newComment);
+        instructorComments.add(newComment);
+      });
+
+      // Save updated comments to Firestore
+      await saveToFirestore();
+
+      // Clear input field
+      customCommentCtrl.clear();
+    }
+  }
+
+  /// **Deletes a Custom Comment**
+  void deleteCustomComment(String comment) async {
+    setState(() {
+      customComments.remove(comment);
+      instructorComments.remove(comment);
+    });
+
+    // Save updated comments to Firestore
+    await saveToFirestore();
+  }
+
+  /// **Saves Instructor Comments to Firestore**
+  Future<void> saveToFirestore() async {
+    widget.bur.instructorComments = List.from(instructorComments);
+    eventController.currentEvent.value.burGrades[burIndex] = widget.bur;
+    await eventController.currentEvent.value.saveToFirestore();
   }
 
   @override
   Widget build(BuildContext context) {
+    /// **Combine Predefined & Custom Comments for UI Display**
+    List<String> allComments = [...predefinedComments, ...customComments];
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.blueAccent, Color.fromARGB(255, 0, 66, 136)],
+          colors: [Colors.blueAccent, const Color.fromARGB(255, 0, 66, 136)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
       ),
       child: Scaffold(
-          resizeToAvoidBottomInset: true,
-          appBar: AppBar(
-            centerTitle: true,
-            title: Text('דף ציונים לבור'),
-          ),
-          body: GetX<Controller>(builder: (_) {
-            List<String> commentsList = eventController
-                .currentEvent.value.gradeSettings.listOfCommentsBur;
-            return GestureDetector(
-              onTap: () => FocusScope.of(context).unfocus(), // Dismiss keyboard when tapping outside
-              child: SingleChildScrollView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Text(widget.bur.id.toString(),
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 20),
-                      Text('הערות לבחירה',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 40),
-                      // ✅ Wrap inside SingleChildScrollView
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 10,
-                        children: commentsList.map((comment) {
-                          bool isSelected = widget.bur.instructorComments.contains(comment);
-                          return ChoiceChip(
-                            label: Text(comment, style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value)),
+        resizeToAvoidBottomInset: true,
+        appBar: AppBar(
+          centerTitle: true,
+          title: const Text('דף ציונים לבור'),
+        ),
+        body: GetX<Controller>(builder: (_) {
+          return GestureDetector(
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Text(
+                      widget.bur.id.toString(),
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('הערות לבחירה', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 20),
+
+                    /// **Unified Comments List (Predefined + Custom)**
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 10,
+                      children: allComments.map((comment) {
+                        bool isSelected = instructorComments.contains(comment);
+                        bool isCustom = customComments.contains(comment);
+
+                        return GestureDetector(
+                          onLongPress: isCustom
+                              ? () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text("מחיקת הערה"),
+                                content: Text("האם למחוק את ההערה \"$comment\"?"),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      deleteCustomComment(comment);
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text("מחק"),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text("ביטול"),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                              : null,
+                          child: ChoiceChip(
+                            label: Text(
+                              comment,
+                              style: TextStyle(
+                                fontSize: eventController.userFontSize.value,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             selected: isSelected,
-                            selectedColor: Colors.blue, // Change color when selected
+                            selectedColor: isCustom ? Colors.blue.withOpacity(0.3) : Colors.blue,
                             onSelected: (bool selected) async {
                               setState(() {
                                 if (selected) {
-                                  widget.bur.instructorComments.add(comment);
+                                  instructorComments.add(comment);
                                 } else {
-                                  widget.bur.instructorComments.remove(comment);
+                                  instructorComments.remove(comment);
+                                  if (isCustom) {
+                                    customComments.remove(comment);
+                                  }
                                 }
                               });
-                              eventController.currentEvent.value
-                                  .burGrades[burIndex] = widget.bur;
-                              await eventController.currentEvent.value.saveToFirestore();
+                              print(customComments);
+                              await saveToFirestore();
                             },
-                          );
-                        }).toList(),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    /// **Custom Comment Input**
+                    TextField(
+                      controller: customCommentCtrl,
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        hintText: 'הוסף הערה חדשה...',
+                        filled: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.send, color: Colors.blue),
+                          onPressed: addCustomComment,
+                        ),
                       ),
-                      SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(width: 10),
-                          // Styled Input Field
-                          Container(
-                            width: 80, // Increased width for better visibility
-                            height: 60,
-                            child: TextField(
-                              controller: gradeCtrl,
-                              onTap: () {
-                                gradeCtrl.selection = TextSelection(
-                                  baseOffset: 0,
-                                  extentOffset: gradeCtrl.text.length,
-                                );
-                              },
-                              onChanged: (val) async {
-                                eventController.loading.value = true;
-                                widget.bur.burGrade = double.parse(val);
-                                eventController.currentEvent.value
-                                    .burGrades[burIndex] = widget.bur;
-                                await eventController.currentEvent.value.saveToFirestore();
-                                eventController.update();
-                                eventController.loading.value = false;
-                              },
-                              textAlign: TextAlign.center, // Center align text
-                              keyboardType: TextInputType.number, // Ensure numeric input
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: Colors.blue.shade50,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(20), // Circular shape
-                                  borderSide: BorderSide.none, // Remove default border
-                                ),                                hintText: "0", // Placeholder text
-                                hintStyle: TextStyle(color: Colors.grey), // Hint color
+                      onSubmitted: (_) => addCustomComment(),
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    /// **Final Grade Input**
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(width: 10),
+                        Container(
+                          width: 80,
+                          height: 60,
+                          child: TextField(
+                            controller: gradeCtrl,
+                            onTap: () {
+                              gradeCtrl.selection = TextSelection(
+                                baseOffset: 0,
+                                extentOffset: gradeCtrl.text.length,
+                              );
+                            },
+                            onChanged: (val) async {
+                              eventController.loading.value = true;
+                              widget.bur.burGrade = double.parse(val);
+                              eventController.currentEvent.value.burGrades[burIndex] = widget.bur;
+                              await eventController.currentEvent.value.saveToFirestore();
+                              eventController.update();
+                              eventController.loading.value = false;
+                            },
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.blue.shade50,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                borderSide: BorderSide.none,
                               ),
-                              style: TextStyle(fontSize: eventController.userFontSize.value, fontWeight: FontWeight.bold, color: Colors.black), // Text styling
+                              hintText: "0",
+                              hintStyle: const TextStyle(color: Colors.grey),
                             ),
-                          ),
-                          SizedBox(width: 10), // Spacing between input and label
-                          // Styled Label
-                          Text(
-                            'ציון סופי',
                             style: TextStyle(
-                              fontSize: eventController.userFontSize.value,
-                              fontWeight: FontWeight.bold,
-                            ),
+                                fontSize: eventController.userFontSize.value,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black),
                           ),
-                        ],
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'ציון סופי',
+                          style: TextStyle(
+                            fontSize: eventController.userFontSize.value,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 50),
+
+                    /// **Close Button**
+                    ElevatedButton(
+                      onPressed: () => Get.back(),
+                      child: Text(
+                        'סגור',
+                        style: TextStyle(
+                            fontSize: eventController.userFontSize.value,
+                            fontWeight: FontWeight.bold),
                       ),
-                      SizedBox(height: 50),
-                      ElevatedButton(
-                          onPressed: () => {Get.back()},
-                          child: Text('סגור', style: TextStyle(fontSize: eventController.userFontSize.value,fontWeight: FontWeight.bold))),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          })),
+            ),
+          );
+        }),
+      ),
     );
   }
 }

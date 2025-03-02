@@ -46,6 +46,7 @@ class _InterviewPageState extends State<InterviewPage> {
             ),
           ),
           child: Scaffold(
+              resizeToAvoidBottomInset: true,
               appBar: AppBar(
                 //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
                 centerTitle: true,
@@ -106,6 +107,10 @@ class _InterviewPageState extends State<InterviewPage> {
                                             .currentEvent
                                             .value
                                             .finalized) return;
+                                        print(eventController
+                                            .currentEvent
+                                            .value
+                                            .activeParticipants[index].interviewInstructorComments);
                                         var res = await showDialog<List<String>>(
                                             context: context,
                                             builder: (BuildContext context) =>

@@ -39,15 +39,17 @@ class MeshulashCharts extends StatelessWidget {
                         int index = entry.key;
                         int round = entry.value;
                         bool isCurrentRound = round == currentRound;
+                        double value = participantCounts[index].toDouble();
                         return BarChartGroupData(
                           x: round,
                           barRods: [
                             BarChartRodData(
-                              toY: participantCounts[index].toDouble(),
+                              toY: value,
                               color: isCurrentRound ? Colors.green : Colors.black,
                               width: 20,
                             ),
                           ],
+                          showingTooltipIndicators: [0], // Always show tooltip on first (and only) rod
                         );
                       }).toList(),
                       titlesData: FlTitlesData(
@@ -64,37 +66,61 @@ class MeshulashCharts extends StatelessWidget {
                                   child: Text('${value.toInt()}'),
                                 );
                               }
-                              return Container(); // Skip zero entry
+                              return Container();
                             },
                           ),
                         ),
                       ),
                       gridData: FlGridData(show: false),
                       borderData: FlBorderData(show: false),
+                      // ✅ Fixed Tooltip (Always Visible)
+                      barTouchData: BarTouchData(
+                        enabled: false, // Disable touch interactions
+                        touchTooltipData: BarTouchTooltipData(
+                          tooltipPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                          tooltipMargin: 0,
+                          fitInsideHorizontally: true,
+                          fitInsideVertically: true,
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            return rod.toY.toInt()!=0
+                                ? BarTooltipItem(
+                              '${rod.toY.toInt()}', // Display the value
+                              TextStyle(
+                                color: Colors.black,
+                                fontSize: eventController.userFontSize.value,
+                                fontWeight: FontWeight.bold,
+                                backgroundColor: Colors.white,
+                              ),
+                            )
+                                : null
+                            ;
+                          },
+                        ),
+                      ),
                     ),
                   ),
 
                   /// Line Chart - Participant Position
                   LineChart(
                     LineChartData(
-                      minY: 1, // Ensure the Y-axis starts from 0
-                      maxY: participantsCount.toDouble(), // Ensure it covers the highest possible value
-                      maxX: rounds.length.toDouble()-1,
+                      minY: 1,
+                      maxY: participantsCount.toDouble(),
+                      maxX: rounds.length.toDouble() - 1,
                       lineBarsData: [
                         LineChartBarData(
                           spots: rounds.asMap().entries
                               .where((entry) =>
                           entry.key != rounds.length - 1 ||
-                              (entry.key < participantPositions.length && participantPositions[entry.key] != 0))
+                              (entry.key < participantPositions.length &&
+                                  participantPositions[entry.key] != 0))
                               .map((entry) {
                             int index = entry.key;
                             int round = entry.value;
                             double position = (index < participantPositions.length)
                                 ? participantPositions[index].toDouble()
                                 : 0.0;
-                            return FlSpot(round.toDouble(), position);
-                          }).where((spot) => spot.y != 0.0 )
-                              .toList(),
+                            return FlSpot(round.toDouble(), participantsCount.toDouble() - position); // Invert Y-axis
+                          }).where((spot) => spot.y != participantsCount.toDouble()).toList(),
                           isCurved: false,
                           color: Colors.red,
                           barWidth: 3,
@@ -102,17 +128,39 @@ class MeshulashCharts extends StatelessWidget {
                           dotData: FlDotData(show: true),
                         ),
                       ],
+                      lineTouchData: LineTouchData(
+                        enabled: true,
+                        touchTooltipData: LineTouchTooltipData(
+                          tooltipPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                          tooltipMargin: 16,
+                          fitInsideHorizontally: true,
+                          fitInsideVertically: true,
+                          getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                            return touchedSpots.map((touchedSpot) {
+                              return LineTooltipItem(
+                                '   ${participantsCount.toInt() - touchedSpot.y.toInt()} מקום ',
+                                TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  backgroundColor: Colors.white,
+                                ),
+                              );
+                            }).toList();
+                          },
+                        ),
+                      ),
                       titlesData: FlTitlesData(
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
                             reservedSize: 40,
-                            interval: 1, // Ensure Y-axis ticks at every integer
+                            interval: 1,
                             getTitlesWidget: (value, meta) {
                               if (value % 1 == 0) {
-                                return Text('${value.toInt()}', style: TextStyle(fontSize: 12));
+                                return Text('${(participantsCount - value).toInt()}', style: TextStyle(fontSize: 12)); // Invert labels
                               }
-                              return SizedBox.shrink(); // Hide non-integer values
+                              return SizedBox.shrink();
                             },
                           ),
                         ),

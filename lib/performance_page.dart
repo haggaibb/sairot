@@ -9,6 +9,7 @@ import 'widgets/bur_charts.dart';
 import 'widgets/sakim_charts.dart';
 import 'widgets/interview_chart.dart';
 import 'widgets/leadership_chart.dart';
+import 'widgets/animated_wheels.dart';
 
 final eventController = Get.put(Controller());
 const leftStyle = TextStyle(
@@ -23,6 +24,7 @@ class PerformancePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     int number = int.parse(Get.parameters['number']??'0');
+    Participant p = eventController.getParticipant(number);
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -38,20 +40,20 @@ class PerformancePage extends StatelessWidget {
             title: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: const [
-                Text('ניתוח גרפי'),
+                Text('ניתוח ביצועים'),
               ],
             ),
           ),
           body: SingleChildScrollView(
               child: Center(
             child: Column(
-              //mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(
                   height: 20,
                 ),
-                Text('$number  ניתוח ביצועים עבור משתתף  ',
+                Text('  ניתוח ביצועים עבור משתתף  '+number.toString(),
                     style: const TextStyle(
                         fontSize: 22, fontWeight: FontWeight.bold)),
                 ///
@@ -120,7 +122,7 @@ class PerformancePage extends StatelessWidget {
                 const Text('מנהיגות',
                     style: TextStyle(decoration: TextDecoration.underline,decorationThickness: 1.0,fontSize: 18, fontWeight: FontWeight.bold)),
                 SizedBox(
-                  height: 300,
+                  height: 150,
                   width: 350,
                   child: LeadershipChart(number: number),
                 ),
@@ -130,12 +132,100 @@ class PerformancePage extends StatelessWidget {
                 const Text('ראיון אישי',
                     style: TextStyle(decoration: TextDecoration.underline,decorationThickness: 1.0,fontSize: 18, fontWeight: FontWeight.bold)),
                 SizedBox(
-                  height: 300,
+                  height: 150,
                   width: 350,
                   child: InterviewChart(number: number),
                 ),
                 const SizedBox(
                   height: 10,
+                ),
+                const Text(' ניתוח הנתונים',
+                    style: TextStyle(decoration: TextDecoration.underline,decorationThickness: 1.0,fontSize: 18, fontWeight: FontWeight.bold)),
+                FutureBuilder<String>(
+                  future: p.fetchAndGenerateSummary(number.toString()) ,// Call the Future function here
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return
+                        Container(
+                            margin: EdgeInsets.all(16), // Outer spacing
+                            padding: EdgeInsets.all(16), // Inner spacing
+                            decoration: BoxDecoration(
+                              //color: Colors.white, // Background color
+                              borderRadius: BorderRadius.circular(12), // Rounded corners
+                              // boxShadow: [
+                              //   BoxShadow(
+                              //     color: Colors.black12, // Soft shadow
+                              //     blurRadius: 6,
+                              //     offset: Offset(0, 3),
+                              //   ),
+                              // ],
+                              // border: Border.all(color: Colors.grey.shade300), // Subtle border
+                            ),
+                      child:  SizedBox(
+                        height: 500,
+                        child: Column(
+                          children: [
+                            SizedBox(
+                              height: 100,
+                            ),
+                            Text(
+                                ' מנתח ומסכם את הביצועים של משתתף ' + number.toString(),
+                              style: TextStyle(fontSize: eventController.userFontSize.value-2),
+                            ),
+                            SizedBox(
+                              width: 200,
+                                child: LinearProgressIndicator()
+                            ),
+                          ],
+                        ),
+                      )); // Show loading spinner
+                    } else if (snapshot.hasError) {
+                      return Text("Error: ${snapshot.error}");
+                    } else {
+                      return
+                        Container(
+                          margin: EdgeInsets.all(16), // Outer spacing
+                          padding: EdgeInsets.all(16), // Inner spacing
+                          decoration: BoxDecoration(
+                            //color: Colors.white, // Background color
+                            borderRadius: BorderRadius.circular(12), // Rounded corners
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black12, // Soft shadow
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                            border: Border.all(color: Colors.grey.shade300), // Subtle border
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "סיכום ביצועים", // Report Title
+                                style: TextStyle(
+                                  fontSize: eventController.userFontSize.value+4,
+                                  fontWeight: FontWeight.bold,
+                                  //color: Colors.blue.shade900,
+                                ),
+                              ),
+                              SizedBox(height: 10), // Space between title & content
+                              Text(
+                                "${snapshot.data}",
+                                style: TextStyle(
+                                  fontSize: eventController.userFontSize.value,
+                                  //color: Colors.black87,
+                                  height: 1.5, // Improve readability
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                    }
+                  },
+                ),
+                const SizedBox(
+                  height: 50,
                 ),
               ],
             ),

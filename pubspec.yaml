@@ -101,6 +101,7 @@ flutter:
     - images/logo_1024.png
     - images/splash_background.png
     - images/no_logo.png
+    - images/wheels.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -4,7 +4,7 @@ import 'ctx.dart';
 import 'login_page.dart';
 import 'home_page.dart';
 import 'theme_controller.dart';
-
+import 'widgets/logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -72,11 +72,7 @@ class _SplashScreenState extends State<SplashScreen>
                 onLongPress: () => {
                   eventController.deleteSystemHiveBox()
                 },
-                child: Image.asset(
-                  'images/wings-logo.png',
-                  width: 250,
-                  height: 250,
-                ),
+                child: ShineEffectLogo(),
               ),
             ),
           ),
