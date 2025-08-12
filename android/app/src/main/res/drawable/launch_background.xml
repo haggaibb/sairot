@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_background"/>
+
+    <!-- Add animated logo -->
+    <item>
+        <animated-vector
+            android:drawable="@drawable/logo_1024"
+            xmlns:android="http://schemas.android.com/apk/res/android">
+            <target
+                android:name="logo_1024"
+                android:animation="@anim/splash_animation"/>
+        </animated-vector>
+    </item>
+</layer-list>
