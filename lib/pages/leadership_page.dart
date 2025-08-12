@@ -14,7 +14,7 @@ class LeadershipPage extends StatefulWidget {
 }
 
 class _LeadershipPageState extends State<LeadershipPage> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
 
   @override
   void initState() {
@@ -59,7 +59,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
                   },
                 ),
               ),
-              body: GetX<Controller>(builder: (_) {
+              body: GetX<EventController>(builder: (_) {
                 var h =
                     eventController.currentEvent.value.activeParticipants.length /
                         3 +

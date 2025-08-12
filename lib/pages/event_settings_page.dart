@@ -19,7 +19,7 @@ class EventSettingsPage extends StatefulWidget {
 }
 
 class _EventSettingsPageState extends State<EventSettingsPage> {
-  var eventController = Get.put(Controller());
+  var eventController = Get.put(EventController());
   var dateKey = Get.parameters['date'] ?? '';
   TextEditingController groupNumber = TextEditingController();
   TextEditingController instructorId = TextEditingController();

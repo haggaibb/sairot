@@ -15,7 +15,7 @@ class AlonkaSprintPanel extends StatefulWidget {
 }
 
 class _AlonkaSprintPanelState extends State<AlonkaSprintPanel> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   List<int> stillActiveInRound = [];
 
   @override
@@ -26,7 +26,7 @@ class _AlonkaSprintPanelState extends State<AlonkaSprintPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return GetX<Controller>(builder: (eventController) {
+    return GetX<EventController>(builder: (eventController) {
       // print(eventController.currentAlonkaRound.value.toString());
       // print(widget.round);
       if (eventController.currentAlonkaRound.value == widget.round) {

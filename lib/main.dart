@@ -130,7 +130,7 @@ class FrontDoor extends StatefulWidget {
 }
 
 class _FrontDoorState extends State<FrontDoor> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
 
   @override
   Widget build(BuildContext context) {

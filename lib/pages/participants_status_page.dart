@@ -12,7 +12,7 @@ class ParticipantsStatusPage extends StatefulWidget {
 }
 
 class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +40,7 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                       style:
                           TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   /// **Active Participants**
-                  GetX<Controller>(builder: (_) {
+                  GetX<EventController>(builder: (_) {
                     final isFinalized = _.currentEvent.value.finalized;
                     final activeParticipants = _.currentEvent.value
                         .getParticipantsByStatus(ParticipantStatus.Active);
@@ -82,7 +82,7 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                       style:
                           TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   /// **Dropped Participants**
-                  GetX<Controller>(builder: (_) {
+                  GetX<EventController>(builder: (_) {
                     final droppedParticipants = _.currentEvent.value
                         .getParticipantsByStatus(ParticipantStatus.Droped);
                     final isFinalized = _.currentEvent.value.finalized;

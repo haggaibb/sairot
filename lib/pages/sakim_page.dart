@@ -15,7 +15,7 @@ class SakimPage extends StatefulWidget {
 }
 
 class _SakimPageState extends State<SakimPage> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   int runTime = 0;
   late Timer _timer;
   late bool editModeOn;
@@ -90,7 +90,7 @@ class _SakimPageState extends State<SakimPage> {
               },
             ),
           ),
-          body: GetX<Controller>(builder: (_) {
+          body: GetX<EventController>(builder: (_) {
             editModeOn = _.sakimEditModeOn.value;
             return SingleChildScrollView(
               controller: _scrollController,

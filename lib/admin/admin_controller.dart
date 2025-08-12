@@ -30,7 +30,7 @@ class AdminController extends GetxController {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   var isInstructorMode = true.obs; // 👈 New toggle switch state
   Event pastEvent = Event(date: '', instructorId: '', eventName: '');
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
 
   /// live event
   var liveEvents = <Event>[].obs; // 🔥 Stores downloaded live events
@@ -314,7 +314,11 @@ class AdminController extends GetxController {
   }
 
   ///
-  ///
+  logout() async {
+    eventController.loading.value = true;
+    eventController.system.value.loggedIn = '';
+    await eventController.system.value.save();
+  }
 
   /// misc
   getGroupStatus(String groupNumber) {

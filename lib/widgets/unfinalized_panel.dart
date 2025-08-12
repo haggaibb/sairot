@@ -11,7 +11,7 @@ class UnfinalizedPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eventController = Get.put(Controller());
+    final eventController = Get.put(EventController());
     return Padding(
       padding: const EdgeInsets.only(left:20.0, right: 10),
       child: Container(

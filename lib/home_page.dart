@@ -18,7 +18,7 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   final themeController = Get.put(ThemeController());
   //final connectivityController = Get.put(ConnectivityController());
 

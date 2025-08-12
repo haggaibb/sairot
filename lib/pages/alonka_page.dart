@@ -15,7 +15,7 @@ class AlonkaPage extends StatefulWidget {
 }
 
 class _AlonkaPageState extends State<AlonkaPage> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   int runTime = 0;
   late Timer _timer;
   final ScrollController _scrollController = ScrollController();
@@ -75,7 +75,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
               },
             ),
           ),
-          body: GetX<Controller>(builder: (_) {
+          body: GetX<EventController>(builder: (_) {
             return SingleChildScrollView(
               controller: _scrollController,
               child: Center(

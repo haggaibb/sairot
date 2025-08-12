@@ -19,7 +19,7 @@ class SakimCharts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eventController = Get.put(Controller());
+    final eventController = Get.put(EventController());
     final List<int> rounds = eventController.currentEvent.value.sakimRounds.map((SakimRound round) => round.round).toList();
     final List<int> participantCounts = eventController.currentEvent.value.sakimRounds.map((SakimRound round) => round.participantsInRound.length).toList();
     Participant p = eventController.getParticipant(number);

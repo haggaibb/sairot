@@ -15,7 +15,7 @@ class AlonkaRoundPanel extends StatefulWidget {
 }
 
 class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   List<int> stillActiveInRound = [];
 
   @override
@@ -28,7 +28,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return GetX<Controller>(builder: (eventController) {
+    return GetX<EventController>(builder: (eventController) {
       eventController.currentAlonkaRound.value == widget.round.round;
       if (widget.round.activeParticipants.isNotEmpty) {
         var h = widget.round.activeParticipants.length / 3 + 2;

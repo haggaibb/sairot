@@ -16,7 +16,7 @@ class AlonkaCharts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eventController = Get.put(Controller());
+    final eventController = Get.put(EventController());
     final toggleController = Get.put(ChartToggleController());
 
     final List<int> rounds = eventController.currentEvent.value.alonkaSprints

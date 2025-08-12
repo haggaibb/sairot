@@ -14,7 +14,7 @@ class InterviewPage extends StatefulWidget {
 }
 
 class _InterviewPageState extends State<InterviewPage> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
 
   @override
   void initState() {
@@ -60,7 +60,7 @@ class _InterviewPageState extends State<InterviewPage> {
                   },
                 ),
               ),
-              body: GetX<Controller>(builder: (_) {
+              body: GetX<EventController>(builder: (_) {
                 var h =
                     eventController.currentEvent.value.activeParticipants.length /
                             3 +

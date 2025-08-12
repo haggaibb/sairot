@@ -4,57 +4,42 @@ import 'package:get/get.dart';
 import '../event_controller.dart';
 import 'dart:async';
 import '../widgets/logo.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+
+class AdminLoginPage extends StatefulWidget {
+  const AdminLoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<AdminLoginPage> createState() => _AdminLoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _AdminLoginPageState extends State<AdminLoginPage> {
   final eventController = Get.put(EventController());
   TextEditingController idCtrl = TextEditingController();
-  late Timer _connectionTimer;
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-login() async {
-  if (await eventController.login(idCtrl.text)) {
-    _connectionTimer.cancel();
-    eventController.loading.value=true;
-    await eventController.getUnfinalizedEvents();
-    await eventController.fetchInstructorEvents();
-    eventController.loading.value=false;
-    Get.toNamed('/home');
+  Future<bool> login() async {
+    if (idCtrl.text=='') return false;
+    DocumentSnapshot<Map<String, dynamic>> doc =
+    await firestore.collection('System').doc('config').get();
+    Map<String, dynamic>? docData = doc.data(); // Ensuring correct casting
+    List<String> admins = (docData?['admins'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];    if (admins.contains(idCtrl.text)) {
+      return true;
+    }
+    else {
+      return false;
+    }
   }
-  else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(" לא נמצא מדריך עם ת.ז. " + idCtrl.text,
-          style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            fontSize: 16
-          ),
-        ),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
-      ),
-    );
-  }
-}
 
   @override
   void initState()  {
-      _connectionTimer = Timer.periodic(Duration(seconds: 3), (Timer timer) async {
-        eventController.isConnected.value = eventController.isConnected.value;
-        //if (eventController.isConnected.value) _connectionTimer.cancel();
-      });
+
     super.initState();
   }
 
   @override
   void dispose() {
-    _connectionTimer.cancel(); // Stop timer when widget is disposed
     super.dispose();
   }
 
@@ -89,9 +74,9 @@ login() async {
                   children: [
                     const SizedBox(height: 10),
                     GestureDetector(
-                      onLongPress: () => {
-                        eventController.deleteSystemHiveBox()
-                      },
+                        onLongPress: () => {
+                          eventController.deleteSystemHiveBox()
+                        },
                         child: ShineEffectLogo()
                     ),
                     //Image.asset('images/wings-logo.png', width: 250),
@@ -102,7 +87,7 @@ login() async {
                         ? Column(
                       children: [
                         Text(
-                          'מסך הזדהות של המדריך',
+                          'מסך הזדהות של מנהל הארוע',
                           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 40),
@@ -163,7 +148,25 @@ login() async {
                             foregroundColor: Theme.of(context).colorScheme.onPrimary,
                           ),
                           onPressed: () async {
-                           await login();
+                            bool res = await login();
+                            if (res) {
+                              Get.toNamed('/admin');
+                            }
+                            else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(" לא נמצא ת.ז. " + idCtrl.text,
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        fontSize: 16
+                                    ),
+                                  ),
+                                  backgroundColor: Colors.red,
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                            }
                           },
                           child: const Text("הזדהות",
                             style: TextStyle(fontWeight: FontWeight.bold),

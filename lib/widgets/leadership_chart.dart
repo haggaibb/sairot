@@ -10,7 +10,7 @@ class LeadershipChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eventController = Get.put(Controller());
+    final eventController = Get.put(EventController());
     int participantIndex = eventController.currentEvent.value.participants.indexWhere((participant) => participant.number== number);
     Participant p = eventController.currentEvent.value.participants[participantIndex];
     return Scaffold(

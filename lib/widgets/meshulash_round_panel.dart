@@ -14,7 +14,7 @@ class MeshulashRoundPanel extends StatefulWidget {
 }
 
 class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   @override
   void initState() {
     super.initState();
@@ -22,7 +22,7 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return GetX<Controller>(builder: (eventController) {
+    return GetX<EventController>(builder: (eventController) {
       var h = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound.length / 3 + 2;
         if (eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound.isEmpty) return SizedBox();
         return SizedBox(

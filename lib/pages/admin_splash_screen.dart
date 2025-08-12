@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../event_controller.dart';
-import 'login_page.dart';
-import '../home_page.dart';
+import 'admin_login_page.dart';
+import '../admin/admin_home.dart';
 import '../theme_controller.dart';
 import '../widgets/logo.dart';
 
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+class AdminSplashScreen extends StatefulWidget {
+  const AdminSplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  State<AdminSplashScreen> createState() => _AdminSplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _AdminSplashScreenState extends State<AdminSplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
@@ -50,9 +50,9 @@ class _SplashScreenState extends State<SplashScreen>
     return Obx(() {
       if (!eventController.loading.value) {
         if (!eventController.loggedIn.value) {
-          return LoginPage();
+          return AdminLoginPage();
         } else {
-          return Home();
+          return AdminHome();
         }
       }
       return Scaffold(

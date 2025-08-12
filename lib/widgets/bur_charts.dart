@@ -12,7 +12,7 @@ class BurCharts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eventController = Get.put(Controller());
+    final eventController = Get.put(EventController());
     final List<Bur> participantsGrades = eventController.currentEvent.value.burGrades;
     int participantIndex = eventController.currentEvent.value.participants.indexWhere((participant) => participant.number== number);
     return Scaffold(

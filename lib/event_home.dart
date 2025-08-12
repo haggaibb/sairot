@@ -16,7 +16,7 @@ class EventHome extends StatefulWidget {
 }
 
 class _EventHomeState extends State<EventHome> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   final themeController = Get.put(ThemeController());
 
 

@@ -21,7 +21,7 @@ import 'package:flutter/material.dart';
 import 'theme_controller.dart';
 
 
-class Controller extends GetxController {
+class EventController extends GetxController {
   var loading = false.obs;
   var unfinalizedLoading = false.obs;
   var pastEventsLoading = false.obs;
@@ -36,40 +36,30 @@ class Controller extends GetxController {
   var eventDays = <String, List<String>>{}.obs; // Map: Event -> Days with data
   var selectedEvent = RxnString();
   var selectedDay = RxnString();
-  Rx<Event> currentEvent =
-      Event(date: DateTime.now().toString(), instructorId: '', eventName: '')
-          .obs;
+  Rx<Event> currentEvent = Event(date: DateTime.now().toString(), instructorId: '', eventName: '').obs;
   List<Event> unfinalizedEvents = <Event>[].obs;
-
   /// Alonka
   RxInt currentAlonkaRound = 0.obs;
-
   /// Meshulash
   RxBool meshulashEditModeOn = true.obs;
-
   /// Sakim
   RxBool sakimEditModeOn = true.obs;
-
   /// Display
   int numberOfCols = 3;
-
   /// firebase
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   GradeSettings firestoreGradeSettings = GradeSettings();
   SystemSettings systemSettings = SystemSettings();
   List<Instructor> instructorList = [];
   final FirebaseStorage _storage = FirebaseStorage.instance;
-
   /// login
   Rx<System> system = System().obs;
   RxBool loggedIn = false.obs;
   Instructor currentInstructor =
    Instructor(id: '', firstName: '', lastName: '', mobile: '');
   RxBool isConnected = false.obs;
-
   /// Hive
   var systemBox;
-
   /// Settings
   RxDouble userFontSize = 18.0.obs;
   RxDouble userChildAspectRatio = 3.0.obs;

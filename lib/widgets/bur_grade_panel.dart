@@ -12,7 +12,7 @@ class BurGradePanel extends StatefulWidget {
 }
 
 class _BurGradePanelState extends State<BurGradePanel> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   TextEditingController gradeCtrl = TextEditingController();
   TextEditingController customCommentCtrl = TextEditingController();
 
@@ -95,7 +95,7 @@ class _BurGradePanelState extends State<BurGradePanel> {
           centerTitle: true,
           title: const Text('דף ציונים לבור'),
         ),
-        body: GetX<Controller>(builder: (_) {
+        body: GetX<EventController>(builder: (_) {
           return GestureDetector(
             onTap: () => FocusScope.of(context).unfocus(),
             child: SingleChildScrollView(

@@ -12,7 +12,7 @@ class GradesPage extends StatefulWidget {
 }
 
 class _GradesPageState extends State<GradesPage> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   List<PlutoColumn> columns = [
     /// Text Column definition
     PlutoColumn(
@@ -132,70 +132,118 @@ class _GradesPageState extends State<GradesPage> {
               centerTitle: true,
               title: Text(' דף ציונים לקבוצה ${eventController.currentEvent.value.groupNumber} '),
             ),
-            body: GetX<Controller>(builder: (_) {
-              return Container(
-                padding: const EdgeInsets.all(1),
-                child: PlutoGrid(
-                    mode: eventController.currentEvent.value.finalized?PlutoGridMode.readOnly:PlutoGridMode.normal,
-                    rowColorCallback: (rowColorContext) {
-                      if (rowColorContext.row.cells.entries.elementAt(1).value.value >= 5) {
-                        return Colors.greenAccent;
-                      } else if (rowColorContext.row.cells.entries.elementAt(2).value.value >= 5 && rowColorContext.row.cells.entries.elementAt(1).value.value<1) {
-                        return Colors.greenAccent;
-                      } else {
-                        return Colors.white;
-                      }
-                    },
-                    configuration: const PlutoGridConfiguration(
-                        columnSize: PlutoGridColumnSizeConfig(
-                            autoSizeMode: PlutoAutoSizeMode.none
-                        )
-                    ),
-                    columns: columns,
-                    rows: List.generate(_.currentEvent.value.participants.length, (index) {
-                      return PlutoRow(
-                        cells: {
-                          'number_field': PlutoCell(value: _.currentEvent.value.participants[index].number),
-                          'final_grade_field': PlutoCell(value: _.currentEvent.value.participants[index].instructorGrade),
-                          'system_grade_field': PlutoCell(value: _.currentEvent.value.participants[index].systemGrade),
-                          'meeshulash_field': PlutoCell(value: (_.currentEvent.value.participants[index].meshulashGrade)),
-                          'alonka_field': PlutoCell(value: (_.currentEvent.value.participants[index].alonkaGrade)),
-                          'bur_field': PlutoCell(value: _.currentEvent.value.participants[index].burGrade),
-                          'sakim_field': PlutoCell(value: _.currentEvent.value.participants[index].sakimGrade),
+            body: Container(
+              padding: const EdgeInsets.all(1),
+              child:Container(
+                padding: const EdgeInsets.all(8), // Add padding for aesthetics
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    double gridWidth = constraints.maxWidth; // Get available screen width
+                    double columnWidth = gridWidth / 7; // Divide evenly among 7 columns
 
-                        },
-                      );
-                    }),
-                    onChanged: (PlutoGridOnChangedEvent event) {
-                      if (event.columnIdx==1 && !_.currentEvent.value.finalized) {
-                        eventController.setParticipantsGrade(event.row.cells.values.first.value,event.value);
-                      }
-                      //print();
-                    },
-                    onRowDoubleTap: (PlutoGridOnRowDoubleTapEvent event) {
-                      Get.toNamed('/performance_page/${event.row.cells.values.first.value}');
-                    },
-                  onLoaded: (PlutoGridOnLoadedEvent event) {
-                    event.stateManager.setSelecting(true); // Enable text selection
+                    return PlutoGrid(
+                      mode: eventController.currentEvent.value.finalized
+                          ? PlutoGridMode.readOnly
+                          : PlutoGridMode.normal,
+                      rowColorCallback: (rowColorContext) {
+                        final double finalGrade =
+                            (rowColorContext.row.cells['final_grade_field']?.value as num?)?.toDouble() ?? 0.0;
+                        final double systemGrade =
+                            (rowColorContext.row.cells['system_grade_field']?.value as num?)?.toDouble() ?? 0.0;
 
-                    event.stateManager.addListener(() {
-                      if (event.stateManager.isEditing) {
-                        final controller = event.stateManager.textEditingController;
-
-                        if (controller != null && controller.text.isNotEmpty) {
-                          Future.delayed(Duration(milliseconds: 50), () {
-                            controller.selection = TextSelection(
-                              baseOffset: 0,
-                              extentOffset: controller.text.length,
-                            );
-                          });
+                        if (finalGrade >= 5) {
+                          return Colors.greenAccent;
+                        } else if (systemGrade >= 5 && finalGrade < 1) {
+                          return Colors.greenAccent;
+                        } else {
+                          return Colors.white;
                         }
-                      }
-                    });
+                      },
+                      configuration: const PlutoGridConfiguration(
+                        columnSize: PlutoGridColumnSizeConfig(autoSizeMode: PlutoAutoSizeMode.equal),
+                      ),
+                      columns: [
+                        PlutoColumn(
+                          title: 'מספר',
+                          field: 'number_field',
+                          type: PlutoColumnType.number(),
+                          width: columnWidth,
+                        ),
+                        PlutoColumn(
+                          title: 'ציון סופי',
+                          field: 'final_grade_field',
+                          type: PlutoColumnType.number(),
+                          width: columnWidth,
+                        ),
+                        PlutoColumn(
+                          title: 'ציון מערכת',
+                          field: 'system_grade_field',
+                          type: PlutoColumnType.number(),
+                          width: columnWidth,
+                        ),
+                        PlutoColumn(
+                          title: 'משולש',
+                          field: 'meeshulash_field',
+                          type: PlutoColumnType.number(),
+                          width: columnWidth,
+                        ),
+                        PlutoColumn(
+                          title: 'אלונקה',
+                          field: 'alonka_field',
+                          type: PlutoColumnType.number(),
+                          width: columnWidth,
+                        ),
+                        PlutoColumn(
+                          title: 'בור',
+                          field: 'bur_field',
+                          type: PlutoColumnType.number(),
+                          width: columnWidth,
+                        ),
+                        PlutoColumn(
+                          title: 'שקים',
+                          field: 'sakim_field',
+                          type: PlutoColumnType.number(),
+                          width: columnWidth,
+                        ),
+                      ],
+                      rows: List.generate(
+                        eventController.currentEvent.value.participants.length,
+                            (index) {
+                          final participant = eventController.currentEvent.value.participants[index];
+
+                          return PlutoRow(
+                            cells: {
+                              'number_field': PlutoCell(value: participant.number),
+                              'final_grade_field': PlutoCell(value: (participant.instructorGrade as num?)?.toDouble() ?? 0.0),
+                              'system_grade_field': PlutoCell(value: (participant.systemGrade as num?)?.toDouble() ?? 0.0),
+                              'meeshulash_field': PlutoCell(value: (participant.meshulashGrade as num?)?.toDouble() ?? 0.0),
+                              'alonka_field': PlutoCell(value: (participant.alonkaGrade as num?)?.toDouble() ?? 0.0),
+                              'bur_field': PlutoCell(value: (participant.burGrade as num?)?.toDouble() ?? 0.0),
+                              'sakim_field': PlutoCell(value: (participant.sakimGrade as num?)?.toDouble() ?? 0.0),
+                            },
+                          );
+                        },
+                      ),
+                      onChanged: (PlutoGridOnChangedEvent event) {
+                        if (event.columnIdx == 1 && !eventController.currentEvent.value.finalized) {
+                          final int participantNumber = event.row.cells['number_field']?.value as int;
+                          final double newGrade = (event.value as num?)?.toDouble() ?? 0.0;
+
+                          eventController.setParticipantsGrade(participantNumber, newGrade.toInt());
+                        }
+                      },
+                      onRowDoubleTap: (PlutoGridOnRowDoubleTapEvent event) {
+                        final int participantNumber = event.row.cells['number_field']?.value as int;
+                        Get.toNamed('/performance_page/$participantNumber');
+                      },
+                      onLoaded: (PlutoGridOnLoadedEvent event) {
+                        event.stateManager.setSelecting(true);
+                      },
+                    );
                   },
                 ),
-              );
-            })),
+              ),
+            )),
       ),
     );
   }

@@ -15,7 +15,7 @@ class MeshulashPage extends StatefulWidget {
 }
 
 class _MeshulashPageState extends State<MeshulashPage> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   int runTime = 0;
   late Timer _timer;
   late bool editModeOn;
@@ -89,7 +89,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
               },
             ),
           ),
-          body: GetX<Controller>(builder: (_) {
+          body: GetX<EventController>(builder: (_) {
             return SingleChildScrollView(
               controller: _scrollController,
               child: eventController.currentEvent.value.meshulashRounds.isNotEmpty

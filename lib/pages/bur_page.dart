@@ -16,7 +16,7 @@ class BurPage extends StatefulWidget {
 }
 
 class _BurPageState extends State<BurPage> {
-  final eventController = Get.put(Controller());
+  final eventController = Get.put(EventController());
   int runTime = 0;
   late Timer _timer;
 
@@ -74,7 +74,7 @@ class _BurPageState extends State<BurPage> {
                   },
                 ),
               ),
-              body: GetX<Controller>(builder: (_) {
+              body: GetX<EventController>(builder: (_) {
                 var h =
                     eventController.currentEvent.value.activeParticipants.length /
                             3 +

@@ -21,9 +21,9 @@ class _AdminLiveEventPageState extends State<AdminLiveEventPage> {
     DateTime today = DateTime.now();
     formattedToday =
         "${today.day.toString().padLeft(2, '0')}-${today.month.toString().padLeft(2, '0')}-${today.year}";
-    //adminController.startLiveListener(formattedToday);
+    adminController.startLiveListener(formattedToday);
     /// line below is for debug mode.
-    adminController.startLiveListener('22-02-2025');
+    //adminController.startLiveListener('22-02-2025');
     super.initState();
   }
 
