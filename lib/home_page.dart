@@ -21,7 +21,7 @@ class _HomeState extends State<Home> {
   final eventController = Get.put(EventController());
   final themeController = Get.put(ThemeController());
   //final connectivityController = Get.put(ConnectivityController());
-
+  //late List<DateTime> validDates;
   //late Timer _connectionTimer;
 
   /// Load Selected Instructor's Event
@@ -49,6 +49,7 @@ class _HomeState extends State<Home> {
     //   await eventController.getUnfinalizedEvents();
     //   await eventController.fetchInstructorEvents();
     // });
+
     super.initState();
   }
 
@@ -299,19 +300,47 @@ class _HomeState extends State<Home> {
                         backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       ),
-                      onPressed: () async {
-                        DateTime? pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(), //get today's date
-                            firstDate: DateTime.now(),
-                            locale: const Locale('he', 'IL'),
-                            lastDate: DateTime(2101));
-                        if (pickedDate != null) {
-                          String formattedDate =
-                              "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
-                          Get.toNamed('/event_settings/$formattedDate');
-                        }
-                      },
+                    onPressed: () async {
+                      // Define the allowed valid dates
+                      // Convert eventDays List<DateTime>
+                      var currentEventDays = await eventController.getCurrentEventDays();
+                      List<DateTime> validDates= currentEventDays.map<DateTime>((dateStr) {
+                        final parts = dateStr.split('-');
+                        final day = int.parse(parts[0]);
+                        final month = int.parse(parts[1]);
+                        final year = int.parse(parts[2]);
+                        return DateTime(year, month, day);
+                      }).toList();
+
+                      print(validDates);
+                      // Helper to compare just the date (ignores time)
+                      bool isSameDate(DateTime a, DateTime b) {
+                        return a.year == b.year && a.month == b.month && a.day == b.day;
+                      }
+
+                      // Sort to get the earliest valid date
+                      validDates.sort((a, b) => a.compareTo(b));
+                      DateTime fallbackInitialDate = validDates.first;
+
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: fallbackInitialDate,
+                        firstDate: validDates.first,
+                        lastDate: DateTime(2101),
+                        locale: const Locale('he', 'IL'),
+
+                        // Only allow specific valid dates
+                        selectableDayPredicate: (DateTime day) {
+                          return validDates.any((valid) => isSameDate(valid, day));
+                        },
+                      );
+
+                      if (pickedDate != null) {
+                        String formattedDate =
+                            "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
+                        Get.toNamed('/event_settings/$formattedDate');
+                      }
+                    },
                       child: const Text('פתיחת יום חדש',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       )),

@@ -170,7 +170,7 @@ Provide a detailed **performance summary** do not include any future recommendat
     try {
       // Get the model instance
       final model = FirebaseVertexAI.instance.generativeModel(
-        model: "gemini-1.0-pro", // Use "gemini-1" or another available model
+        model: "gemini-2.5-pro", // Use "gemini-1" or another available model
       );
 
       // Create a content list as required by generateContent()

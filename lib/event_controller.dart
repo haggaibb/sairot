@@ -77,6 +77,7 @@ class EventController extends GetxController {
     await gradesUpdate();
     await getSystemSettings();
     await getCurrentEventName();
+
     await getUpdatedInstructorsList();
     await checkForLocalLogin();
     if (loggedIn.value) {
@@ -266,6 +267,17 @@ class EventController extends GetxController {
     await firestore.collection('System').doc('config').get();
     Map<String, dynamic>? docData = doc.data(); // Ensuring correct casting
     currentEventName = docData?['current_event'] ?? 'NA';
+  }
+
+  getCurrentEventDays() async {
+      CollectionReference eventDaysRef =
+      firestore.collection('Events/' + currentEventName + '/days');
+      QuerySnapshot eventDaysQuery = await eventDaysRef.get();
+      var _eventDays = [];
+      eventDaysQuery.docs.forEach((element) {
+        _eventDays.add(element.id);
+      });
+      return _eventDays;
   }
 
   createNewEvent(Event event) async {

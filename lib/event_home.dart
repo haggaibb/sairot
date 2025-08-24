@@ -6,7 +6,6 @@ import 'widgets/yes_no.dart';
 import 'theme_controller.dart';
 import 'widgets/strobe_button.dart';
 import 'models/system.dart';
-import 'models/instructor.dart';
 
 class EventHome extends StatefulWidget {
   const EventHome({super.key});
