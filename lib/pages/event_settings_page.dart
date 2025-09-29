@@ -197,10 +197,15 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                   ),
                   Obx (()  {
                     if (eventController.loading.value) {
-                      return SizedBox(
-                        width: 50,
-                        height: 50,
-                        child: CircularProgressIndicator(),
+                      return Column(
+                        children: [
+                          SizedBox(
+                            width: 50,
+                            height: 50,
+                            child: CircularProgressIndicator(),
+                          ),
+                          Text('סבלנות, זה יכול לקחת כמה דקות')
+                        ],
                       );
                     }
                     participants.sort((a, b) => a.number.compareTo(b.number));

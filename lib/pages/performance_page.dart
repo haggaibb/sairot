@@ -14,14 +14,21 @@ final eventController = Get.put(EventController());
 class PerformancePage extends StatelessWidget {
   const PerformancePage({super.key});
 
+  Future<String> GenAIReport(Participant p) async {
+    var data = await p.fetchAndGenerateSummary(p.number.toString());
+    if (data.isNotEmpty) {
+      return data;
+    } else {
+      return "No Data";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     int number = int.parse(Get.parameters['number'] ?? '0');
     Participant p = eventController.getParticipant(number);
-
     // 📏 **Detect Tablet or Mobile**
     bool isTablet = MediaQuery.of(context).size.width > 600;
-
     // 🎨 **Dynamic Sizes for Mobile vs. Tablet**
     double baseFontSize = isTablet ? 24 : 18;
     double chartHeight = isTablet ? 500 : 300;
@@ -52,7 +59,8 @@ class PerformancePage extends StatelessWidget {
                 SizedBox(height: 20),
                 Text(
                   'ניתוח ביצועים עבור משתתף $number',
-                  style: TextStyle(fontSize: titleFontSize, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      fontSize: titleFontSize, fontWeight: FontWeight.bold),
                 ),
 
                 SizedBox(height: spacing),
@@ -65,7 +73,9 @@ class PerformancePage extends StatelessWidget {
                         fontSize: baseFontSize,
                         fontWeight: FontWeight.bold)),
                 Text('השוואה קבוצתית',
-                    style: TextStyle(fontSize: subtitleFontSize, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        fontSize: subtitleFontSize,
+                        fontWeight: FontWeight.bold)),
                 SizedBox(height: 10),
                 SizedBox(
                   height: chartHeight,
@@ -83,7 +93,9 @@ class PerformancePage extends StatelessWidget {
                         fontSize: baseFontSize,
                         fontWeight: FontWeight.bold)),
                 Text('גרף ביצועים אישי',
-                    style: TextStyle(fontSize: subtitleFontSize, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        fontSize: subtitleFontSize,
+                        fontWeight: FontWeight.bold)),
                 SizedBox(
                   height: chartHeight,
                   width: chartWidth,
@@ -100,7 +112,9 @@ class PerformancePage extends StatelessWidget {
                         fontSize: baseFontSize,
                         fontWeight: FontWeight.bold)),
                 Text('השוואה קבוצתית',
-                    style: TextStyle(fontSize: subtitleFontSize, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        fontSize: subtitleFontSize,
+                        fontWeight: FontWeight.bold)),
                 SizedBox(
                   height: chartHeight,
                   width: chartWidth,
@@ -117,7 +131,9 @@ class PerformancePage extends StatelessWidget {
                         fontSize: baseFontSize,
                         fontWeight: FontWeight.bold)),
                 Text('גרף אישי',
-                    style: TextStyle(fontSize: subtitleFontSize, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        fontSize: subtitleFontSize,
+                        fontWeight: FontWeight.bold)),
                 SizedBox(height: 40),
                 SizedBox(
                   height: chartHeight,
@@ -165,66 +181,41 @@ class PerformancePage extends StatelessWidget {
                         fontSize: baseFontSize,
                         fontWeight: FontWeight.bold)),
 
-                FutureBuilder<String>(
-                  future: p.fetchAndGenerateSummary(number.toString()),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Container(
-                        margin: EdgeInsets.all(16),
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            SizedBox(height: 100),
-                            Text(
-                              'מנתח ומסכם את הביצועים של משתתף $number',
-                              style: TextStyle(fontSize: baseFontSize - 2),
+                ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    onPressed: () async {
+                      eventController.loading.value = true;
+                      p.participantAIReport = await GenAIReport(p);
+                      eventController.loading.value = false;
+                    },
+                    child: Text(
+                      'עריכה אוטומטית',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: eventController.userFontSize.value),
+                    )),
+                // AI Results
+                Obx(
+                  () => eventController.loading.value
+                      ? SizedBox(
+                          child: CircularProgressIndicator(),
+                          width: 50,
+                          height: 50,
+                        )
+                      : Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Text(
+                            p.participantAIReport,
+                            style: TextStyle(
+                              fontSize: baseFontSize,
+                              height: 1.5,
                             ),
-                            SizedBox(width: 200, child: LinearProgressIndicator()),
-                          ],
-                        ),
-                      );
-                    } else if (snapshot.hasError) {
-                      return Text("Error: ${snapshot.error}");
-                    } else {
-                      return Container(
-                        margin: EdgeInsets.all(16),
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 6,
-                              offset: Offset(0, 3),
-                            ),
-                          ],
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "סיכום ביצועים",
-                              style: TextStyle(
-                                fontSize: baseFontSize + 4,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 10),
-                            Text(
-                              "${snapshot.data}",
-                              style: TextStyle(
-                                fontSize: baseFontSize,
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  },
+                          ),
+                      ),
                 ),
-
                 SizedBox(height: 50),
               ],
             ),

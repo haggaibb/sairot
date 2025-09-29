@@ -21,6 +21,7 @@ class Participant {
   double systemGrade = 0;
   String name = '';
   int groupNumber = 0;
+  String participantAIReport ='';
   List<int> meshulashPositions = [];
   List<int> sakimPositions = [];
   List<String> meshulashInstructorComments = [];
@@ -48,6 +49,7 @@ class Participant {
       'systemGrade': systemGrade,
       'name': name,
       'groupNumber': groupNumber,
+      'participateAIReport' : participantAIReport,
       'meshulashPositions': meshulashPositions,
       'sakimPositions': sakimPositions,
       'meshulashInstructorComments': meshulashInstructorComments,
@@ -75,6 +77,7 @@ class Participant {
       ..instructorGrade = json['instructorGrade'] ?? 0
       ..systemGrade = (json['systemGrade'] ?? 0).toDouble()
       ..groupNumber = json['groupNumber'] ?? 0
+      ..participantAIReport = json['fullName'] ?? ''
       ..meshulashPositions = List<int>.from(json['meshulashPositions'] ?? [])
       ..sakimPositions = List<int>.from(json['sakimPositions'] ?? [])
       ..meshulashInstructorComments =

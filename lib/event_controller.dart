@@ -598,14 +598,47 @@ class EventController extends GetxController {
     return currentEvent.value.burGrades[participantBurIndex].burGrade;
   }
 
+  double calculateWeightedGrade({
+    required double param1,
+    required double param2,
+    required double param3,
+    required double param4,
+    double weight1 = 0.25,
+    double weight2 = 0.25,
+    double weight3 = 0.25,
+    double weight4 = 0.25,
+  }) {
+    // Validate that weights sum up to 1.0
+    final totalWeight = weight1 + weight2 + weight3 + weight4;
+    if (totalWeight != 1.0) {
+      throw ArgumentError('Weights must sum up to 1.0');
+    }
+
+    return (param1 * weight1) +
+        (param2 * weight2) +
+        (param3 * weight3) +
+        (param4 * weight4);
+  }
+
   calculateGrades() {
     for (Participant p in currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active)) {
       p.alonkaGrade = getAlonkaGrade(p.number);
       p.sakimGrade = getSakimGrade(p.number);
       p.burGrade = getBurGrade(p.number);
       p.meshulashGrade = getMeshulashGrade(p.number);
-      p.systemGrade =
-          (p.meshulashGrade + p.alonkaGrade + p.sakimGrade + p.burGrade) / 4;
+      // p.systemGrade =
+      //     (p.meshulashGrade + p.alonkaGrade + p.sakimGrade + p.burGrade) / 4;
+      /// TODO - add weighted avg, add grades version control
+      p.systemGrade = calculateWeightedGrade(
+        param1: p.meshulashGrade,
+        param2: p.alonkaGrade,
+        param3: p.sakimGrade,
+        param4: p.burGrade,
+        weight1: gradesData.weighted['meshulash'],
+        weight2: gradesData.weighted['alonka'],
+        weight3: gradesData.weighted['sakim'],
+        weight4: gradesData.weighted['bur'],
+      );
       if (!currentEvent.value.finalized) currentEvent.value.saveToFirestore();
     }
   }

@@ -8,6 +8,7 @@ class GradeSettings {
   double GERIKAN_CREDIT = 0.5;
   double RUNNER_CREDIT = 0.2;
   double PARTICIPATION_CREDIT = 0.1;
+  Map<String, dynamic> weighted = {};
   List<String> listOfCommentsBur = ['לא הבין את התרגיל','הבין את התרגיל','השקיע','לא השקיע','מתרץ','לוקח אחריות','בור יפה'];
   List<String> listOfCommentsMeshulash = ['מרים אגן','מחפף','אגרסיבי','שומר כוח','זוחל יפה','משקיע'];
   List<String> listOfCommentsAlonka = ['אגרסיבי','שומר כוח','משקיע','מחפף'];
@@ -23,6 +24,7 @@ class GradeSettings {
       "GERIKAN_CREDIT": GERIKAN_CREDIT,
       "RUNNER_CREDIT": RUNNER_CREDIT,
       "PARTICIPATION_CREDIT": PARTICIPATION_CREDIT,
+      "wighted" : weighted,
       "listOfCommentsBur": listOfCommentsBur,
       "listOfCommentsMeshulash": listOfCommentsMeshulash,
       "listOfCommentsAlonka": listOfCommentsAlonka,
@@ -41,6 +43,7 @@ class GradeSettings {
       ..GERIKAN_CREDIT = (json["GERIKAN_CREDIT"] ?? 0.5).toDouble()
       ..RUNNER_CREDIT = (json["RUNNER_CREDIT"] ?? 0.2).toDouble()
       ..PARTICIPATION_CREDIT = (json["PARTICIPATION_CREDIT"] ?? 0.1).toDouble()
+      ..weighted = (json['weighted']) ?? {}
       ..listOfCommentsBur = List<String>.from(json["listOfCommentsBur"] ?? [])
       ..listOfCommentsMeshulash = List<String>.from(json["listOfCommentsMeshulash"] ?? [])
       ..listOfCommentsAlonka = List<String>.from(json["listOfCommentsAlonka"] ?? [])

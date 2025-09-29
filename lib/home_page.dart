@@ -380,7 +380,7 @@ class _HomeState extends State<Home> {
                   child: Container(
                     margin: EdgeInsets.symmetric(horizontal: 0, vertical: 10),
                     padding:
-                    EdgeInsets.only(left: 50, right: 50, top: 10, bottom: 10),
+                    EdgeInsets.only(left: 40, right: 40, top: 10, bottom: 10),
                     decoration: BoxDecoration(
                       color: Theme.of(context)
                           .colorScheme
