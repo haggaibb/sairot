@@ -1,0 +1,2 @@
+/Users/haggaibarel/StudioProjects/sairot/android/app/.cxx/RelWithDebInfo/3l391gd8/x86_64/CMakeFiles/edit_cache.dir
+/Users/haggaibarel/StudioProjects/sairot/android/app/.cxx/RelWithDebInfo/3l391gd8/x86_64/CMakeFiles/rebuild_cache.dir
