@@ -111,7 +111,8 @@ class Participant {
     String prompt = generatePrompt(participantData);
     print(prompt);
     String res = await getVertexAISummary(prompt);
-    print(res);
+    participantAIReport = res;
+    //print(res);
     return res;
   }
   String generatePrompt(Map<String, dynamic> participantData) {

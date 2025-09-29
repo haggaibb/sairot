@@ -613,7 +613,6 @@ class EventController extends GetxController {
     if (totalWeight != 1.0) {
       throw ArgumentError('Weights must sum up to 1.0');
     }
-
     return (param1 * weight1) +
         (param2 * weight2) +
         (param3 * weight3) +
@@ -647,8 +646,6 @@ class EventController extends GetxController {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     currentEvent.value.participants[participantIndex].instructorGrade = grade;
-    print(currentEvent.value.participants[participantIndex].number);
-    print(currentEvent.value.participants[participantIndex].instructorGrade);
     currentEvent.value.saveToFirestore();
   }
 
