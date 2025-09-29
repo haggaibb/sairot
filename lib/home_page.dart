@@ -106,6 +106,13 @@ class _HomeState extends State<Home> {
                                   //color: Colors.white.withOpacity(0.9),
                                 ),
                               ),
+                              Text(
+                                '1.1',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  //color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
                             ],
                           ),
                         ),
