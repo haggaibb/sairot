@@ -24,7 +24,7 @@ class GradeSettings {
       "GERIKAN_CREDIT": GERIKAN_CREDIT,
       "RUNNER_CREDIT": RUNNER_CREDIT,
       "PARTICIPATION_CREDIT": PARTICIPATION_CREDIT,
-      "wighted" : weighted,
+      "weighted" : weighted,
       "listOfCommentsBur": listOfCommentsBur,
       "listOfCommentsMeshulash": listOfCommentsMeshulash,
       "listOfCommentsAlonka": listOfCommentsAlonka,
@@ -38,6 +38,7 @@ class GradeSettings {
 
   /// Convert from JSON
   factory GradeSettings.fromJson(Map<String, dynamic> json) {
+    //print(json['weighted']);
     return GradeSettings()
       ..ALONKA_CREDIT = (json["ALONKA_CREDIT"] ?? 1.0).toDouble()
       ..GERIKAN_CREDIT = (json["GERIKAN_CREDIT"] ?? 0.5).toDouble()

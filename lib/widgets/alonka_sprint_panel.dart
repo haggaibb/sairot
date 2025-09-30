@@ -30,12 +30,12 @@ class _AlonkaSprintPanelState extends State<AlonkaSprintPanel> {
       // print(eventController.currentAlonkaRound.value.toString());
       // print(widget.round);
       if (eventController.currentAlonkaRound.value == widget.round) {
-        print('active round panel');
-        var h = eventController.currentEvent.value
+         var h = eventController.currentEvent.value
                     .getParticipantsByStatus(ParticipantStatus.Active)
                     .length /
                 3 +
             2;
+         
         return SizedBox(
             height: h < 2 ? 120 : h * 100,
             child: Center(
@@ -168,7 +168,6 @@ class _AlonkaSprintPanelState extends State<AlonkaSprintPanel> {
               ),
             ));
       } else {
-        print('round summary');
         return SizedBox(
             height: 95,
             child: Center(

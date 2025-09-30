@@ -51,7 +51,7 @@ class EventController extends GetxController {
   GradeSettings firestoreGradeSettings = GradeSettings();
   SystemSettings systemSettings = SystemSettings();
   List<Instructor> instructorList = [];
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  //final FirebaseStorage _storage = FirebaseStorage.instance;
   /// login
   Rx<System> system = System().obs;
   RxBool loggedIn = false.obs;
@@ -77,7 +77,6 @@ class EventController extends GetxController {
     await gradesUpdate();
     await getSystemSettings();
     await getCurrentEventName();
-
     await getUpdatedInstructorsList();
     await checkForLocalLogin();
     if (loggedIn.value) {
@@ -567,6 +566,8 @@ class EventController extends GetxController {
     return credits;
   }
 
+
+
   double getSakimGrade(int number) {
     if (currentEvent.value.sakimRounds.isEmpty) return 0;
 
@@ -603,10 +604,10 @@ class EventController extends GetxController {
     required double param2,
     required double param3,
     required double param4,
-    double weight1 = 0.25,
-    double weight2 = 0.25,
-    double weight3 = 0.25,
-    double weight4 = 0.25,
+    required double weight1,
+    required double weight2,
+    required double weight3,
+    required double weight4,
   }) {
     // Validate that weights sum up to 1.0
     final totalWeight = weight1 + weight2 + weight3 + weight4;
@@ -705,9 +706,9 @@ class EventController extends GetxController {
       await firestore.collection('Instructors').get();
       if (querySnapshot.docs.isNotEmpty) {
         // Convert each document into a Map and store in a List
-        List<Map<String, dynamic>> instructors = querySnapshot.docs.map((doc) {
-          return doc.data() as Map<String, dynamic>;
-        }).toList();
+        // List<Map<String, dynamic>> instructors = querySnapshot.docs.map((doc) {
+        //   return doc.data() as Map<String, dynamic>;
+        // }).toList();
         instructorList = querySnapshot.docs.map((doc) {
           return Instructor.fromJson(
               doc.id, doc.data() as Map<String, dynamic>);

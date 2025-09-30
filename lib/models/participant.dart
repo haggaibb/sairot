@@ -1,8 +1,5 @@
 import 'package:sairot/pages/performance_page.dart';
-
 import '../models/types.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'alonka_sprint.dart';
 import 'bur.dart';
@@ -102,7 +99,6 @@ class Participant {
 
   Future<String> fetchAndGenerateSummary(String participantId) async {
     var participantData = fetchParticipantData(participantId);
-    if (participantData == null) return "No participant data found.";
     /// get bur comments. for id eventController.get
     int participantBurIndex = eventController.currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == number);
     participantData["burInstructorComments"] = eventController.currentEvent.value.burGrades[participantBurIndex].instructorComments;
