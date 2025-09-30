@@ -12,7 +12,6 @@ import 'models/sakim_round.dart';
 import 'models/grade_settings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'models/instructor.dart';
 import 'models/system.dart';
 import 'package:http/http.dart' as http;
