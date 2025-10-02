@@ -304,8 +304,23 @@ class EventController extends GetxController {
           .collection('days')
           .doc(event.date);
       // 🔥 Step 2: Delete event document
-      await eventRef.delete();
-
+      // await eventRef.delete();
+      await eventRef.update({
+        "groups": FieldValue.arrayRemove([event.groupNumber.toString()]),
+      });
+      await eventRef.update({
+        "instructors": FieldValue.arrayRemove([event.instructorId]),
+      });
+      // Get the document snapshot
+      final snapshot = await eventRef.get();
+      if (snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>?;
+        List<dynamic> groupsArray = data?['groupsAndInstructors'] ?? [];
+        // Remove any map where instructorId matches
+        groupsArray.removeWhere((item) =>
+        item is Map<String, dynamic> && item['instructorId'] == event.instructorId);
+        await eventRef.update({'groupsAndInstructors': groupsArray});
+      }
       print("✅ Event '${event.date}' deleted successfully.");
     } catch (e) {
       print("❌ Error deleting event: $e");
