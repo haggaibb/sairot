@@ -42,6 +42,7 @@ class _GradesPageState extends State<GradesPage> {
       readOnly: true,
       title: 'ציוו מערכת',
       field: 'system_grade_field',
+      enableEditingMode: false,
       type: PlutoColumnType.number(
         negative: false,
         format: '#.##',
@@ -56,6 +57,7 @@ class _GradesPageState extends State<GradesPage> {
       readOnly: true,
       title: 'משולש',
       field: 'meeshulash_field',
+      enableEditingMode: false,
       type: PlutoColumnType.number(
         negative: false,
         format: '#.#',
@@ -70,6 +72,7 @@ class _GradesPageState extends State<GradesPage> {
       readOnly: true,
       title: 'אלונקה',
       field: 'alonka_field',
+      enableEditingMode: false,
       type: PlutoColumnType.number(
         negative: false,
         format: '#.#',
@@ -84,6 +87,7 @@ class _GradesPageState extends State<GradesPage> {
       readOnly: true,
       title: 'בור',
       field: 'bur_field',
+      enableEditingMode: false,
       type: PlutoColumnType.number(
         negative: false,
         format: '#.#',
@@ -97,6 +101,7 @@ class _GradesPageState extends State<GradesPage> {
       readOnly: true,
       title: 'שקים',
       field: 'sakim_field',
+      enableEditingMode: false,
       type: PlutoColumnType.number(
         negative: false,
         format: '#.#',
@@ -168,6 +173,7 @@ class _GradesPageState extends State<GradesPage> {
                       columns: [
                         PlutoColumn(
                           title: 'מספר',
+                          readOnly: true,
                           titleSpan: TextSpan(
                             children: [
                               WidgetSpan(
@@ -187,30 +193,35 @@ class _GradesPageState extends State<GradesPage> {
                         ),
                         PlutoColumn(
                           title: 'מערכת',
+                          readOnly: true,
                           field: 'system_grade_field',
                           type: PlutoColumnType.number(),
                           width: 85,
                         ),
                         PlutoColumn(
                           title: 'משולש',
+                          readOnly: true,
                           field: 'meeshulash_field',
                           type: PlutoColumnType.number(),
                           width: 85,
                         ),
                         PlutoColumn(
                           title: 'אלונקה',
+                          readOnly: true,
                           field: 'alonka_field',
                           type: PlutoColumnType.number(),
                           width: 90,
                         ),
                         PlutoColumn(
                           title: 'בור',
+                          readOnly: true,
                           field: 'bur_field',
                           type: PlutoColumnType.number(),
                           width: 75,
                         ),
                         PlutoColumn(
                           title: 'שקים',
+                          readOnly: true,
                           field: 'sakim_field',
                           type: PlutoColumnType.number(),
                           width: 85,

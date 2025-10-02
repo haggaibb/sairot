@@ -34,7 +34,7 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                   const Divider(
                     thickness: 30,
                   ),
-                      widget.round.round==0?SizedBox.shrink():Text('${widget.round.round} משלוש מקצה ',
+                      widget.round.round==0?SizedBox.shrink():Text('משלוש מקצה ${widget.round.round}  ',
                       style:
                       TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   Expanded(

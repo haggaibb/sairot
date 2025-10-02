@@ -1,12 +1,16 @@
-
 buildscript {
+    // ✅ define kotlin_version OUTSIDE repositories
+    ext.kotlin_version = '1.9.10'
+
     repositories {
         google()
         mavenCentral()
     }
+
     dependencies {
-        classpath 'com.google.gms:google-services:4.4.2'
         classpath "com.android.tools.build:gradle:8.0.2"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "com.google.gms:google-services:4.4.2"
     }
 }
 
@@ -15,13 +19,21 @@ allprojects {
         google()
         mavenCentral()
     }
+
+    // ✅ ByteBuddy version override to fix Java 20 jars
+    configurations.all {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'net.bytebuddy') {
+                details.useVersion '1.12.22'
+            }
+        }
+    }
 }
 
 rootProject.buildDir = "../build"
+
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
     project.evaluationDependsOn(":app")
 }
 

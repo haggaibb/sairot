@@ -200,11 +200,16 @@ class PerformancePage extends StatelessWidget {
                 // AI Results
                 Obx(
                   () => eventController.loading.value
-                      ? SizedBox(
-                          child: CircularProgressIndicator(),
-                          width: 50,
-                          height: 50,
-                        )
+                      ? Column(
+                        children: [
+                          SizedBox(
+                              child: CircularProgressIndicator(),
+                              width: 50,
+                              height: 50,
+                            ),
+                          Text('זה עשוי לקחת כמה קדות...')
+                        ],
+                      )
                       : Padding(
                         padding: const EdgeInsets.all(12.0),
                         child: Text(

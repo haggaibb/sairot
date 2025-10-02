@@ -22,6 +22,7 @@ import 'theme_controller.dart';
 
 class EventController extends GetxController {
   var loading = false.obs;
+  var widgetLoading = false.obs;
   var unfinalizedLoading = false.obs;
   var pastEventsLoading = false.obs;
   GradeSettings gradesData = GradeSettings();

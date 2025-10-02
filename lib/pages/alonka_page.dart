@@ -45,10 +45,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
     });
   }
 
-  void sortActiveList() {
-
-  }
-
+  void sortActiveList() {}
 
   @override
   void dispose() {
@@ -78,18 +75,22 @@ class _AlonkaPageState extends State<AlonkaPage> {
                   setState(() {
                     inOrderOfArrival = !inOrderOfArrival; // Toggle state
                     List<int> activeList = eventController.currentEvent.value
-                        .getParticipantsByStatus(
-                        ParticipantStatus.Active)
+                        .getParticipantsByStatus(ParticipantStatus.Active)
                         .map((participant) => participant.number)
                         .toList();
                     if (inOrderOfArrival) {
                       /// Sort by Alonka grade (descending)
                       activeList.sort((a, b) => eventController
                           .getAlonkaGrade(b)
-                          .compareTo(
-                          eventController.getAlonkaGrade(a)));
+                          .compareTo(eventController.getAlonkaGrade(a)));
                     }
-                    eventController.currentEvent.value.alonkaSprints[eventController.currentEvent.value.alonkaSprints.length-1].activeParticipants = activeList;
+                    eventController
+                        .currentEvent
+                        .value
+                        .alonkaSprints[eventController
+                                .currentEvent.value.alonkaSprints.length -
+                            1]
+                        .activeParticipants = activeList;
                     eventController.update();
                   });
                 },
@@ -160,13 +161,23 @@ class _AlonkaPageState extends State<AlonkaPage> {
                     const Divider(
                       thickness: 30,
                     ),
+                    /// widget loading indicator
+                    Obx(() => eventController.widgetLoading.value
+                        ? SizedBox(
+                      height: 10,
+                      width: 200,
+                      child: LinearProgressIndicator(),
+                    )
+                        : SizedBox.shrink()),
                     Obx(() => eventController.loading.value
                         ? SizedBox(
                             height: 100,
                             width: 100,
                             child: CircularProgressIndicator(),
                           )
-                        : _.currentEvent.value.alonkaEndTime == null
+                        : _.currentEvent.value.alonkaEndTime == null &&
+                                _.currentEvent.value.alonkaSprints.last
+                                    .activeParticipants.isEmpty
                             ? ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor:
@@ -175,7 +186,6 @@ class _AlonkaPageState extends State<AlonkaPage> {
                                       Theme.of(context).colorScheme.onPrimary,
                                 ),
                                 onPressed: () async {
-                                  //setState(() async {
                                   _.loading.value = true;
                                   _.currentAlonkaRound.value =
                                       _.currentEvent.value.alonkaSprints.length;
@@ -195,6 +205,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
                                         .compareTo(
                                             eventController.getAlonkaGrade(a)));
                                   }
+
                                   /// create new Alonka Sprint
                                   _.currentEvent.value.alonkaSprints.add(
                                       AlonkaSprint(
@@ -220,7 +231,9 @@ class _AlonkaPageState extends State<AlonkaPage> {
                       height: 100,
                     ),
                     _.currentEvent.value.alonkaEndTime == null &&
-                            _.currentEvent.value.alonkaStartTime != null
+                            _.currentEvent.value.alonkaStartTime != null &&
+                            _.currentEvent.value.alonkaSprints.last
+                                .activeParticipants.isEmpty
                         ? ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor:
