@@ -34,12 +34,9 @@ class _AdminHomeState extends State<AdminHome> {
       String? instructorId;
       if (!adminController.isInstructorMode.value) {
         /// group mode
-        print('group mode');
-        print(adminController.selectedGroup.value);
         String groupNumber = adminController.selectedGroup.value!;
         instructorId = adminController.groupNumberToInstructor[groupNumber];
       } else {
-        print('instructor mode');
         instructorId = adminController.selectedInstructor.value;
       }
       // Fetch event data from Firebase if needed

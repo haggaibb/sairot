@@ -160,50 +160,60 @@ class _GradesPageState extends State<GradesPage> {
                         }
                       },
                       configuration: const PlutoGridConfiguration(
-                        columnSize: PlutoGridColumnSizeConfig(autoSizeMode: PlutoAutoSizeMode.equal),
+                        style: PlutoGridStyleConfig(
+                          activatedBorderColor: Colors.transparent, // remove cell border highlight
+                        ),
+                        //columnSize: PlutoGridColumnSizeConfig(autoSizeMode: PlutoAutoSizeMode.scale),
                       ),
                       columns: [
                         PlutoColumn(
                           title: 'מספר',
+                          titleSpan: TextSpan(
+                            children: [
+                              WidgetSpan(
+                                child: Icon(Icons.numbers, size: 20, color: Colors.black),
+                              ),
+                            ],
+                          ),
                           field: 'number_field',
                           type: PlutoColumnType.number(),
                           width: columnWidth,
                         ),
                         PlutoColumn(
-                          title: 'ציון סופי',
+                          title: 'סופי',
                           field: 'final_grade_field',
                           type: PlutoColumnType.number(),
-                          width: columnWidth,
+                          width: 80,
                         ),
                         PlutoColumn(
-                          title: 'ציון מערכת',
+                          title: 'מערכת',
                           field: 'system_grade_field',
                           type: PlutoColumnType.number(),
-                          width: columnWidth,
+                          width: 85,
                         ),
                         PlutoColumn(
                           title: 'משולש',
                           field: 'meeshulash_field',
                           type: PlutoColumnType.number(),
-                          width: columnWidth,
+                          width: 85,
                         ),
                         PlutoColumn(
                           title: 'אלונקה',
                           field: 'alonka_field',
                           type: PlutoColumnType.number(),
-                          width: columnWidth,
+                          width: 90,
                         ),
                         PlutoColumn(
                           title: 'בור',
                           field: 'bur_field',
                           type: PlutoColumnType.number(),
-                          width: columnWidth,
+                          width: 75,
                         ),
                         PlutoColumn(
                           title: 'שקים',
                           field: 'sakim_field',
                           type: PlutoColumnType.number(),
-                          width: columnWidth,
+                          width: 85,
                         ),
                       ],
                       rows: List.generate(
@@ -224,6 +234,9 @@ class _GradesPageState extends State<GradesPage> {
                           );
                         },
                       ),
+                      onSelected: (PlutoGridOnSelectedEvent event) {
+                        print("selected");
+                      },
                       onChanged: (PlutoGridOnChangedEvent event) {
                         if (event.columnIdx == 1 && !eventController.currentEvent.value.finalized) {
                           final int participantNumber = event.row.cells['number_field']?.value as int;
