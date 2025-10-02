@@ -45,6 +45,11 @@ class _AlonkaPageState extends State<AlonkaPage> {
     });
   }
 
+  void sortActiveList() {
+
+  }
+
+
   @override
   void dispose() {
     if (eventController.currentEvent.value.alonkaEndTime == null)
@@ -72,6 +77,20 @@ class _AlonkaPageState extends State<AlonkaPage> {
                 onPressed: () {
                   setState(() {
                     inOrderOfArrival = !inOrderOfArrival; // Toggle state
+                    List<int> activeList = eventController.currentEvent.value
+                        .getParticipantsByStatus(
+                        ParticipantStatus.Active)
+                        .map((participant) => participant.number)
+                        .toList();
+                    if (inOrderOfArrival) {
+                      /// Sort by Alonka grade (descending)
+                      activeList.sort((a, b) => eventController
+                          .getAlonkaGrade(b)
+                          .compareTo(
+                          eventController.getAlonkaGrade(a)));
+                    }
+                    eventController.currentEvent.value.alonkaSprints[eventController.currentEvent.value.alonkaSprints.length-1].activeParticipants = activeList;
+                    eventController.update();
                   });
                 },
                 icon: Icon(
