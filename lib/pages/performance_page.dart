@@ -76,6 +76,10 @@ class PerformancePage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
+                Text(p.meshulashGrade.toStringAsFixed(2),
+                    style: TextStyle(
+                        fontSize: subtitleFontSize,
+                        fontWeight: FontWeight.bold)),
                 SizedBox(height: 10),
                 SizedBox(
                   height: chartHeight,
@@ -93,6 +97,10 @@ class PerformancePage extends StatelessWidget {
                         fontSize: baseFontSize,
                         fontWeight: FontWeight.bold)),
                 Text('גרף ביצועים אישי',
+                    style: TextStyle(
+                        fontSize: subtitleFontSize,
+                        fontWeight: FontWeight.bold)),
+                Text(p.alonkaGrade.toStringAsFixed(2),
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
@@ -115,6 +123,10 @@ class PerformancePage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
+                Text(p.burGrade.toStringAsFixed(2),
+                    style: TextStyle(
+                        fontSize: subtitleFontSize,
+                        fontWeight: FontWeight.bold)),
                 SizedBox(
                   height: chartHeight,
                   width: chartWidth,
@@ -131,6 +143,10 @@ class PerformancePage extends StatelessWidget {
                         fontSize: baseFontSize,
                         fontWeight: FontWeight.bold)),
                 Text('גרף אישי',
+                    style: TextStyle(
+                        fontSize: subtitleFontSize,
+                        fontWeight: FontWeight.bold)),
+                Text(p.sakimGrade.toStringAsFixed(2),
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
