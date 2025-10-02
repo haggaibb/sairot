@@ -110,7 +110,7 @@ class _HomeState extends State<Home> {
                               Text(
                                 '[$gitBranch]',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   //color: Colors.white.withOpacity(0.9),
                                 ),
                               ),
