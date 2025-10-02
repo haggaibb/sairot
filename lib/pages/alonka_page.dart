@@ -19,6 +19,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
   int runTime = 0;
   late Timer _timer;
   final ScrollController _scrollController = ScrollController();
+  bool inOrderOfArrival = true;
 
   @override
   void initState() {
@@ -37,7 +38,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent-200,
+        _scrollController.position.maxScrollExtent - 200,
         duration: Duration(milliseconds: 500),
         curve: Curves.easeOut,
       );
@@ -66,6 +67,22 @@ class _AlonkaPageState extends State<AlonkaPage> {
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             centerTitle: true,
             title: Text('אלונקה'),
+            actions: [
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    inOrderOfArrival = !inOrderOfArrival; // Toggle state
+                  });
+                },
+                icon: Icon(
+                  Icons.directions_walk_sharp,
+                  color: inOrderOfArrival
+                      ? Colors.green
+                      : Colors.grey, // Switch color
+                  size: 32,
+                ),
+              )
+            ],
             leading: IconButton(
               icon: Icon(Icons.arrow_back), // 🔄 Custom back arrow
               onPressed: () {
@@ -84,13 +101,16 @@ class _AlonkaPageState extends State<AlonkaPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(' דקות  ',
+                        Text(
+                          ' דקות  ',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        Text(runTime.toString(),
+                        Text(
+                          runTime.toString(),
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        Text('  משך התרגיל  ',
+                        Text(
+                          '  משך התרגיל  ',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         )
                       ],
@@ -129,30 +149,39 @@ class _AlonkaPageState extends State<AlonkaPage> {
                           )
                         : _.currentEvent.value.alonkaEndTime == null
                             ? ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                        ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
                                 onPressed: () async {
                                   //setState(() async {
                                   _.loading.value = true;
                                   _.currentAlonkaRound.value =
                                       _.currentEvent.value.alonkaSprints.length;
-                                  if (_.currentEvent.value.alonkaSprints.isEmpty)
+                                  if (_
+                                      .currentEvent.value.alonkaSprints.isEmpty)
                                     eventController.currentEvent.value
                                         .alonkaStartTime = DateTime.now();
+                                  List<int> activeList = _.currentEvent.value
+                                      .getParticipantsByStatus(
+                                          ParticipantStatus.Active)
+                                      .map((participant) => participant.number)
+                                      .toList();
+                                  if (inOrderOfArrival) {
+                                    /// Sort by Alonka grade (descending)
+                                    activeList.sort((a, b) => eventController
+                                        .getAlonkaGrade(b)
+                                        .compareTo(
+                                            eventController.getAlonkaGrade(a)));
+                                  }
+                                  /// create new Alonka Sprint
                                   _.currentEvent.value.alonkaSprints.add(
                                       AlonkaSprint(
-                                          round:
-                                              _.currentEvent.value.alonkaSprints
-                                                  .length,
-                                          activeParticipants: _
-                                              .currentEvent.value
-                                              .getParticipantsByStatus(
-                                                  ParticipantStatus.Active)
-                                              .map((participant) =>
-                                                  participant.number)
-                                              .toList()));
+                                          round: _.currentEvent.value
+                                              .alonkaSprints.length,
+                                          activeParticipants: activeList));
                                   _.loading.value = false;
                                   _scrollToEnd();
                                   _.currentEvent.value.saveToFirestore();
@@ -162,7 +191,10 @@ class _AlonkaPageState extends State<AlonkaPage> {
                                   _.currentEvent.value.alonkaStartTime != null
                                       ? 'התחל סיבוב חדש (צא)'
                                       : 'תחילת תרגיל',
-                                  style: TextStyle(fontSize: eventController.userFontSize.value, fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                      fontSize:
+                                          eventController.userFontSize.value,
+                                      fontWeight: FontWeight.bold),
                                 ))
                             : SizedBox.shrink()),
                     SizedBox(
@@ -171,10 +203,12 @@ class _AlonkaPageState extends State<AlonkaPage> {
                     _.currentEvent.value.alonkaEndTime == null &&
                             _.currentEvent.value.alonkaStartTime != null
                         ? ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                        ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onPrimary,
+                            ),
                             onPressed: () async {
                               var res = await showDialog(
                                 context: context,
@@ -193,13 +227,20 @@ class _AlonkaPageState extends State<AlonkaPage> {
                               }
                             },
                             //eventController.currentEvent.value.save();
-                            child: Text('סיום התרגיל',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                            child: Text(
+                              'סיום התרגיל',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: eventController.userFontSize.value),
                             ))
                         : _.currentEvent.value.alonkaEndTime != null
-                            ? Text('  התרגיל הסתיים  ',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
-                    )
+                            ? Text(
+                                '  התרגיל הסתיים  ',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize:
+                                        eventController.userFontSize.value),
+                              )
                             : SizedBox.shrink(),
                     SizedBox(
                       height: 80,

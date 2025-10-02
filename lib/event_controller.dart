@@ -580,8 +580,6 @@ class EventController extends GetxController {
     return credits;
   }
 
-
-
   double getSakimGrade(int number) {
     if (currentEvent.value.sakimRounds.isEmpty) return 0;
 
@@ -628,10 +626,7 @@ class EventController extends GetxController {
     if (totalWeight != 1.0) {
       throw ArgumentError('Weights must sum up to 1.0');
     }
-    return (param1 * weight1) +
-        (param2 * weight2) +
-        (param3 * weight3) +
-        (param4 * weight4);
+    return (param1 * weight1) + (param2 * weight2) + (param3 * weight3) + (param4 * weight4);
   }
 
   calculateGrades() {
