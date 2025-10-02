@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../event_controller.dart';
 import 'dart:async';
 import '../widgets/logo.dart';
+import '../widgets/sonar.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

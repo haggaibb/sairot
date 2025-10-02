@@ -8,6 +8,7 @@ import 'dart:async';
 import 'widgets/unfinalized_panel.dart';
 import 'theme_controller.dart';
 import 'package:sairot/models/system.dart';
+import 'git_version.dart';
 
 
 class Home extends StatefulWidget {
@@ -107,9 +108,9 @@ class _HomeState extends State<Home> {
                                 ),
                               ),
                               Text(
-                                '1.1',
+                                '[$gitBranch]',
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 12,
                                   //color: Colors.white.withOpacity(0.9),
                                 ),
                               ),
