@@ -3,6 +3,8 @@ import '../event_controller.dart';
 import 'package:get/get.dart';
 import 'comments_dialog.dart';
 import 'package:sairot/models/sakim_round.dart';
+import '../models/types.dart';
+
 
 class SakimRoundPanel extends StatefulWidget {
 
@@ -93,8 +95,19 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                                 commentsList: eventController.gradesData.listOfCommentsSakim,
                                               selectedComments: (eventController.getParticipant(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index])).sakimInstructorComments,
                                             ));
-                                    if (res!=null){
-                                      eventController.addSakimComments(res,eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
+                                    if (res!=null) {
+                                      if (res.contains(ParticipantStatus.Droped.name)) {
+                                        print('dropped');
+                                        eventController.loading.value =
+                                        true;
+                                        eventController.dropParticipant(
+                                            widget.round.participantsInRound[index]);
+                                        widget.round.participantsInRound
+                                            .removeAt(index);
+                                        eventController.loading.value=false;
+                                      } else {
+                                        eventController.addSakimComments(res,eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
+                                      }
                                     }
                                   },
                                   child: Text(

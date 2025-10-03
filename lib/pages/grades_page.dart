@@ -174,6 +174,7 @@ class _GradesPageState extends State<GradesPage> {
                         PlutoColumn(
                           title: 'מספר',
                           readOnly: true,
+                          frozen: PlutoColumnFrozen.start,
                           titleSpan: TextSpan(
                             children: [
                               WidgetSpan(

@@ -630,6 +630,23 @@ class EventController extends GetxController {
     return (param1 * weight1) + (param2 * weight2) + (param3 * weight3) + (param4 * weight4);
   }
 
+  void dropParticipant(int number) {
+    var participant = currentEvent.value
+        .getParticipantsByStatus(
+        ParticipantStatus.Active)
+        .firstWhereOrNull(
+            (p) => p.number == number);
+    if (participant != null) {
+      participant.status = ParticipantStatus.Droped;
+      // // Ensure UI updates properly
+      // currentEvent.update((val) {
+      //   val?.participants = List.from(
+      //       val.participants); // Force update
+      // });
+      update(); // Trigger GetX UI refresh
+    }
+
+  }
   calculateGrades() {
     for (Participant p in currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active)) {
       p.alonkaGrade = getAlonkaGrade(p.number);

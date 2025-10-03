@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:sairot/pages/performance_page.dart';
+import '../models/types.dart';
 
 class CommentsDialog extends StatefulWidget {
   final List<String> commentsList; // Predefined comments
@@ -91,7 +91,6 @@ class _CommentsDialogState extends State<CommentsDialog> {
               onSubmitted: (_) => addCustomComment(),
             ),
             const SizedBox(height: 10),
-
             /// **Comments List (Predefined & Custom)**
             Wrap(
               spacing: 12,
@@ -99,57 +98,31 @@ class _CommentsDialogState extends State<CommentsDialog> {
               children: allComments.map((comment) {
                 bool isSelected = instructorComments.contains(comment);
                 bool isCustom = customComments.contains(comment);
-
-                return GestureDetector(
-                  onLongPress: () {
-                    if (isCustom) {
-                      showDialog(
-                        context: context,
-                        builder: (_) => AlertDialog(
-                          title: const Text("מחיקת הערה"),
-                          content: Text("האם למחוק את ההערה \"$comment\"?"),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                deleteCustomComment(comment);
-                                Navigator.pop(context);
-                              },
-                              child: const Text("מחק"),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("ביטול"),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  },
-                  child: ChoiceChip(
-                    label: Text(
-                      comment,
-                      style: TextStyle(
-                        fontSize: eventController.userFontSize.value,
-                        fontWeight: FontWeight.bold,
-                      ),
+                return ChoiceChip(
+                  label: Text(
+                    comment,
+                    style: TextStyle(
+                      fontSize: eventController.userFontSize.value,
+                      fontWeight: FontWeight.bold,
                     ),
-                    selected: isSelected,
-                    selectedColor: Colors.blue.withOpacity(0.3), // Light blue for selection
-                    onSelected: (bool selected) {
-                      setState(() {
-                        if (selected) {
-                          instructorComments.add(comment);
-                        } else {
-                          instructorComments.remove(comment);
-                        }
-                      });
-                    },
                   ),
+                  selected: isSelected,
+                  selectedColor: Colors.blue.withOpacity(0.3), // Light blue for selection
+                  onSelected: (bool selected) {
+                    setState(() {
+                      if (selected) {
+                        instructorComments.add(comment);
+                      } else {
+                        instructorComments.remove(comment);
+                      }
+                    });
+                  },
                 );
               }).toList(),
             ),
             const SizedBox(height: 10),
           ],
+
         ),
         actions: <Widget>[
           TextButton(
@@ -170,6 +143,15 @@ class _CommentsDialogState extends State<CommentsDialog> {
             child: Text(
               'בטל',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context, [ParticipantStatus.Droped.name] );
+            },
+            child: Text(
+              'פרש',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: eventController.userFontSize.value),
             ),
           ),
         ],

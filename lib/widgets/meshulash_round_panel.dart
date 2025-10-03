@@ -3,6 +3,7 @@ import '../event_controller.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/meshulash_round.dart';
 import '../widgets/comments_dialog.dart';
+import '../models/types.dart';
 
 class MeshulashRoundPanel extends StatefulWidget {
 
@@ -94,8 +95,19 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                                 commentsList: eventController.gradesData.listOfCommentsMeshulash,
                                               selectedComments: (eventController.getParticipant(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]).meshulashInstructorComments),
                                             ));
-                                        if (res!=null){
-                                          eventController.addMeshulashComments(res,eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
+                                        if (res!=null) {
+                                          if (res.contains(ParticipantStatus.Droped.name)) {
+                                            print('dropped');
+                                            eventController.loading.value =
+                                            true;
+                                            eventController.dropParticipant(
+                                                widget.round.participantsInRound[index]);
+                                            widget.round.participantsInRound
+                                                .removeAt(index);
+                                            eventController.loading.value=false;
+                                          } else {
+                                            eventController.addMeshulashComments(res,eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
+                                          }
                                         }
                                       },
                                       child: Text(

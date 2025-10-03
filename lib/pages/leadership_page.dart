@@ -123,15 +123,26 @@ class _LeadershipPageState extends State<LeadershipPage> {
                                                       .activeParticipants[index]
                                                       .number.toString(),
                                                 ));
-                                        print('res');
-                                        print(res);
                                         if (res!=null) {
-                                          print(res);
-                                          eventController.addLeadershipComments(res,eventController
-                                              .currentEvent
-                                              .value
-                                              .activeParticipants[index]
-                                              .number);
+                                          if (res.contains(ParticipantStatus.Droped.name)) {
+                                            print('dropped');
+                                            eventController.loading.value =
+                                            true;
+                                            eventController.dropParticipant(
+                                                eventController
+                                                    .currentEvent
+                                                    .value
+                                                    .activeParticipants[index]
+                                                    .number);
+                                            eventController.currentEvent.value.activeParticipants
+                                                .removeAt(index);
+                                            eventController.loading.value=false;
+                                          } else {
+                                            eventController.addLeadershipComments(res,eventController
+                                                .currentEvent
+                                                .value
+                                                .activeParticipants[index]
+                                                .number);                                          }
                                         }
                                       },
                                       child: Text(eventController

@@ -26,21 +26,6 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
     super.initState();
   }
 
-  // void finishRound() async {
-  //   //eventController.loading.value = true;
-  //   for (var participantNumber in widget.round.activeParticipants) {
-  //     widget.round.participationCredits.add(participantNumber);
-  //   }
-  //   /// clear participants list
-  //   setState(() {
-  //     widget.round.activeParticipants = [];
-  //   });
-  //   eventController.currentEvent.value.alonkaSprints[widget.round.round] =
-  //       widget.round;
-  //   await eventController.currentEvent.value.saveToFirestore();
-  //   //eventController.loading.value = false;
-  // }
-
   @override
   Widget build(BuildContext context) {
     return GetX<EventController>(builder: (eventController) {
@@ -141,10 +126,24 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                               index]))
                                                       .alonkaInstructorComments));
                                           if (res != null) {
-                                            eventController.addAlonkaComments(
-                                                res,
-                                                widget.round
-                                                    .activeParticipants[index]);
+                                            if (res.contains(ParticipantStatus.Droped.name)) {
+                                              print('dropped');
+                                              eventController.loading.value =
+                                                  true;
+                                              eventController.dropParticipant(
+                                                  widget.round
+                                                          .activeParticipants[
+                                                      index]);
+                                              widget.round.activeParticipants
+                                                  .removeAt(index);
+                                              eventController.loading.value=false;
+                                            } else {
+                                              eventController.addAlonkaComments(
+                                                  res,
+                                                  widget.round
+                                                          .activeParticipants[
+                                                      index]);
+                                            }
                                           }
                                         },
                                         child: Text(

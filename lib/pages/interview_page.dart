@@ -126,12 +126,26 @@ class _InterviewPageState extends State<InterviewPage> {
                                                       .activeParticipants[index]
                                                       .number.toString(),
                                                 ));
-                                        if (res!=null){
-                                          eventController.addInterviewComments(res,eventController
-                                              .currentEvent
-                                              .value
-                                              .activeParticipants[index]
-                                              .number);
+                                        if (res!=null) {
+                                          if (res.contains(ParticipantStatus.Droped.name)) {
+                                            print('dropped');
+                                            eventController.loading.value =
+                                            true;
+                                            eventController.dropParticipant(
+                                                eventController
+                                                    .currentEvent
+                                                    .value
+                                                    .activeParticipants[index]
+                                                    .number);
+                                            eventController.currentEvent.value.activeParticipants
+                                                .removeAt(index);
+                                            eventController.loading.value=false;
+                                          } else {
+                                            eventController.addInterviewComments(res,eventController
+                                                .currentEvent
+                                                .value
+                                                .activeParticipants[index]
+                                                .number);                                          }
                                         }
                                       },
                                       child: Text(eventController
