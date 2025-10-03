@@ -138,5 +138,8 @@ class _FrontDoorState extends State<FrontDoor> {
   }
 }
 
-
+/*
+manual
+https://docs.google.com/document/d/e/2PACX-1vRLJ-Ody7H6kibADbH6JEgmy5ZKFnzBSp-H3_fewsqhYcIP9R7V6pdLpcmr7CHaS0MifS9kWHcrqZ-s/pub
+ */
 

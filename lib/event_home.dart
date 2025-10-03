@@ -6,6 +6,7 @@ import 'widgets/yes_no.dart';
 import 'theme_controller.dart';
 import 'widgets/strobe_button.dart';
 import 'models/system.dart';
+import 'widgets/guideWebView.dart';
 
 class EventHome extends StatefulWidget {
   const EventHome({super.key});
@@ -268,6 +269,23 @@ class _EventHomeState extends State<EventHome> {
           appBar: AppBar(
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             title: Center(child: Text('ימי סיירות')),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.info_outline),
+                tooltip: 'מדריך למשתמש',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: const ManualWebView(
+                        url: 'https://docs.google.com/document/d/1F183qEemrgm-rr_X8OMEoJqlDyApnzhwAEGTTXwjhoc/edit?usp=sharing',
+                      ),
+                    ),
+                  );
+                },
+              )
+            ],
           ),
           body:SingleChildScrollView(
             child: Column(

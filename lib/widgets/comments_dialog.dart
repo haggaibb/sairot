@@ -97,7 +97,7 @@ class _CommentsDialogState extends State<CommentsDialog> {
               runSpacing: 12,
               children: allComments.map((comment) {
                 bool isSelected = instructorComments.contains(comment);
-                bool isCustom = customComments.contains(comment);
+                //bool isCustom = customComments.contains(comment);
                 return ChoiceChip(
                   label: Text(
                     comment,

@@ -9,6 +9,9 @@ import 'widgets/unfinalized_panel.dart';
 import 'theme_controller.dart';
 import 'package:sairot/models/system.dart';
 import 'git_version.dart';
+import 'widgets/guideWebView.dart';
+
+
 
 
 class Home extends StatefulWidget {
@@ -236,7 +239,23 @@ class _HomeState extends State<Home> {
               //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
               title: Text('ימי סיירות'),
               centerTitle: true,
-              actions: [],
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  tooltip: 'מדריך למשתמש',
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: const ManualWebView(
+                          url: 'https://docs.google.com/document/d/1F183qEemrgm-rr_X8OMEoJqlDyApnzhwAEGTTXwjhoc/edit?usp=sharing',
+                        ),
+                      ),
+                    );
+                  },
+                )
+              ],
             ),
             body: Center(
               child:
