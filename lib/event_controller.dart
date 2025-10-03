@@ -200,7 +200,37 @@ class EventController extends GetxController {
       QuerySnapshot eventsSnapshot = await firestore.collection('Results').doc(currentInstructor.id).collection('events').get();
       if (eventsSnapshot.docs.isNotEmpty) {
         events.value = eventsSnapshot.docs.map((doc) => doc.id).toList();
-        print(events);
+        final monthMap = {
+          'January': 1,
+          'February': 2,
+          'March': 3,
+          'April': 4,
+          'May': 5,
+          'June': 6,
+          'July': 7,
+          'August': 8,
+          'September': 9,
+          'October': 10,
+          'November': 11,
+          'December': 12,
+        };
+        events.sort((a, b) {
+          final aParts = a.split(' ');
+          final bParts = b.split(' ');
+
+          final aMonth = monthMap[aParts[0]] ?? 0;
+          final aYear = int.tryParse(aParts[1]) ?? 0;
+
+          final bMonth = monthMap[bParts[0]] ?? 0;
+          final bYear = int.tryParse(bParts[1]) ?? 0;
+
+          // Sort by year, then by month
+          if (aYear != bYear) {
+            return aYear.compareTo(bYear);
+          } else {
+            return aMonth.compareTo(bMonth);
+          }
+        });
         // for (QueryDocumentSnapshot element in eventsSnapshot.docs) {
         //   var data = element.data() as Map<String, dynamic>;
         //   pastEvents.add(Event.fromJson(data));

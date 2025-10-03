@@ -88,7 +88,40 @@ class AdminController extends GetxController {
       QuerySnapshot eventsSnapshot =
           await firestore.collection('AdminIndex').get();
       if (eventsSnapshot.docs.isNotEmpty) {
-        events.value = eventsSnapshot.docs.map((doc) => doc.id).toList();
+        //events.value = eventsSnapshot.docs.map((doc) => doc.id).toList();
+        final monthMap = {
+          'January': 1,
+          'February': 2,
+          'March': 3,
+          'April': 4,
+          'May': 5,
+          'June': 6,
+          'July': 7,
+          'August': 8,
+          'September': 9,
+          'October': 10,
+          'November': 11,
+          'December': 12,
+        };
+        List<String> rawList = eventsSnapshot.docs.map((doc) => doc.id).toList();
+        rawList.sort((a, b) {
+          final aParts = a.split(' ');
+          final bParts = b.split(' ');
+
+          final aMonth = monthMap[aParts[0]] ?? 0;
+          final aYear = int.tryParse(aParts[1]) ?? 0;
+
+          final bMonth = monthMap[bParts[0]] ?? 0;
+          final bYear = int.tryParse(bParts[1]) ?? 0;
+
+          // Sort by year, then by month
+          if (aYear != bYear) {
+            return aYear.compareTo(bYear);
+          } else {
+            return aMonth.compareTo(bMonth);
+          }
+        });
+        events.value = rawList;
         print("📂 Got events");
       } else {
         print('No Main Events Found');
@@ -158,6 +191,9 @@ class AdminController extends GetxController {
             daySnapshot.data() as Map<String, dynamic>;
         instructorFiles[day] = List<String>.from(dayData['instructors'] ?? []);
         groupNumbers[day] = List<String>.from(dayData['groups'] ?? []);
+        var groups = List<String>.from(dayData['groups'] ?? []);
+        groups.sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+        groupNumbers[day] = groups;
         if (dayData['groupsAndInstructors'] != null) {
           List<dynamic> groups = dayData['groupsAndInstructors'];
           // 🌟 Transform into Map<String, String>

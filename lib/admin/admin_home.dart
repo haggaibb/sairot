@@ -4,6 +4,7 @@ import 'package:sairot/pages/performance_page.dart';
 import 'admin_controller.dart'; // Ensure the correct import for AdminController
 import '../theme_controller.dart';
 
+
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
 
@@ -373,6 +374,23 @@ class _AdminHomeState extends State<AdminHome> {
                                                         adminController
                                                             .selectedDay.value] ??
                                                     [];
+                                            instructors.sort((a, b) {
+                                              final nameA = eventController.getInstructorName(a) ?? '';
+                                              final nameB = eventController.getInstructorName(b) ?? '';
+                                              return nameA.compareTo(nameB); // or use locale-aware logic if needed
+                                            });
+                                            final instructorNames = instructors
+                                                .map((id) => eventController.getInstructorName(id))
+                                                .whereType<String>() // remove nulls if any
+                                                .toList();
+                                           // Normalize Hebrew for better sorting
+                                            String normalize(String s) {
+                                              return s
+                                                  .replaceAll(RegExp(r'[^\u0590-\u05FFa-zA-Z0-9 ]'), '')
+                                                  .trim()
+                                                  .toLowerCase();
+                                            }
+                                            instructorNames.sort((a, b) => normalize(a).compareTo(normalize(b)));
                                             return DropdownButton<String>(
                                               hint: Text("בחר מדריך"),
                                               value: adminController

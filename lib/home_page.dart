@@ -24,9 +24,7 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   final eventController = Get.put(EventController());
   final themeController = Get.put(ThemeController());
-  //final connectivityController = Get.put(ConnectivityController());
-  //late List<DateTime> validDates;
-  //late Timer _connectionTimer;
+
 
   /// Load Selected Instructor's Event
   Future<void> loadSelectedEvent() async {
@@ -48,18 +46,13 @@ class _HomeState extends State<Home> {
 
   @override
   void initState() {
-    //connectivityController.startConnectionCheckInterval();
-    // Future.microtask(() async {
-    //   await eventController.getUnfinalizedEvents();
-    //   await eventController.fetchInstructorEvents();
-    // });
+
 
     super.initState();
   }
 
   @override
   void dispose() {
-    //connectivityController.stopConnectionCheckInterval();
     super.dispose();
   }
 
