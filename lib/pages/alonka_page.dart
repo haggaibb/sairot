@@ -49,6 +49,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
   void sortActiveList() {}
 
   bool showStartRoundButton() {
+    if (eventController.currentEvent.value.alonkaStartTime == null) return false;
     if (eventController.currentEvent.value.alonkaSprints.last.activeParticipants
         .isNotEmpty || eventController.currentEvent.value.alonkaEndTime!=null) return false;
     return true;
