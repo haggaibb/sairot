@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../event_controller.dart';
 import 'package:get/get.dart';
 import 'package:pluto_grid/pluto_grid.dart';
-
+import '../widgets/guideWebView.dart';
 
 class GradesPage extends StatefulWidget {
   const GradesPage({super.key});
@@ -136,6 +136,24 @@ class _GradesPageState extends State<GradesPage> {
               //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
               centerTitle: true,
               title: Text(' דף ציונים לקבוצה ${eventController.currentEvent.value.groupNumber} '),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  tooltip: 'מדריך למשתמש',
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: const ManualWebView(
+                          url: 'https://docs.google.com/presentation/d/19SF_q3uXPt470mzfOKEorpoIORsOEEmQXL5_UUnelNo/preview?rm=minimal&slide=id.g384f00aea19_0_135',
+                          //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
+                        ),
+                      ),
+                    );
+                  },
+                )
+              ],
             ),
             body: Container(
               padding: const EdgeInsets.all(1),

@@ -4,6 +4,7 @@ import '../models/types.dart';
 import '../event_controller.dart';
 import 'package:get/get.dart';
 import '../widgets/comments_dialog.dart';
+import '../widgets/guideWebView.dart';
 
 
 class InterviewPage extends StatefulWidget {
@@ -59,6 +60,24 @@ class _InterviewPageState extends State<InterviewPage> {
                     eventController.loading.value = false;
                   },
                 ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.info_outline),
+                    tooltip: 'מדריך למשתמש',
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => Directionality(
+                          textDirection: TextDirection.rtl,
+                          child: const ManualWebView(
+                            url: 'https://docs.google.com/presentation/d/19SF_q3uXPt470mzfOKEorpoIORsOEEmQXL5_UUnelNo/preview?rm=minimal&slide=id.g384f00aea19_0_117',
+                            //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                ],
               ),
               body: GetX<EventController>(builder: (_) {
                 var h =

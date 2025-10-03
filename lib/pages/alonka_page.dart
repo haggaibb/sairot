@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../widgets/alonka_round_panel.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
+import '../widgets/guideWebView.dart';
 
 class AlonkaPage extends StatefulWidget {
   const AlonkaPage({super.key});
@@ -46,6 +47,12 @@ class _AlonkaPageState extends State<AlonkaPage> {
   }
 
   void sortActiveList() {}
+
+  bool showStartRoundButton() {
+    if (eventController.currentEvent.value.alonkaSprints.last.activeParticipants
+        .isNotEmpty || eventController.currentEvent.value.alonkaEndTime!=null) return false;
+    return true;
+  }
 
   @override
   void dispose() {
@@ -101,7 +108,24 @@ class _AlonkaPageState extends State<AlonkaPage> {
                       : Colors.grey, // Switch color
                   size: 32,
                 ),
-              )
+              ),
+              IconButton(
+                icon: const Icon(Icons.info_outline),
+                tooltip: 'מדריך למשתמש',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: const ManualWebView(
+                        url:
+                            'https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000&slide=id.g384f00aea19_0_72',
+                        //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
+                      ),
+                    ),
+                  );
+                },
+              ),
             ],
             leading: IconButton(
               icon: Icon(Icons.arrow_back), // 🔄 Custom back arrow
@@ -161,24 +185,72 @@ class _AlonkaPageState extends State<AlonkaPage> {
                     const Divider(
                       thickness: 30,
                     ),
+
                     /// widget loading indicator
+                    /// show hide start Alonka Exam
+                    Obx(() => eventController.loading.value || eventController.currentEvent.value
+                        .alonkaStartTime != null
+                        ?  SizedBox.shrink()
+                        :  ElevatedButton (
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                          Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                          Theme.of(context).colorScheme.onPrimary,
+                        ),
+                        onPressed: () async {
+                          _.loading.value = true;
+                          _.currentAlonkaRound.value =
+                              _.currentEvent.value.alonkaSprints.length;
+                          if (_
+                              .currentEvent.value.alonkaSprints.isEmpty)
+                            eventController.currentEvent.value
+                                .alonkaStartTime = DateTime.now();
+                          List<int> activeList = _.currentEvent.value
+                              .getParticipantsByStatus(
+                              ParticipantStatus.Active)
+                              .map((participant) => participant.number)
+                              .toList();
+                          if (inOrderOfArrival) {
+                            /// Sort by Alonka grade (descending)
+                            activeList.sort((a, b) => eventController
+                                .getAlonkaGrade(b)
+                                .compareTo(
+                                eventController.getAlonkaGrade(a)));
+                          }
+
+                          /// create new Alonka Sprint
+                          _.currentEvent.value.alonkaSprints.add(
+                              AlonkaSprint(
+                                  round: _.currentEvent.value
+                                      .alonkaSprints.length,
+                                  activeParticipants: activeList));
+                          _.loading.value = false;
+                          _scrollToEnd();
+                          _.currentEvent.value.saveToFirestore();
+                          //})
+                        },
+                        child: Text(
+                          showStartRoundButton()
+                              ? 'התחל סיבוב חדש (צא)'
+                              : 'תחילת תרגיל',
+                          style: TextStyle(
+                              fontSize:
+                              eventController.userFontSize.value,
+                              fontWeight: FontWeight.bold),
+                        ))),
                     Obx(() => eventController.widgetLoading.value
-                        ? SizedBox(
-                      height: 10,
-                      width: 200,
-                      child: LinearProgressIndicator(),
-                    )
-                        : SizedBox.shrink()),
-                    Obx(() => eventController.loading.value
-                        ? SizedBox(
-                            height: 100,
-                            width: 100,
-                            child: CircularProgressIndicator(),
-                          )
-                        : _.currentEvent.value.alonkaEndTime == null &&
-                                _.currentEvent.value.alonkaSprints.last
-                                    .activeParticipants.isEmpty
-                            ? ElevatedButton(
+                        ? Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: SizedBox(
+                              height: 10,
+                              width: 200,
+                              child: LinearProgressIndicator()
+                            ),
+                        )
+                        :!showStartRoundButton()
+                        ? SizedBox.shrink()
+                        :  ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor:
                                       Theme.of(context).colorScheme.primary,
@@ -218,15 +290,12 @@ class _AlonkaPageState extends State<AlonkaPage> {
                                   //})
                                 },
                                 child: Text(
-                                  _.currentEvent.value.alonkaStartTime != null
-                                      ? 'התחל סיבוב חדש (צא)'
-                                      : 'תחילת תרגיל',
+                                  'התחל סיבוב חדש (צא)',
                                   style: TextStyle(
                                       fontSize:
                                           eventController.userFontSize.value,
                                       fontWeight: FontWeight.bold),
-                                ))
-                            : SizedBox.shrink()),
+                                ))),
                     SizedBox(
                       height: 100,
                     ),

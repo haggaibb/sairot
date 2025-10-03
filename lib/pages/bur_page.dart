@@ -7,6 +7,7 @@ import '../models/bur.dart';
 import '../widgets/bur_grade_panel.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
+import '../widgets/guideWebView.dart';
 
 class BurPage extends StatefulWidget {
   const BurPage({super.key});
@@ -73,6 +74,24 @@ class _BurPageState extends State<BurPage> {
                     eventController.loading.value = false;
                   },
                 ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.info_outline),
+                    tooltip: 'מדריך למשתמש',
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => Directionality(
+                          textDirection: TextDirection.rtl,
+                          child: const ManualWebView(
+                            url: 'https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000&slide=id.g384f00aea19_0_106',
+                            //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                ],
               ),
               body: GetX<EventController>(builder: (_) {
                 var h =

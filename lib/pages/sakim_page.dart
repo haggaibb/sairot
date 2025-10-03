@@ -6,6 +6,7 @@ import '../models/sakim_round.dart';
 import '../widgets/sakim_round_panel.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
+import '../widgets/guideWebView.dart';
 
 class SakimPage extends StatefulWidget {
   const SakimPage({super.key});
@@ -89,6 +90,24 @@ class _SakimPageState extends State<SakimPage> {
                 eventController.loading.value = false;
               },
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.info_outline),
+                tooltip: 'מדריך למשתמש',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: const ManualWebView(
+                        url: 'https://docs.google.com/presentation/d/19SF_q3uXPt470mzfOKEorpoIORsOEEmQXL5_UUnelNo/preview?rm=minimal&slide=id.g384f00aea19_0_86',
+                        //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
+                      ),
+                    ),
+                  );
+                },
+              )
+            ],
           ),
           body: GetX<EventController>(builder: (_) {
             editModeOn = _.sakimEditModeOn.value;
@@ -124,43 +143,48 @@ class _SakimPageState extends State<SakimPage> {
                                   thickness: 30,
                                 ),
                                 SizedBox(
-                                  height: 50,
+                                  height: 20,
                                 ),
                                 eventController.currentEvent.value.sakimEndTime ==
                                         null
-                                    ? Padding(
-                                        padding: const EdgeInsets.all(30.0),
-                                        child: ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Theme.of(context).colorScheme.primary,
-                                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                            ),
-                                            onPressed: () async {
-                                              var res = await showDialog(
-                                                context: context,
-                                                builder: (BuildContext context) {
-                                                  return YesNoDialog();
+                                    ? Column(
+                                      children: [
+                                        Padding(
+                                            padding: const EdgeInsets.all(30.0),
+                                            child: ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                                ),
+                                                onPressed: () async {
+                                                  var res = await showDialog(
+                                                    context: context,
+                                                    builder: (BuildContext context) {
+                                                      return YesNoDialog();
+                                                    },
+                                                  );
+                                                  if (res) {
+                                                    setState(() {
+                                                      eventController.currentEvent.value
+                                                          .sakimEndTime =
+                                                          DateTime.now();
+                                                      _timer.cancel();
+                                                      _.sakimEditModeOn.value = false;
+                                                      editModeOn =
+                                                          _.sakimEditModeOn.value;
+                                                      eventController.currentEvent.value
+                                                          .saveToFirestore();
+                                                    });
+                                                  }
                                                 },
-                                              );
-                                              if (res) {
-                                                setState(() {
-                                                  eventController.currentEvent.value
-                                                      .sakimEndTime =
-                                                      DateTime.now();
-                                                  _timer.cancel();
-                                                  _.sakimEditModeOn.value = false;
-                                                  editModeOn =
-                                                      _.sakimEditModeOn.value;
-                                                  eventController.currentEvent.value
-                                                      .saveToFirestore();
-                                                });
-                                              }
-                                            },
-                                            //eventController.currentEvent.value.save();
-                                            child: Text('סיום התרגיל',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
-                                            )),
-                                      )
+                                                //eventController.currentEvent.value.save();
+                                                child: Text('סיום התרגיל',
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                                )),
+                                          ),
+                                        SizedBox(height: 50,)
+                                      ],
+                                    )
                                     : Column(
                                         children: [
                                           eventController

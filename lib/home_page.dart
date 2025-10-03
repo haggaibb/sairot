@@ -87,9 +87,9 @@ class _HomeState extends State<Home> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('תפריט',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 20)),
+                        // Text('תפריט',
+                        //     style: TextStyle(
+                        //         fontWeight: FontWeight.bold, fontSize: 20)),
                         Padding(
                           padding: const EdgeInsets.only(right: 0.0, top: 10),
                           child: Column(
@@ -120,6 +120,22 @@ class _HomeState extends State<Home> {
                             ],
                           ),
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.info_outline),
+                          tooltip: 'מדריך למשתמש',
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => Directionality(
+                                textDirection: TextDirection.rtl,
+                                child: const ManualWebView(
+                                  url: 'https://docs.google.com/presentation/d/19SF_q3uXPt470mzfOKEorpoIORsOEEmQXL5_UUnelNo/preview?rm=minimal&slide=id.g384f00aea19_0_169',
+                                  //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
+                                ),
+                              ),
+                            );
+                          },
+                        )
                       ],
                     ),
                   ),
@@ -249,7 +265,8 @@ class _HomeState extends State<Home> {
                       builder: (context) => Directionality(
                         textDirection: TextDirection.rtl,
                         child: const ManualWebView(
-                          url: 'https://docs.google.com/document/d/1F183qEemrgm-rr_X8OMEoJqlDyApnzhwAEGTTXwjhoc/edit?usp=sharing',
+                          url: 'https://docs.google.com/document/d/1F183qEemrgm-rr_X8OMEoJqlDyApnzhwAEGTTXwjhoc/edit?tab=t.v5ophlwignwk',
+                          //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
                         ),
                       ),
                     );
@@ -571,11 +588,13 @@ class _HomeState extends State<Home> {
                             .value // || eventController.events.isEmpty
                             ? SizedBox(
                             width: 150, child: LinearProgressIndicator())
-                            : SizedBox.shrink())
+                            : SizedBox.shrink()),
+                        SizedBox(height: 10),
                       ],
                     ),
                   ),
                 ),
+                SizedBox(height: 50,)
               ]),
             )),
       ),

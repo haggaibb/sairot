@@ -48,12 +48,14 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                 padding: const EdgeInsets.all(5.0),
                                 child: GestureDetector(
                                   onDoubleTap: () {
-                                    eventController.loading.value = true;
-                                    eventController.currentEvent.value.meshulashRounds[widget.round.round-1].participantsInRound.add(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
-                                    widget.round.participantsInRound.remove(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
-                                    eventController.update();
-                                    eventController.currentEvent.value.saveToFirestore();
-                                    eventController.loading.value = false;
+                                    if (eventController.meshulashEditModeOn.value) {
+                                      eventController.loading.value = true;
+                                      eventController.currentEvent.value.meshulashRounds[widget.round.round-1].participantsInRound.add(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
+                                      widget.round.participantsInRound.remove(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
+                                      eventController.update();
+                                      eventController.currentEvent.value.saveToFirestore();
+                                      eventController.loading.value = false;
+                                    }
                                   },
                                   child: ElevatedButton(
                                       style: ElevatedButton.styleFrom(

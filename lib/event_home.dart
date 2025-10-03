@@ -34,7 +34,7 @@ class _EventHomeState extends State<EventHome> {
             icon is String
                 ? Image.asset(icon, scale: 6, color: Colors.black)
                 : Icon(icon, size: 80, color: Colors.black),
-            Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -74,9 +74,9 @@ class _EventHomeState extends State<EventHome> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('תפריט',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 20)),
+                      // Text('תפריט',
+                      //     style: TextStyle(
+                      //         fontWeight: FontWeight.bold, fontSize: 20)),
                       Obx(() => eventController.currentEvent.value.finalized
                           ? Text('הארוע נסגר',
                               style: TextStyle(
@@ -97,6 +97,22 @@ class _EventHomeState extends State<EventHome> {
                       Text(
                           'גירסת ציונים: ${eventController.currentEvent.value.gradeSettings.version} ',
                           style: TextStyle(fontSize: 16)),
+                      IconButton(
+                          icon: const Icon(Icons.info_outline),
+                          tooltip: 'מדריך למשתמש',
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => Directionality(
+                                textDirection: TextDirection.rtl,
+                                child: const ManualWebView(
+                                  url: 'https://docs.google.com/presentation/d/19SF_q3uXPt470mzfOKEorpoIORsOEEmQXL5_UUnelNo/preview?rm=minimal&slide=id.g384f00aea19_0_156',
+                                  //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
+                                ),
+                              ),
+                            );
+                          },
+                        )
                     ],
                   ),
                 ),
@@ -279,7 +295,7 @@ class _EventHomeState extends State<EventHome> {
                     builder: (context) => Directionality(
                       textDirection: TextDirection.rtl,
                       child: const ManualWebView(
-                        url: 'https://docs.google.com/document/d/1F183qEemrgm-rr_X8OMEoJqlDyApnzhwAEGTTXwjhoc/edit?usp=sharing',
+                        url: 'https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000&slide=id.g384f00aea19_0_19',
                       ),
                     ),
                   );
@@ -321,7 +337,7 @@ class _EventHomeState extends State<EventHome> {
                     return Center(child: CircularProgressIndicator());
                   }
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
                     child: GridView.count(
                       crossAxisCount: 2,
                       childAspectRatio: 1.2,
@@ -342,8 +358,6 @@ class _EventHomeState extends State<EventHome> {
                   );
                 }),
 
-                /// **Push Content Evenly**
-                SizedBox(height: 20),
 
                 /// Grades and Status Buttons
                 Padding(
@@ -369,6 +383,8 @@ class _EventHomeState extends State<EventHome> {
                     );
                   }),
                 ),
+
+                SizedBox(height: 30,)
               ],
             ),
           ),

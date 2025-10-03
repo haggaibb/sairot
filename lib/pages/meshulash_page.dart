@@ -6,6 +6,7 @@ import '../models/meshulash_round.dart';
 import '../widgets/meshulash_round_panel.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
+import '../widgets/guideWebView.dart';
 
 class MeshulashPage extends StatefulWidget {
   const MeshulashPage({super.key});
@@ -88,6 +89,24 @@ class _MeshulashPageState extends State<MeshulashPage> {
                 eventController.loading.value = false;
               },
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.info_outline),
+                tooltip: 'מדריך למשתמש',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: const ManualWebView(
+                        url: 'https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000&slide=id.g384f00aea19_0_29',
+                        //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
+                      ),
+                    ),
+                  );
+                },
+              )
+            ],
           ),
           body: GetX<EventController>(builder: (_) {
             return SingleChildScrollView(
@@ -126,39 +145,44 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                         null
                                     ? Padding(
                                         padding: const EdgeInsets.all(30.0),
-                                        child: ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Theme.of(context).colorScheme.primary,
-                                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                            ),
-                                            onPressed: () async {
-                                              var res = await showDialog(
-                                                context: context,
-                                                builder: (BuildContext context) {
-                                                  return YesNoDialog();
+                                        child: Column(
+                                          children: [
+                                            ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                                ),
+                                                onPressed: () async {
+                                                  var res = await showDialog(
+                                                    context: context,
+                                                    builder: (BuildContext context) {
+                                                      return YesNoDialog();
+                                                    },
+                                                  );
+                                                  if (res) {
+                                                    setState(() {
+                                                      eventController
+                                                              .currentEvent
+                                                              .value
+                                                              .meshulashEndTime =
+                                                          DateTime.now();
+                                                    });
+                                                    await eventController
+                                                        .currentEvent.value
+                                                        .saveToFirestore();
+                                                    _timer.cancel();
+                                                    _.meshulashEditModeOn.value =
+                                                        false;
+                                                    editModeOn =
+                                                        _.meshulashEditModeOn.value;
+                                                  }
                                                 },
-                                              );
-                                              if (res) {
-                                                setState(() {
-                                                  eventController
-                                                          .currentEvent
-                                                          .value
-                                                          .meshulashEndTime =
-                                                      DateTime.now();
-                                                });
-                                                await eventController
-                                                    .currentEvent.value
-                                                    .saveToFirestore();
-                                                _timer.cancel();
-                                                _.meshulashEditModeOn.value =
-                                                    false;
-                                                editModeOn =
-                                                    _.meshulashEditModeOn.value;
-                                              }
-                                            },
-                                            child: Text('סיום התרגיל',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
-                                            )),
+                                                child: Text('סיום התרגיל',
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                                )),
+                                            SizedBox(height: 50)
+                                          ],
+                                        ),
                                       )
                                     : Column(
                                         children: [
@@ -177,17 +201,17 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                                         !_.meshulashEditModeOn
                                                             .value;
                                                     setState(() {
-                                                      editModeOn = _
+                                                      editModeOn = !_
                                                           .meshulashEditModeOn
                                                           .value;
                                                     });
                                                   },
                                                   icon: editModeOn
-                                                      ? const Icon(Icons.save)
-                                                      : const Icon(Icons.edit),
-                                                  label: editModeOn
+                                                      ? const Icon(Icons.edit)
+                                                      : const Icon(Icons.save),
+                                                  label: !editModeOn
                                                       ? Text('סיים',
-                                                    style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value-5),
+                                                    style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
                                                   )
                                                       : Text('עריכה',
                                                     style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
