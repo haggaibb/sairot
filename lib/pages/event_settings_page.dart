@@ -9,6 +9,7 @@ import '../models/event.dart';
 import '../models/participant.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import '../widgets/yes_no.dart';
+import '../widgets/guideWebView.dart';
 
 
 class EventSettingsPage extends StatefulWidget {
@@ -151,6 +152,25 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
           //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           centerTitle: true,
           title: const Text('דף הגדרות יום סיירות'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.info_outline),
+              tooltip: 'מדריך למשתמש',
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => Directionality(
+                    textDirection: TextDirection.rtl,
+                    child: const ManualWebView(
+                      url:
+                      'https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000&slide=id.g384f00aea19_0_0',
+                      //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
+                    ),
+                  ),
+                );
+              },
+            )
+          ],
         ),
         body: Directionality(
           textDirection: TextDirection.rtl, // Enforce LTR layout for the entire body
