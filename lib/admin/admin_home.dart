@@ -196,11 +196,7 @@ class _AdminHomeState extends State<AdminHome> {
                           child: Column(
                             children: [
                               // 📌 Event Dropdown
-                              Obx(() => false
-                                  ? SizedBox(
-                                      width: 150,
-                                      child: LinearProgressIndicator())
-                                  : DropdownButton<String>(
+                              Obx(() => DropdownButton<String>(
                                       hint: Text("בחר אירוע"),
                                       value: adminController.selectedEvent.value,
                                       onChanged: (String? newValue) async {
@@ -375,8 +371,8 @@ class _AdminHomeState extends State<AdminHome> {
                                                             .selectedDay.value] ??
                                                     [];
                                             instructors.sort((a, b) {
-                                              final nameA = eventController.getInstructorName(a) ?? '';
-                                              final nameB = eventController.getInstructorName(b) ?? '';
+                                              final nameA = eventController.getInstructorName(a);
+                                              final nameB = eventController.getInstructorName(b);
                                               return nameA.compareTo(nameB); // or use locale-aware logic if needed
                                             });
                                             final instructorNames = instructors
