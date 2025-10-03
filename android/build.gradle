@@ -42,6 +42,9 @@ rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
     project.evaluationDependsOn(":app")
+    configurations.all { config ->
+        config.exclude group: 'org.bouncycastle', module: 'bcprov-jdk18on'
+    }
 }
 
 tasks.register("clean", Delete) {

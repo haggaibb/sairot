@@ -76,7 +76,7 @@ class PerformancePage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
-                Text(p.meshulashGrade.toStringAsFixed(2),
+                Text(' ציון ${p.meshulashGrade.toStringAsFixed(2)} ',
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
@@ -100,7 +100,7 @@ class PerformancePage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
-                Text(p.alonkaGrade.toStringAsFixed(2),
+                Text(' ציון ${p.alonkaGrade.toStringAsFixed(2)} ',
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
@@ -123,7 +123,7 @@ class PerformancePage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
-                Text(p.burGrade.toStringAsFixed(2),
+                Text(' ציון ${p.burGrade.toStringAsFixed(2)} ',
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
@@ -146,7 +146,8 @@ class PerformancePage extends StatelessWidget {
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
-                Text(p.sakimGrade.toStringAsFixed(2),
+                /// Grade
+                Text(' ציון ${p.sakimGrade.toStringAsFixed(2)} ',
                     style: TextStyle(
                         fontSize: subtitleFontSize,
                         fontWeight: FontWeight.bold)),
