@@ -377,7 +377,7 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                           child: const Text('שמור',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           )),
-
+                      SizedBox(height: 50,),
                     ],
                   );}),
                 ],

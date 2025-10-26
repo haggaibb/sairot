@@ -214,35 +214,45 @@ class _GradesPageState extends State<GradesPage> {
                           title: 'מערכת',
                           readOnly: true,
                           field: 'system_grade_field',
-                          type: PlutoColumnType.number(),
+                          type: PlutoColumnType.number(
+                            format: '#,##0.00', // Always shows 2 digits after the decimal
+                          ),
                           width: 85,
                         ),
                         PlutoColumn(
                           title: 'משולש',
                           readOnly: true,
                           field: 'meeshulash_field',
-                          type: PlutoColumnType.number(),
+                          type: PlutoColumnType.number(
+                            format: '#,##0.00', // Always shows 2 digits after the decimal
+                          ),
                           width: 85,
                         ),
                         PlutoColumn(
                           title: 'אלונקה',
                           readOnly: true,
                           field: 'alonka_field',
-                          type: PlutoColumnType.number(),
+                          type: PlutoColumnType.number(
+                            format: '#,##0.00', // Always shows 2 digits after the decimal
+                          ),
                           width: 90,
                         ),
                         PlutoColumn(
                           title: 'בור',
                           readOnly: true,
                           field: 'bur_field',
-                          type: PlutoColumnType.number(),
+                          type: PlutoColumnType.number(
+                            format: '#,##0.00', // Always shows 2 digits after the decimal
+                          ),
                           width: 75,
                         ),
                         PlutoColumn(
                           title: 'שקים',
                           readOnly: true,
                           field: 'sakim_field',
-                          type: PlutoColumnType.number(),
+                          type: PlutoColumnType.number(
+                            format: '#,##0.00', // Always shows 2 digits after the decimal
+                          ),
                           width: 85,
                         ),
                       ],

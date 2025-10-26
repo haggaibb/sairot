@@ -367,9 +367,14 @@ class EventController extends GetxController {
   }
 
   Participant getParticipant(int number) {
+    for (var participant in currentEvent.value.participants) {
+      print(participant.participantAIReport); // Replace 'firstName' with your actual field
+    }
     int index = currentEvent.value.participants
         .indexWhere((participant) => participant.number == number);
-    return currentEvent.value.participants[index];
+    if (index>-1)
+     return currentEvent.value.participants[index];
+    else return Participant(number: 0, name: 'לא נמצא');
   }
 
   /// Sakim
@@ -704,6 +709,12 @@ class EventController extends GetxController {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     currentEvent.value.participants[participantIndex].instructorGrade = grade;
+    currentEvent.value.saveToFirestore();
+  }
+  saveParticipantsAIReport(int number, String report) {
+    int participantIndex = currentEvent.value.participants
+        .indexWhere((Participant p) => p.number == number);
+    currentEvent.value.participants[participantIndex].participantAIReport = report;
     currentEvent.value.saveToFirestore();
   }
 

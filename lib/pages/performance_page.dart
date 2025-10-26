@@ -206,6 +206,7 @@ class PerformancePage extends StatelessWidget {
                     onPressed: () async {
                       eventController.loading.value = true;
                       p.participantAIReport = await GenAIReport(p);
+                      eventController.saveParticipantsAIReport(p.number, p.participantAIReport);
                       eventController.loading.value = false;
                     },
                     child: Text(
