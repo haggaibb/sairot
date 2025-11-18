@@ -51,6 +51,9 @@ android/app/.cxx/
 
 # Sensitive data - Firebase and API keys
 android/app/google-services.json
+firebase.json
+.firebaserc
+.firebase/
 android/local.properties
 *.keystore
 *.jks
