@@ -112,6 +112,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                           }
                                         },
                                         onLongPress: () async {
+                                          var participantNumber = widget.round.activeParticipants[index];
                                           var res = await showDialog<
                                                   List<String>>(
                                               context: context,
@@ -120,11 +121,10 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                       .gradesData
                                                       .listOfCommentsAlonka,
                                                   selectedComments: (eventController
-                                                          .getParticipant(widget
-                                                                  .round
-                                                                  .activeParticipants[
-                                                              index]))
-                                                      .alonkaInstructorComments));
+                                                          .getParticipant(participantNumber))
+                                                      .alonkaInstructorComments,
+                                                  title: participantNumber.toString(),
+                                              ));
                                           if (res != null) {
                                             if (res.contains(ParticipantStatus.Droped.name)) {
                                               print('dropped');

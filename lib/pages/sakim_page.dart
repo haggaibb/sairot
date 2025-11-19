@@ -4,6 +4,7 @@ import '../event_controller.dart';
 import 'package:get/get.dart';
 import '../models/sakim_round.dart';
 import '../widgets/sakim_round_panel.dart';
+import '../widgets/sakim_grid_view.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
@@ -20,6 +21,7 @@ class _SakimPageState extends State<SakimPage> {
   int runTime = 0;
   late Timer _timer;
   late bool editModeOn;
+  bool _isGridView = false;
   final ScrollController _scrollController = ScrollController();
 
   void _scrollToEnd() {
@@ -92,6 +94,15 @@ class _SakimPageState extends State<SakimPage> {
             ),
             actions: [
               IconButton(
+                icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+                tooltip: _isGridView ? 'מעבר לתצוגת רשימה' : 'מעבר לתצוגת רשת',
+                onPressed: () {
+                  setState(() {
+                    _isGridView = !_isGridView;
+                  });
+                },
+              ),
+              IconButton(
                 icon: const Icon(Icons.info_outline),
                 tooltip: 'מדריך למשתמש',
                 onPressed: () {
@@ -111,6 +122,13 @@ class _SakimPageState extends State<SakimPage> {
           ),
           body: GetX<EventController>(builder: (_) {
             editModeOn = _.sakimEditModeOn.value;
+            // Show grid view if enabled
+            if (_isGridView) {
+              return Obx(() => eventController.loading.value
+                  ? LinearProgressIndicator()
+                  : SakimGridView());
+            }
+            // Show existing list view
             return SingleChildScrollView(
               controller: _scrollController,
               child: eventController.currentEvent.value.sakimRounds.isNotEmpty

@@ -90,12 +90,14 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                         }
                                       },
                                       onLongPress: () async {
+                                        var participantNumber = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index];
                                         var res = await showDialog<List<String>>(
                                             context: context,
                                             builder: (BuildContext context) =>
                                             CommentsDialog(
                                                 commentsList: eventController.gradesData.listOfCommentsMeshulash,
-                                              selectedComments: (eventController.getParticipant(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]).meshulashInstructorComments),
+                                              selectedComments: (eventController.getParticipant(participantNumber).meshulashInstructorComments),
+                                              title: participantNumber.toString(),
                                             ));
                                         if (res!=null) {
                                           if (res.contains(ParticipantStatus.Droped.name)) {

@@ -88,12 +88,14 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                     }
                                   },
                                   onLongPress: () async {
+                                    var participantNumber = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index];
                                     var res = await showDialog<List<String>>(
                                         context: context,
                                         builder: (BuildContext context) =>
                                             CommentsDialog(
                                                 commentsList: eventController.gradesData.listOfCommentsSakim,
-                                              selectedComments: (eventController.getParticipant(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index])).sakimInstructorComments,
+                                              selectedComments: (eventController.getParticipant(participantNumber)).sakimInstructorComments,
+                                              title: participantNumber.toString(),
                                             ));
                                     if (res!=null) {
                                       if (res.contains(ParticipantStatus.Droped.name)) {
