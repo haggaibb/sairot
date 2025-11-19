@@ -123,7 +123,7 @@ class SakimCharts extends StatelessWidget {
                             int index = entry.key;
                             int round = entry.value;
                             double position = participantPositions[index].toDouble();
-                            return FlSpot(round.toDouble(), position);
+                            return FlSpot(round.toDouble(), numberOfParticipants.toDouble() - position);
                           }).toList(),
                           isCurved: false,  // Ensure straight lines
                           color: Colors.red,
@@ -142,7 +142,7 @@ class SakimCharts extends StatelessWidget {
                           getTooltipItems: (List<LineBarSpot> touchedSpots) {
                             return touchedSpots.map((touchedSpot) {
                               return LineTooltipItem(
-                                '   ${touchedSpot.y.toInt()} מקום ', // Ensures two decimal places
+                                '   ${(numberOfParticipants - touchedSpot.y).toInt()} מקום ', // Ensures two decimal places
                                 TextStyle(
                                   color: Colors.black,
                                   fontSize: 16,
@@ -162,7 +162,7 @@ class SakimCharts extends StatelessWidget {
                             getTitlesWidget: (value, meta) {
                               // Skip 0 and only show integers greater than 0
                               if (value > 0 && value % 1 == 0 && value <= numberOfParticipants.toDouble()) {
-                                return Text(value.toInt().toString(), style: TextStyle(fontSize: 12));
+                                return Text('${(numberOfParticipants - value).toInt()}', style: TextStyle(fontSize: 12));
                               }
                               return SizedBox.shrink();
                             },
