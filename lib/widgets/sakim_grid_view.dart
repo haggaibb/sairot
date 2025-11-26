@@ -1,0 +1,150 @@
+import 'package:flutter/material.dart';
+import '../event_controller.dart';
+import 'package:get/get.dart';
+import 'comments_dialog.dart';
+import 'package:sairot/models/sakim_round.dart';
+import '../models/types.dart';
+
+class SakimGridView extends StatelessWidget {
+  const SakimGridView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final eventController = Get.put(EventController());
+    
+    return GetX<EventController>(builder: (_) {
+      // Get all active participants
+      final activeParticipants = _.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
+      
+      if (activeParticipants.isEmpty) {
+        return Center(
+          child: Text(
+            'אין משתתפים פעילים',
+            style: TextStyle(fontSize: _.userFontSize.value),
+          ),
+        );
+      }
+
+      return GridView.count(
+        childAspectRatio: _.userChildAspectRatio.value,
+        crossAxisCount: _.numberOfCols,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        padding: EdgeInsets.all(10),
+        children: activeParticipants.map((participant) {
+          final participantNumber = participant.number;
+          
+          // Find which round this participant is in
+          int currentRound = _.currentEvent.value.sakimRounds.indexWhere(
+            (round) => round.participantsInRound.contains(participantNumber),
+          );
+          
+          // If participant not found in any round, they're in round 0 (initial round)
+          if (currentRound == -1) {
+            currentRound = 0;
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(5.0),
+            child: GestureDetector(
+              onDoubleTap: () {
+                if (_.sakimEditModeOn.value && currentRound > 0) {
+                  _.loading.value = true;
+                  _.currentEvent.value.sakimRounds[currentRound - 1].participantsInRound.add(participantNumber);
+                  _.currentEvent.value.sakimRounds[currentRound].participantsInRound.remove(participantNumber);
+                  _.update();
+                  _.currentEvent.value.saveToFirestore();
+                  _.loading.value = false;
+                }
+              },
+              child: Stack(
+                children: [
+                  SizedBox.expand(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    onPressed: () {
+                      if (_.sakimEditModeOn.value) {
+                        _.loading.value = true;
+                        if (_.currentEvent.value.sakimRounds.length == currentRound + 1) {
+                          _.currentEvent.value.sakimRounds.add(
+                            SakimRound(
+                              round: currentRound + 1,
+                              participantsInRound: [participantNumber],
+                            ),
+                          );
+                          _.setParticipantSakimPosition(participantNumber, _.currentEvent.value.sakimRounds[currentRound + 1].participantsInRound.length);
+                        } else {
+                          _.currentEvent.value.sakimRounds[currentRound + 1].participantsInRound.add(participantNumber);
+                          _.setParticipantSakimPosition(participantNumber, _.currentEvent.value.sakimRounds[currentRound + 1].participantsInRound.length);
+                        }
+                        _.currentEvent.value.sakimRounds[currentRound].participantsInRound.remove(participantNumber);
+                        _.loading.value = false;
+                        _.currentEvent.value.saveToFirestore();
+                      }
+                    },
+                    onLongPress: () async {
+                      var res = await showDialog<List<String>>(
+                        context: context,
+                        builder: (BuildContext context) => CommentsDialog(
+                          commentsList: _.gradesData.listOfCommentsSakim,
+                          selectedComments: _.getParticipant(participantNumber).sakimInstructorComments,
+                          title: participantNumber.toString(),
+                        ),
+                      );
+                      if (res != null) {
+                        if (res.contains(ParticipantStatus.Droped.name)) {
+                          print('dropped');
+                          _.loading.value = true;
+                          _.dropParticipant(participantNumber);
+                          // Remove from current round if exists
+                          if (currentRound != -1 && currentRound < _.currentEvent.value.sakimRounds.length) {
+                            _.currentEvent.value.sakimRounds[currentRound].participantsInRound.remove(participantNumber);
+                          }
+                          _.loading.value = false;
+                        } else {
+                          _.addSakimComments(res, participantNumber);
+                        }
+                      }
+                    },
+                    child: Text(
+                      participantNumber.toString(),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: _.userFontSize.value,
+                      ),
+                      ),
+                    ),
+                  ),
+                  // Round indicator badge
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: EdgeInsets.all(6), // Bigger badge
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        currentRound.toString(),
+                        style: TextStyle(
+                          fontSize: _.userFontSize.value * 0.8, // Bigger text
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      );
+    });
+  }
+}
+
