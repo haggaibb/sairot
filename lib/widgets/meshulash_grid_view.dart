@@ -27,10 +27,10 @@ class MeshulashGridView extends StatelessWidget {
 
       return GridView.count(
         childAspectRatio: _.userChildAspectRatio.value,
-        crossAxisCount: _.numberOfCols,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        padding: EdgeInsets.all(10),
+        crossAxisCount: 3,
+        mainAxisSpacing: 5,
+        crossAxisSpacing: 3,
+        padding: EdgeInsets.all(3),
         children: activeParticipants.map((participant) {
           final participantNumber = participant.number;
           
@@ -45,7 +45,7 @@ class MeshulashGridView extends StatelessWidget {
           }
 
           return Padding(
-            padding: const EdgeInsets.all(5.0),
+            padding: const EdgeInsets.all(2.0),
             child: GestureDetector(
               onDoubleTap: () {
                 if (_.meshulashEditModeOn.value && currentRound > 0) {
@@ -125,7 +125,7 @@ class MeshulashGridView extends StatelessWidget {
                     top: 4,
                     right: 4,
                     child: Container(
-                      padding: EdgeInsets.all(6), // Bigger badge
+                      padding: EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: Colors.red,
                         shape: BoxShape.circle,
@@ -133,7 +133,7 @@ class MeshulashGridView extends StatelessWidget {
                       child: Text(
                         currentRound.toString(),
                         style: TextStyle(
-                          fontSize: _.userFontSize.value * 0.8, // Bigger text
+                          fontSize: _.userFontSize.value * 1.0,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),

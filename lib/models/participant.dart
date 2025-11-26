@@ -46,7 +46,7 @@ class Participant {
       'systemGrade': systemGrade,
       'name': name,
       'groupNumber': groupNumber,
-      'participateAIReport' : participantAIReport,
+      'participantAIReport' : participantAIReport,
       'meshulashPositions': meshulashPositions,
       'sakimPositions': sakimPositions,
       'meshulashInstructorComments': meshulashInstructorComments,
@@ -74,7 +74,7 @@ class Participant {
       ..instructorGrade = json['instructorGrade'] ?? 0
       ..systemGrade = (json['systemGrade'] ?? 0).toDouble()
       ..groupNumber = json['groupNumber'] ?? 0
-      ..participantAIReport = json['fullName'] ?? ''
+      ..participantAIReport = json['participantAIReport'] ?? json['participateAIReport'] ?? ''
       ..meshulashPositions = List<int>.from(json['meshulashPositions'] ?? [])
       ..sakimPositions = List<int>.from(json['sakimPositions'] ?? [])
       ..meshulashInstructorComments =

@@ -120,11 +120,81 @@ class _MeshulashPageState extends State<MeshulashPage> {
             ],
           ),
           body: GetX<EventController>(builder: (_) {
+            editModeOn = _.meshulashEditModeOn.value;
             // Show grid view if enabled
             if (_isGridView) {
               return Obx(() => eventController.loading.value
                   ? LinearProgressIndicator()
-                  : MeshulashGridView());
+                  : Column(
+                      children: [
+                        Expanded(child: MeshulashGridView()),
+                        if (eventController.currentEvent.value.meshulashEndTime == null)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                              onPressed: () async {
+                                var res = await showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return YesNoDialog();
+                                  },
+                                );
+                                if (res) {
+                                  setState(() {
+                                    eventController.currentEvent.value.meshulashEndTime = DateTime.now();
+                                    _timer.cancel();
+                                    _.meshulashEditModeOn.value = false;
+                                    editModeOn = _.meshulashEditModeOn.value;
+                                    eventController.currentEvent.value.saveToFirestore();
+                                  });
+                                }
+                              },
+                              child: Text('סיום התרגיל',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                              )),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                            child: Column(
+                              children: [
+                                eventController.currentEvent.value.finalized
+                                    ? SizedBox.shrink()
+                                    : TextButton.icon(
+                                        onPressed: () {
+                                          if (editModeOn) {
+                                            eventController.currentEvent.value.saveToFirestore();
+                                          } else {}
+                                          _.meshulashEditModeOn.value = !_.meshulashEditModeOn.value;
+                                          setState(() {
+                                            editModeOn = !_.meshulashEditModeOn.value;
+                                          });
+                                        },
+                                        icon: editModeOn
+                                            ? const Icon(Icons.edit)
+                                            : const Icon(Icons.save),
+                                        label: !editModeOn
+                                            ? Text('סיים',
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                            )
+                                            : Text('עריכה',
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                            ),
+                                        iconAlignment: IconAlignment.start,
+                                      ),
+                                SizedBox(height: 20),
+                                Text('  התרגיל הסתיים  ',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ));
             }
             // Show existing list view
             return SingleChildScrollView(
@@ -162,7 +232,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                             .meshulashEndTime ==
                                         null
                                     ? Padding(
-                                        padding: const EdgeInsets.all(30.0),
+                                        padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
                                         child: Column(
                                           children: [
                                             ElevatedButton(
@@ -202,48 +272,51 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                           ],
                                         ),
                                       )
-                                    : Column(
-                                        children: [
-                                          eventController
-                                                  .currentEvent.value.finalized
-                                              ? SizedBox.shrink()
-                                              : TextButton.icon(
-                                                  onPressed: () async {
-                                                    if (editModeOn) {
-                                                      ///save
-                                                      await eventController
-                                                          .currentEvent.value
-                                                          .saveToFirestore();
-                                                    } else {}
-                                                    _.meshulashEditModeOn.value =
-                                                        !_.meshulashEditModeOn
+                                    : Padding(
+                                        padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                                        child: Column(
+                                          children: [
+                                            eventController
+                                                    .currentEvent.value.finalized
+                                                ? SizedBox.shrink()
+                                                : TextButton.icon(
+                                                    onPressed: () async {
+                                                      if (editModeOn) {
+                                                        ///save
+                                                        await eventController
+                                                            .currentEvent.value
+                                                            .saveToFirestore();
+                                                      } else {}
+                                                      _.meshulashEditModeOn.value =
+                                                          !_.meshulashEditModeOn
+                                                              .value;
+                                                      setState(() {
+                                                        editModeOn = !_
+                                                            .meshulashEditModeOn
                                                             .value;
-                                                    setState(() {
-                                                      editModeOn = !_
-                                                          .meshulashEditModeOn
-                                                          .value;
-                                                    });
-                                                  },
-                                                  icon: editModeOn
-                                                      ? const Icon(Icons.edit)
-                                                      : const Icon(Icons.save),
-                                                  label: !editModeOn
-                                                      ? Text('סיים',
-                                                    style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
-                                                  )
-                                                      : Text('עריכה',
-                                                    style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
+                                                      });
+                                                    },
+                                                    icon: editModeOn
+                                                        ? const Icon(Icons.edit)
+                                                        : const Icon(Icons.save),
+                                                    label: !editModeOn
+                                                        ? Text('סיים',
+                                                          style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
+                                                        )
+                                                        : Text('עריכה',
+                                                          style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
+                                                        ),
+                                                    iconAlignment:
+                                                        IconAlignment.start,
                                                   ),
-                                                  iconAlignment:
-                                                      IconAlignment.start,
-                                                ),
-                                          SizedBox(
-                                            height: 20,
-                                          ),
-                                          Text('  התרגיל הסתיים  ',
-                                            style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
-                                          ),
-                                        ],
+                                            SizedBox(
+                                              height: 20,
+                                            ),
+                                            Text('  התרגיל הסתיים  ',
+                                              style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                               ],
                             )),

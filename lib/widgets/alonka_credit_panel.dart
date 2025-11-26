@@ -3,12 +3,13 @@ import 'package:sairot/models/types.dart';
 
 
 class AlonkaCreditPanel extends StatelessWidget {
-  const AlonkaCreditPanel({super.key});
+  final int participantNumber;
+  const AlonkaCreditPanel({super.key, required this.participantNumber});
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('בחר פעולה'),
+      title: Text('בחר פעולה - $participantNumber'),
       actions: <Widget>[
         IconButton(
             iconSize: 60,

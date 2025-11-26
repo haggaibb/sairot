@@ -23,7 +23,7 @@ class _BurPageState extends State<BurPage> {
 
   @override
   void initState() {
-    eventController.currentEvent.value.burGrades.forEach((e) => print(e.id));
+    // Removed debug print of bur IDs
     runTime = eventController.currentEvent.value.getBurRunTime();
     if (eventController.currentEvent.value.burEndTime == null) {
       _timer = Timer.periodic(Duration(seconds: 30), (Timer timer) {

@@ -44,9 +44,9 @@ class _AdminHomeState extends State<AdminHome> {
       if (instructorId != null) {
         await adminController.loadEvent(eventName, selectedDate, instructorId);
 
-        print("✅ Event Data Loaded Successfully");
+        // Event data loaded successfully
       } else {
-        print("❌ No Instructor Id");
+        // No instructor ID selected
       }
       // Navigate to the next screen
       Get.toNamed('/grades_page');

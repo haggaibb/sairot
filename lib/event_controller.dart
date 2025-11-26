@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'theme_controller.dart';
+import 'utils/logger.dart';
 
 
 class EventController extends GetxController {
@@ -31,7 +32,7 @@ class EventController extends GetxController {
   /// Event Days
   String currentEventName = '';
   List<Event> pastEvents = <Event>[].obs;
-  late String instructorId;
+  // Removed unused late String instructorId - use currentInstructor.id instead
   var events = <String>[].obs; // List of Event Names
   var eventDays = <String, List<String>>{}.obs; // Map: Event -> Days with data
   var selectedEvent = RxnString();
@@ -167,8 +168,7 @@ class EventController extends GetxController {
   
   /// 🔎 Get a List of Unfinalized Events for an Instructor in a Specific Event
   getUnfinalizedEvents() async {
-    print(currentInstructor.id);
-    print(" ➡️ get Unfinalized Events.");
+    AppLogger.debug(" ➡️ get Unfinalized Events.");
     try {
       unfinalizedLoading.value=true;
       unfinalizedEvents.clear();
@@ -243,7 +243,7 @@ class EventController extends GetxController {
     }
       //events.assignAll(instructorEvents.toList());
       pastEventsLoading.value=false;
-      print("📂 Found events for instructor ${currentInstructor.id}: ${events.toList()}");
+      AppLogger.debug("📂 Found events: ${events.toList()}");
   }
 
   /// 📅 Fetch Available Days for Selected Event
@@ -367,9 +367,7 @@ class EventController extends GetxController {
   }
 
   Participant getParticipant(int number) {
-    for (var participant in currentEvent.value.participants) {
-      print(participant.participantAIReport); // Replace 'firstName' with your actual field
-    }
+    // Removed debug print of participant AI report
     int index = currentEvent.value.participants
         .indexWhere((participant) => participant.number == number);
     if (index>-1)
@@ -690,7 +688,7 @@ class EventController extends GetxController {
       p.meshulashGrade = getMeshulashGrade(p.number);
       // p.systemGrade =
       //     (p.meshulashGrade + p.alonkaGrade + p.sakimGrade + p.burGrade) / 4;
-      /// TODO - add weighted avg, add grades version control
+      // Weighted average is implemented. TODO: Consider adding grades version control for backward compatibility
       p.systemGrade = calculateWeightedGrade(
         param1: p.meshulashGrade,
         param2: p.alonkaGrade,

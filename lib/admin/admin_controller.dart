@@ -8,6 +8,7 @@ import 'dart:async';
 import '../event_controller.dart';
 import '../models/types.dart';
 import 'package:sairot/models/participant.dart';
+import '../utils/logger.dart';
 
 class AdminController extends GetxController {
   var isLoading = false.obs; // Tracks live event download progress
@@ -296,9 +297,9 @@ class AdminController extends GetxController {
         .collection('Results')
         .snapshots()
         .listen((snapshot) {
-      print('######### update ########');
+      AppLogger.debug('Live event listener update');
       for (var doc in snapshot.docs) {
-        print('${doc.id} -> $currentEventName -> $day');
+        AppLogger.debug('Processing event update for day: $day');
         String instructorId = doc.id; // ✅ Get instructor ID from Firestore
         FirebaseFirestore.instance
             .collection('Results')
@@ -318,11 +319,11 @@ class AdminController extends GetxController {
               if (index != -1) {
                 // ✅ Update existing event in the list
                 liveEvents[index] = updatedEvent;
-                print("✅ Updated Event for ${updatedEvent.instructorId}");
+                AppLogger.success("Updated Event");
               } else {
                 // 🆕 Add new event if it doesn't exist
                 liveEvents.add(updatedEvent);
-                print("➕ Added New Event for ${updatedEvent.instructorId}");
+                AppLogger.success("Added New Event");
               }
             } catch (e) {
               print("❌ Error parsing event: $e");

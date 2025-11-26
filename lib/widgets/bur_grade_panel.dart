@@ -40,7 +40,7 @@ class _BurGradePanelState extends State<BurGradePanel> {
   }
 
   /// **Adds a New Custom Comment**
-  void addCustomComment() async {
+  void addCustomComment() {
     String newComment = customCommentCtrl.text.trim();
     if (newComment.isNotEmpty &&
         !predefinedComments.contains(newComment) &&
@@ -50,8 +50,8 @@ class _BurGradePanelState extends State<BurGradePanel> {
         instructorComments.add(newComment);
       });
 
-      // Save updated comments to Firestore
-      await saveToFirestore();
+      // Save updated comments to Firestore (non-blocking)
+      saveToFirestore();
 
       // Clear input field
       customCommentCtrl.clear();
@@ -59,21 +59,21 @@ class _BurGradePanelState extends State<BurGradePanel> {
   }
 
   /// **Deletes a Custom Comment**
-  void deleteCustomComment(String comment) async {
+  void deleteCustomComment(String comment) {
     setState(() {
       customComments.remove(comment);
       instructorComments.remove(comment);
     });
 
-    // Save updated comments to Firestore
-    await saveToFirestore();
+    // Save updated comments to Firestore (non-blocking)
+    saveToFirestore();
   }
 
   /// **Saves Instructor Comments to Firestore**
-  Future<void> saveToFirestore() async {
+  void saveToFirestore() {
     widget.bur.instructorComments = List.from(instructorComments);
     eventController.currentEvent.value.burGrades[burIndex] = widget.bur;
-    await eventController.currentEvent.value.saveToFirestore();
+    eventController.currentEvent.value.saveToFirestore();
   }
 
   @override
@@ -155,7 +155,7 @@ class _BurGradePanelState extends State<BurGradePanel> {
                             ),
                             selected: isSelected,
                             selectedColor: isCustom ? Colors.blue.withOpacity(0.3) : Colors.blue,
-                            onSelected: (bool selected) async {
+                            onSelected: (bool selected) {
                               setState(() {
                                 if (selected) {
                                   instructorComments.add(comment);
@@ -167,7 +167,7 @@ class _BurGradePanelState extends State<BurGradePanel> {
                                 }
                               });
                               print(customComments);
-                              await saveToFirestore();
+                              saveToFirestore();
                             },
                           ),
                         );
@@ -212,13 +212,11 @@ class _BurGradePanelState extends State<BurGradePanel> {
                                 extentOffset: gradeCtrl.text.length,
                               );
                             },
-                            onChanged: (val) async {
-                              eventController.loading.value = true;
+                            onChanged: (val) {
                               widget.bur.burGrade = double.parse(val);
                               eventController.currentEvent.value.burGrades[burIndex] = widget.bur;
-                              await eventController.currentEvent.value.saveToFirestore();
+                              eventController.currentEvent.value.saveToFirestore();
                               eventController.update();
-                              eventController.loading.value = false;
                             },
                             textAlign: TextAlign.center,
                             keyboardType: TextInputType.number,

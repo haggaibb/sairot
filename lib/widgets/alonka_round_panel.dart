@@ -66,11 +66,12 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                               .onPrimary,
                                         ),
                                         onPressed: () async {
+                                          var participantNumber = widget.round.activeParticipants[index];
                                           var res = await showDialog<
                                               AlonkaCreditTypes>(
                                             context: context,
                                             builder: (BuildContext context) =>
-                                                AlonkaCreditPanel(),
+                                                AlonkaCreditPanel(participantNumber: participantNumber),
                                           );
                                           if (res != null) {
                                             switch (res) {
@@ -207,7 +208,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                             children: widget.round.alonkaCredits
                                                 .map((number) {
                                               return GestureDetector(
-                                                onLongPress: () => setState(() {
+                                                onDoubleTap: () => setState(() {
                                                   widget.round.alonkaCredits
                                                       .remove(number);
                                                   widget
@@ -215,6 +216,30 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                       .add(number);
                                                   //widget.round.activeParticipants.sort();
                                                 }),
+                                                onLongPress: () async {
+                                                  var res = await showDialog<List<String>>(
+                                                    context: context,
+                                                    builder: (BuildContext context) => CommentsDialog(
+                                                      commentsList: eventController
+                                                          .gradesData
+                                                          .listOfCommentsAlonka,
+                                                      selectedComments: (eventController
+                                                              .getParticipant(number))
+                                                          .alonkaInstructorComments,
+                                                      title: number.toString(),
+                                                    ),
+                                                  );
+                                                  if (res != null) {
+                                                    if (res.contains(ParticipantStatus.Droped.name)) {
+                                                      eventController.loading.value = true;
+                                                      eventController.dropParticipant(number);
+                                                      widget.round.alonkaCredits.remove(number);
+                                                      eventController.loading.value = false;
+                                                    } else {
+                                                      eventController.addAlonkaComments(res, number);
+                                                    }
+                                                  }
+                                                },
                                                 child: Padding(
                                                   padding:
                                                       const EdgeInsets.all(8.0),
@@ -245,7 +270,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                 .round.gerikanCredits
                                                 .map((number) {
                                               return GestureDetector(
-                                                onLongPress: () => setState(() {
+                                                onDoubleTap: () => setState(() {
                                                   widget.round.gerikanCredits
                                                       .remove(number);
                                                   widget
@@ -253,6 +278,30 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                       .add(number);
                                                   //widget.round.activeParticipants.sort();
                                                 }),
+                                                onLongPress: () async {
+                                                  var res = await showDialog<List<String>>(
+                                                    context: context,
+                                                    builder: (BuildContext context) => CommentsDialog(
+                                                      commentsList: eventController
+                                                          .gradesData
+                                                          .listOfCommentsAlonka,
+                                                      selectedComments: (eventController
+                                                              .getParticipant(number))
+                                                          .alonkaInstructorComments,
+                                                      title: number.toString(),
+                                                    ),
+                                                  );
+                                                  if (res != null) {
+                                                    if (res.contains(ParticipantStatus.Droped.name)) {
+                                                      eventController.loading.value = true;
+                                                      eventController.dropParticipant(number);
+                                                      widget.round.gerikanCredits.remove(number);
+                                                      eventController.loading.value = false;
+                                                    } else {
+                                                      eventController.addAlonkaComments(res, number);
+                                                    }
+                                                  }
+                                                },
                                                 child: Padding(
                                                   padding:
                                                       const EdgeInsets.all(8.0),
@@ -283,13 +332,37 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                         children: widget.round.runCredits
                                             .map((number) {
                                           return GestureDetector(
-                                            onLongPress: () => setState(() {
+                                            onDoubleTap: () => setState(() {
                                               widget.round.runCredits
                                                   .remove(number);
                                               widget.round.activeParticipants
                                                   .add(number);
                                               //widget.round.activeParticipants.sort();
                                             }),
+                                            onLongPress: () async {
+                                              var res = await showDialog<List<String>>(
+                                                context: context,
+                                                builder: (BuildContext context) => CommentsDialog(
+                                                  commentsList: eventController
+                                                      .gradesData
+                                                      .listOfCommentsAlonka,
+                                                  selectedComments: (eventController
+                                                          .getParticipant(number))
+                                                      .alonkaInstructorComments,
+                                                  title: number.toString(),
+                                                ),
+                                              );
+                                              if (res != null) {
+                                                if (res.contains(ParticipantStatus.Droped.name)) {
+                                                  eventController.loading.value = true;
+                                                  eventController.dropParticipant(number);
+                                                  widget.round.runCredits.remove(number);
+                                                  eventController.loading.value = false;
+                                                } else {
+                                                  eventController.addAlonkaComments(res, number);
+                                                }
+                                              }
+                                            },
                                             child: Padding(
                                               padding:
                                                   const EdgeInsets.all(8.0),

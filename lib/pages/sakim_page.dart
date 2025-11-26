@@ -126,7 +126,76 @@ class _SakimPageState extends State<SakimPage> {
             if (_isGridView) {
               return Obx(() => eventController.loading.value
                   ? LinearProgressIndicator()
-                  : SakimGridView());
+                  : Column(
+                      children: [
+                        Expanded(child: SakimGridView()),
+                        if (eventController.currentEvent.value.sakimEndTime == null)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                              onPressed: () async {
+                                var res = await showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return YesNoDialog();
+                                  },
+                                );
+                                if (res) {
+                                  setState(() {
+                                    eventController.currentEvent.value.sakimEndTime = DateTime.now();
+                                    _timer.cancel();
+                                    _.sakimEditModeOn.value = false;
+                                    editModeOn = _.sakimEditModeOn.value;
+                                    eventController.currentEvent.value.saveToFirestore();
+                                  });
+                                }
+                              },
+                              child: Text('סיום התרגיל',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                              )),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                            child: Column(
+                              children: [
+                                eventController.currentEvent.value.finalized
+                                    ? SizedBox.shrink()
+                                    : TextButton.icon(
+                                        onPressed: () {
+                                          if (editModeOn) {
+                                            eventController.currentEvent.value.saveToFirestore();
+                                          } else {}
+                                          _.sakimEditModeOn.value = !_.sakimEditModeOn.value;
+                                          setState(() {
+                                            editModeOn = _.sakimEditModeOn.value;
+                                          });
+                                        },
+                                        icon: editModeOn
+                                            ? const Icon(Icons.save)
+                                            : const Icon(Icons.edit),
+                                        label: editModeOn
+                                            ? Text('סיים',
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                            )
+                                            : Text('עריכה',
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                            ),
+                                        iconAlignment: IconAlignment.start,
+                                      ),
+                                SizedBox(height: 20),
+                                Text('  התרגיל הסתיים  ',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ));
             }
             // Show existing list view
             return SingleChildScrollView(
@@ -168,7 +237,7 @@ class _SakimPageState extends State<SakimPage> {
                                     ? Column(
                                       children: [
                                         Padding(
-                                            padding: const EdgeInsets.all(30.0),
+                                            padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
                                             child: ElevatedButton(
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: Theme.of(context).colorScheme.primary,
@@ -203,46 +272,49 @@ class _SakimPageState extends State<SakimPage> {
                                         SizedBox(height: 50,)
                                       ],
                                     )
-                                    : Column(
-                                        children: [
-                                          eventController
-                                                  .currentEvent.value.finalized
-                                              ? SizedBox.shrink()
-                                              : TextButton.icon(
-                                                  onPressed: () {
-                                                    if (editModeOn) {
-                                                      ///save
-                                                      eventController
-                                                          .currentEvent.value
-                                                          .saveToFirestore();
-                                                    } else {}
-                                                    _.sakimEditModeOn.value =
-                                                        !_.sakimEditModeOn.value;
-                                                    setState(() {
-                                                      editModeOn =
-                                                          _.sakimEditModeOn.value;
-                                                    });
-                                                  },
-                                                  icon: editModeOn
-                                                      ? const Icon(Icons.save)
-                                                      : const Icon(Icons.edit),
-                                                  label: editModeOn
-                                                      ? Text('סיים',
-                                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
-                                                  )
-                                                      : Text('עריכה',
-                                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                    : Padding(
+                                        padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                                        child: Column(
+                                          children: [
+                                            eventController
+                                                    .currentEvent.value.finalized
+                                                ? SizedBox.shrink()
+                                                : TextButton.icon(
+                                                    onPressed: () {
+                                                      if (editModeOn) {
+                                                        ///save
+                                                        eventController
+                                                            .currentEvent.value
+                                                            .saveToFirestore();
+                                                      } else {}
+                                                      _.sakimEditModeOn.value =
+                                                          !_.sakimEditModeOn.value;
+                                                      setState(() {
+                                                        editModeOn =
+                                                            _.sakimEditModeOn.value;
+                                                      });
+                                                    },
+                                                    icon: editModeOn
+                                                        ? const Icon(Icons.save)
+                                                        : const Icon(Icons.edit),
+                                                    label: editModeOn
+                                                        ? Text('סיים',
+                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                                        )
+                                                        : Text('עריכה',
+                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                                        ),
+                                                    iconAlignment:
+                                                        IconAlignment.start,
                                                   ),
-                                                  iconAlignment:
-                                                      IconAlignment.start,
-                                                ),
-                                          SizedBox(
-                                            height: 20,
-                                          ),
-                                          Text('  התרגיל הסתיים  ',
-                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
-                                          ),
-                                        ],
+                                            SizedBox(
+                                              height: 20,
+                                            ),
+                                            Text('  התרגיל הסתיים  ',
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                               ],
                             )),
