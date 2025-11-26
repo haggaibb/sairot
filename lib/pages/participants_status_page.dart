@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:sairot/models/types.dart';
 import '../event_controller.dart';
 import '../models/participant.dart';
+import '../utils/tablet_utils.dart';
 
 class ParticipantsStatusPage extends StatefulWidget {
   const ParticipantsStatusPage({super.key});
@@ -45,7 +46,7 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                     final activeParticipants = _.currentEvent.value
                         .getParticipantsByStatus(ParticipantStatus.Active);
                     return isFinalized
-                        ? _buildParticipantGrid(activeParticipants, ParticipantStatus.Active)
+                        ? _buildParticipantGrid(context, activeParticipants, ParticipantStatus.Active)
                         : DragTarget<int>(
                             onWillAcceptWithDetails:
                                 (DragTargetDetails<int> details) {
@@ -70,7 +71,7 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                             },
                             builder: (context, candidateData, rejectedData) {
                               return _buildParticipantGrid(
-                                  activeParticipants, ParticipantStatus.Active);
+                                  context, activeParticipants, ParticipantStatus.Active);
                             },
                           );
                   }),
@@ -88,7 +89,7 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                     final isFinalized = _.currentEvent.value.finalized;
                     return isFinalized
                         ? _buildParticipantGrid(
-                            droppedParticipants, ParticipantStatus.Droped)
+                            context, droppedParticipants, ParticipantStatus.Droped)
                         : DragTarget<int>(
                             onWillAcceptWithDetails: (details) {
                               return !droppedParticipants
@@ -115,7 +116,7 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                               }
                             },
                             builder: (context, candidateData, rejectedData) {
-                              return _buildParticipantGrid(droppedParticipants,
+                              return _buildParticipantGrid(context, droppedParticipants,
                                   ParticipantStatus.Droped);
                             },
                           );
@@ -131,19 +132,23 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
 
   /// **Reusable GridView for Participants**
   Widget _buildParticipantGrid(
-      List<Participant> participants, ParticipantStatus status) {
+      BuildContext context, List<Participant> participants, ParticipantStatus status) {
     final isFinalized = eventController.currentEvent.value.finalized;
+    bool tablet = isTablet(context);
+    int crossAxisCount = tablet ? 4 : 3;
+    double heightMultiplier = tablet ? 1.3 : 1.0;
+    
     return Container(
       padding: EdgeInsets.all(8),
       height: (participants.length / 3 + 2) < 2
-          ? 120
-          : (participants.length / 3 + 2) * 55,
+          ? (tablet ? 156 : 120)
+          : ((participants.length / 3 + 2) * 55 * heightMultiplier),
       color: status == ParticipantStatus.Active
           ? Colors.green.shade800.withOpacity(0.7)
           : Colors.red.shade300.withOpacity(0.7),
       child: GridView.count(
         crossAxisSpacing: 20,
-        crossAxisCount: 3,
+        crossAxisCount: crossAxisCount,
         mainAxisSpacing: 10,
         childAspectRatio: eventController.userChildAspectRatio.value,
         children: participants.map((participant) {
@@ -156,7 +161,7 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                   onPressed: () {}, // Just show participant, no drag
                   child: Text(participant.number.toString(),
                       style: TextStyle(
-                          fontSize: eventController.userFontSize.value,
+                          fontSize: getTabletScaledFontSize(context, eventController.userFontSize.value),
                           fontWeight: FontWeight.bold)),
                 )
               : Draggable<int>(
@@ -178,7 +183,7 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                       child: Center(
                         child: Text(participant.number.toString(),
                             style: TextStyle(
-                                fontSize: eventController.userFontSize.value,
+                                fontSize: getTabletScaledFontSize(context, eventController.userFontSize.value),
                                 fontWeight: FontWeight.bold)),
                       ),
                     ),
@@ -196,7 +201,7 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                     onPressed: () {},
                     child: Text(participant.number.toString(),
                         style: TextStyle(
-                            fontSize: eventController.userFontSize.value,
+                            fontSize: getTabletScaledFontSize(context, eventController.userFontSize.value),
                             fontWeight: FontWeight.bold)),
                   ),
                 );

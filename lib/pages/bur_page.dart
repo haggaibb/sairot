@@ -8,6 +8,7 @@ import '../widgets/bur_grade_panel.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
+import '../utils/tablet_utils.dart';
 
 class BurPage extends StatefulWidget {
   const BurPage({super.key});
@@ -46,6 +47,13 @@ class _BurPageState extends State<BurPage> {
   Widget build(BuildContext context) {
     return PopScope(
         canPop: false,
+        onPopInvoked: (didPop) {
+          if (!didPop) {
+            eventController.loading.value = true;
+            Get.back();
+            eventController.loading.value = false;
+          }
+        },
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -94,32 +102,188 @@ class _BurPageState extends State<BurPage> {
                 ],
               ),
               body: GetX<EventController>(builder: (_) {
-                var h =
-                    eventController.currentEvent.value.activeParticipants.length /
-                            3 +
-                        2;
-                return SingleChildScrollView(
-                  child: eventController.currentEvent.value.burGrades.isNotEmpty
-                      ? Center(
-                          child: Obx(() => eventController.loading.value
-                              ? LinearProgressIndicator()
-                              : Column(
-                                  children: [
-                                    SizedBox(
-                                      height: 20,
-                                    ),
-                                    SizedBox(
-                                      height: h < 2 ? 120 : h * 55,
-                                      child: GridView.count(
-                                          childAspectRatio: eventController.userChildAspectRatio.value,
-                                          crossAxisCount:
-                                              eventController.numberOfCols,
-                                          children: List.generate(
-                                              eventController
-                                                  .currentEvent
-                                                  .value
-                                                  .activeParticipants
-                                                  .length, (index) {
+                bool tablet = isTablet(context);
+                double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
+                double buttonPadding = tablet ? 45.0 : 30.0;
+                double dividerThickness = tablet ? 45.0 : 30.0;
+                
+                return eventController.currentEvent.value.burGrades.isNotEmpty
+                      ? tablet 
+                        ? Obx(() => eventController.loading.value
+                            ? LinearProgressIndicator()
+                            : Column(
+                                children: [
+                                  SizedBox(
+                                    height: 20,
+                                  ),
+                                  Expanded(
+                                    child: GridView.count(
+                                        childAspectRatio: eventController.userChildAspectRatio.value,
+                                        crossAxisCount:
+                                            eventController.numberOfCols,
+                                        children: List.generate(
+                                            eventController
+                                                .currentEvent
+                                                .value
+                                                .activeParticipants
+                                                .length, (index) {
+                                          int burIndex = eventController
+                                              .currentEvent.value.burGrades
+                                              .indexWhere((Bur bur) =>
+                                                  bur.id ==
+                                                  eventController
+                                                      .currentEvent
+                                                      .value
+                                                      .activeParticipants[index]
+                                                      .number);
+                                          return Padding(
+                                            padding: EdgeInsets.all(7.5),
+                                            child: ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                    foregroundColor: Colors.black,
+                                                    backgroundColor:
+                                                        eventController
+                                                                    .currentEvent
+                                                                    .value
+                                                                    .burGrades[
+                                                                        burIndex]
+                                                                    .burGrade !=
+                                                                0
+                                                            ? Colors.green
+                                                            : Theme.of(context).colorScheme.primary,),
+                                                onPressed: () async {
+                                                  if (eventController
+                                                      .currentEvent
+                                                      .value
+                                                      .finalized) return;
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            BurGradePanel(
+                                                                bur: eventController
+                                                                        .currentEvent
+                                                                        .value
+                                                                        .burGrades[
+                                                                    burIndex])),
+                                                  );
+                                                },
+                                                child: Text(eventController
+                                                    .currentEvent
+                                                    .value
+                                                    .activeParticipants[index]
+                                                    .number
+                                                    .toString(),
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+
+                                                )),
+                                          );
+                                        })),
+                                  ),
+                                  Divider(
+                                    thickness: dividerThickness,
+                                  ),
+                                  _.currentEvent.value.burEndTime == null
+                                      ? Padding(
+                                          padding: EdgeInsets.all(buttonPadding),
+                                          child: ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                                minimumSize: Size(200, 60),
+                                              ),
+                                              onPressed: () async {
+                                                var res = await showDialog(
+                                                  context: context,
+                                                  builder:
+                                                      (BuildContext context) {
+                                                    return YesNoDialog();
+                                                  },
+                                                );
+                                                if (res) {
+                                                  eventController.loading.value =
+                                                  true;
+                                                  setState(() {
+                                                    _.currentEvent.value
+                                                        .burEndTime =
+                                                        DateTime.now();
+                                                  });
+                                                  _timer.cancel();
+                                                  eventController
+                                                      .currentEvent.value
+                                                      .saveToFirestore();
+                                                  eventController.loading.value =
+                                                  false;
+                                                }
+                                              },
+                                              //eventController.currentEvent.value.save();
+                                              child: Text('סיום התרגיל',
+                                                style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
+                                              )),
+                                        )
+                                      : Column(
+                                          children: [
+                                            SizedBox(
+                                              height: 20,
+                                            ),
+                                            Text('  התרגיל הסתיים  ',
+                                              style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
+                                            ),
+                                            SizedBox(
+                                              height: 20,
+                                            ),
+                                            eventController.currentEvent.value
+                                                            .burEndTime !=
+                                                        null &&
+                                                    eventController.currentEvent
+                                                            .value.burGrades
+                                                            .where((item) =>
+                                                                item.burGrade >
+                                                                0)
+                                                            .length <
+                                                        eventController
+                                                            .currentEvent
+                                                            .value
+                                                            .burGrades
+                                                            .length
+                                                ? Text(
+                                                    '  ${eventController.currentEvent.value.burGrades.where((item) => item.burGrade <= 0).length}  משתתפים לא קיבלו ציון סופי ',
+                                                    textDirection:
+                                                        TextDirection.rtl,
+                                                    style: TextStyle(
+                                                        color: Colors.red,
+                                                      fontWeight: FontWeight.bold,
+                                                        fontSize: scaledFontSize
+                                                    ),
+                                                  )
+                                                : SizedBox.shrink()
+                                          ],
+                                        ),
+                                ],
+                              ))
+                        : SingleChildScrollView(
+                            child: Center(
+                              child: Obx(() => eventController.loading.value
+                                  ? LinearProgressIndicator()
+                                  : Column(
+                                      children: [
+                                        SizedBox(
+                                          height: 20,
+                                        ),
+                                        SizedBox(
+                                          height: (eventController.currentEvent.value.activeParticipants.length / 3 + 2) < 2 
+                                              ? 120 
+                                              : ((eventController.currentEvent.value.activeParticipants.length / 3 + 2) * 55 * 0.8), // 20% smaller
+                                          child: GridView.count(
+                                              childAspectRatio: eventController.userChildAspectRatio.value,
+                                              crossAxisCount:
+                                                  eventController.numberOfCols,
+                                              children: List.generate(
+                                                  eventController
+                                                      .currentEvent
+                                                      .value
+                                                      .activeParticipants
+                                                      .length, (index) {
                                             int burIndex = eventController
                                                 .currentEvent.value.burGrades
                                                 .indexWhere((Bur bur) =>
@@ -172,90 +336,91 @@ class _BurPageState extends State<BurPage> {
                                                   )),
                                             );
                                           })),
-                                    ),
-                                    const Divider(
-                                      thickness: 30,
-                                    ),
-                                    _.currentEvent.value.burEndTime == null
-                                        ? Padding(
-                                            padding: const EdgeInsets.all(30.0),
-                                            child: ElevatedButton(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Theme.of(context).colorScheme.primary,
-                                                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                                ),
-                                                onPressed: () async {
-                                                  var res = await showDialog(
-                                                    context: context,
-                                                    builder:
-                                                        (BuildContext context) {
-                                                      return YesNoDialog();
+                                        ),
+                                        Divider(
+                                          thickness: dividerThickness,
+                                        ),
+                                        _.currentEvent.value.burEndTime == null
+                                            ? Padding(
+                                                padding: EdgeInsets.all(buttonPadding),
+                                                child: ElevatedButton(
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor: Theme.of(context).colorScheme.primary,
+                                                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                                    ),
+                                                    onPressed: () async {
+                                                      var res = await showDialog(
+                                                        context: context,
+                                                        builder:
+                                                            (BuildContext context) {
+                                                          return YesNoDialog();
+                                                        },
+                                                      );
+                                                      if (res) {
+                                                        eventController.loading.value =
+                                                        true;
+                                                        setState(() {
+                                                          _.currentEvent.value
+                                                              .burEndTime =
+                                                              DateTime.now();
+                                                        });
+                                                        _timer.cancel();
+                                                        eventController
+                                                            .currentEvent.value
+                                                            .saveToFirestore();
+                                                        eventController.loading.value =
+                                                        false;
+                                                      }
                                                     },
-                                                  );
-                                                  if (res) {
-                                                    eventController.loading.value =
-                                                    true;
-                                                    setState(() {
-                                                      _.currentEvent.value
-                                                          .burEndTime =
-                                                          DateTime.now();
-                                                    });
-                                                    _timer.cancel();
-                                                    eventController
-                                                        .currentEvent.value
-                                                        .saveToFirestore();
-                                                    eventController.loading.value =
-                                                    false;
-                                                  }
-                                                },
-                                                //eventController.currentEvent.value.save();
-                                                child: Text('סיום התרגיל',
-                                                  style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
-                                                )),
-                                          )
-                                        : Column(
-                                            children: [
-                                              SizedBox(
-                                                height: 20,
+                                                    //eventController.currentEvent.value.save();
+                                                    child: Text('סיום התרגיל',
+                                                      style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
+                                                    )),
+                                              )
+                                            : Column(
+                                                children: [
+                                                  SizedBox(
+                                                    height: 20,
+                                                  ),
+                                                  Text('  התרגיל הסתיים  ',
+                                                    style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
+                                                  ),
+                                                  SizedBox(
+                                                    height: 20,
+                                                  ),
+                                                  eventController.currentEvent.value
+                                                                  .burEndTime !=
+                                                              null &&
+                                                          eventController.currentEvent
+                                                                  .value.burGrades
+                                                                  .where((item) =>
+                                                                      item.burGrade >
+                                                                      0)
+                                                                  .length <
+                                                              eventController
+                                                                  .currentEvent
+                                                                  .value
+                                                                  .burGrades
+                                                                  .length
+                                                      ? Text(
+                                                          '  ${eventController.currentEvent.value.burGrades.where((item) => item.burGrade <= 0).length}  משתתפים לא קיבלו ציון סופי ',
+                                                          textDirection:
+                                                              TextDirection.rtl,
+                                                          style: TextStyle(
+                                                              color: Colors.red,
+                                                            fontWeight: FontWeight.bold,
+                                                              fontSize: eventController.userFontSize.value
+                                                          ),
+                                                        )
+                                                      : SizedBox.shrink()
+                                                ],
                                               ),
-                                              Text('  התרגיל הסתיים  ',
-                                                style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
-                                              ),
-                                              SizedBox(
-                                                height: 20,
-                                              ),
-                                              eventController.currentEvent.value
-                                                              .burEndTime !=
-                                                          null &&
-                                                      eventController.currentEvent
-                                                              .value.burGrades
-                                                              .where((item) =>
-                                                                  item.burGrade >
-                                                                  0)
-                                                              .length <
-                                                          eventController
-                                                              .currentEvent
-                                                              .value
-                                                              .burGrades
-                                                              .length
-                                                  ? Text(
-                                                      '  ${eventController.currentEvent.value.burGrades.where((item) => item.burGrade <= 0).length}  משתתפים לא קיבלו ציון סופי ',
-                                                      textDirection:
-                                                          TextDirection.rtl,
-                                                      style: TextStyle(
-                                                          color: Colors.red,
-                                                        fontWeight: FontWeight.bold,
-                                                          fontSize: eventController.userFontSize.value
-                                                      ),
-                                                    )
-                                                  : SizedBox.shrink()
-                                            ],
-                                          ),
-                                  ],
-                                )),
-                        )
+                                      ],
+                                    )),
+                            ),
+                          )
                       : Padding(
-                          padding: const EdgeInsets.only(top: 200),
+                          padding: EdgeInsets.only(top: tablet ? 300 : 200),
                           child: Center(
                             child: Obx(() => eventController.loading.value
                                 ? SizedBox(
@@ -267,6 +432,7 @@ class _BurPageState extends State<BurPage> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Theme.of(context).colorScheme.primary,
                                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                  minimumSize: tablet ? Size(200, 60) : null,
                                 ),
                                     onPressed: () async {
                                       _.loading.value = true;
@@ -290,11 +456,10 @@ class _BurPageState extends State<BurPage> {
                                     },
                                     child: Text(
                                       'תחילת תרגיל',
-                                      style: TextStyle(fontSize: eventController.userFontSize.value,fontWeight: FontWeight.bold),
+                                      style: TextStyle(fontSize: scaledFontSize,fontWeight: FontWeight.bold),
                                     ))),
                           ),
-                        ),
-                );
+                        );
               })),
         ));
   }

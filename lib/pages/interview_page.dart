@@ -5,6 +5,7 @@ import '../event_controller.dart';
 import 'package:get/get.dart';
 import '../widgets/comments_dialog.dart';
 import '../widgets/guideWebView.dart';
+import '../utils/tablet_utils.dart';
 
 
 class InterviewPage extends StatefulWidget {
@@ -36,8 +37,19 @@ class _InterviewPageState extends State<InterviewPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool tablet = isTablet(context);
+    double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
+    double dividerThickness = tablet ? 45.0 : 30.0;
+    
     return PopScope(
         canPop: false,
+        onPopInvoked: (didPop) {
+          if (!didPop) {
+            eventController.loading.value = true;
+            Get.back();
+            eventController.loading.value = false;
+          }
+        },
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -79,113 +91,103 @@ class _InterviewPageState extends State<InterviewPage> {
                   )
                 ],
               ),
-              body: GetX<EventController>(builder: (_) {
-                var h =
-                    eventController.currentEvent.value.activeParticipants.length /
-                            3 +
-                        2;
-                return SingleChildScrollView(
-                  child: Center(
-                    child: Obx(() => eventController.loading.value
-                        ? LinearProgressIndicator()
-                        : Column(
+              body: Obx(() => eventController.loading.value
+                  ? LinearProgressIndicator()
+                  : Column(
                       children: [
                         SizedBox(
                           height: 20,
                         ),
-                        SizedBox(
-                          height: h < 2 ? 120 : h * 55,
+                        Expanded(
                           child: GridView.count(
                               childAspectRatio: eventController.userChildAspectRatio.value,
                               crossAxisCount:
                               eventController.numberOfCols,
-                              children: List.generate(
-                                  eventController
-                                      .currentEvent
-                                      .value
-                                      .activeParticipants
-                                      .length, (index) {
-                                ;
-                                return Padding(
-                                  padding: const EdgeInsets.all(5.0),
-                                  child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                          foregroundColor: Colors.black,
-                                          backgroundColor:
-                                           eventController
+                                children: List.generate(
+                                    eventController
+                                        .currentEvent
+                                        .value
+                                        .activeParticipants
+                                        .length, (index) {
+                                  ;
+                                  return Padding(
+                                    padding: EdgeInsets.all(tablet ? 7.5 : 5.0),
+                                    child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                            foregroundColor: Colors.black,
+                                            backgroundColor:
+                                             eventController
+                                                .currentEvent
+                                                .value
+                                                .activeParticipants[
+                                            index]
+                                                .interviewInstructorComments
+                                                .isNotEmpty
+                                                ? Colors.green
+                                                : Theme.of(context).colorScheme.primary),
+                                        onPressed: () async {
+                                          if (eventController
                                               .currentEvent
                                               .value
-                                              .activeParticipants[
-                                          index]
-                                              .interviewInstructorComments
-                                              .isNotEmpty
-                                              ? Colors.green
-                                              : Theme.of(context).colorScheme.primary),
-                                      onPressed: () async {
-                                        if (eventController
-                                            .currentEvent
-                                            .value
-                                            .finalized) return;
-                                        print(eventController
-                                            .currentEvent
-                                            .value
-                                            .activeParticipants[index].interviewInstructorComments);
-                                        var res = await showDialog<List<String>>(
-                                            context: context,
-                                            builder: (BuildContext context) =>
-                                                CommentsDialog(
-                                                    commentsList: eventController.gradesData.listOfCommentsInterview,
-                                                    selectedComments: eventController
-                                                      .currentEvent
-                                                      .value
-                                                      .activeParticipants[index].interviewInstructorComments,
-                                                  title: eventController
+                                              .finalized) return;
+                                          print(eventController
+                                              .currentEvent
+                                              .value
+                                              .activeParticipants[index].interviewInstructorComments);
+                                          var res = await showDialog<List<String>>(
+                                              context: context,
+                                              builder: (BuildContext context) =>
+                                                  CommentsDialog(
+                                                      commentsList: eventController.gradesData.listOfCommentsInterview,
+                                                      selectedComments: eventController
+                                                        .currentEvent
+                                                        .value
+                                                        .activeParticipants[index].interviewInstructorComments,
+                                                    title: eventController
+                                                        .currentEvent
+                                                        .value
+                                                        .activeParticipants[index]
+                                                        .number.toString(),
+                                                  ));
+                                          if (res!=null) {
+                                            if (res.contains(ParticipantStatus.Droped.name)) {
+                                              print('dropped');
+                                              eventController.loading.value =
+                                              true;
+                                              eventController.dropParticipant(
+                                                  eventController
                                                       .currentEvent
                                                       .value
                                                       .activeParticipants[index]
-                                                      .number.toString(),
-                                                ));
-                                        if (res!=null) {
-                                          if (res.contains(ParticipantStatus.Droped.name)) {
-                                            print('dropped');
-                                            eventController.loading.value =
-                                            true;
-                                            eventController.dropParticipant(
-                                                eventController
-                                                    .currentEvent
-                                                    .value
-                                                    .activeParticipants[index]
-                                                    .number);
-                                            eventController.currentEvent.value.activeParticipants
-                                                .removeAt(index);
-                                            eventController.loading.value=false;
-                                          } else {
-                                            eventController.addInterviewComments(res,eventController
-                                                .currentEvent
-                                                .value
-                                                .activeParticipants[index]
-                                                .number);                                          }
-                                        }
-                                      },
-                                      child: Text(eventController
-                                          .currentEvent
-                                          .value
-                                          .activeParticipants[index]
-                                          .number
-                                          .toString(),
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
-                                      )),
-                                );
-                              })),
-                        ),
-                        const Divider(
-                          thickness: 30,
+                                                      .number);
+                                              eventController.currentEvent.value.activeParticipants
+                                                  .removeAt(index);
+                                              eventController.loading.value=false;
+                                            } else {
+                                              eventController.addInterviewComments(res,eventController
+                                                  .currentEvent
+                                                  .value
+                                                  .activeParticipants[index]
+                                                  .number);                                          }
+                                          }
+                                        },
+                                        child: Text(eventController
+                                            .currentEvent
+                                            .value
+                                            .activeParticipants[index]
+                                            .number
+                                            .toString(),
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                        )),
+                                  );
+                                })),
+                          ),
+                        Divider(
+                          thickness: dividerThickness,
                         ),
                       ],
                     )),
-                  ),
-                );
-              })),
+          ),
         ));
   }
 }

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../models/types.dart';
 import 'comments_dialog.dart';
 import 'alonka_credit_panel.dart';
+import '../utils/tablet_utils.dart';
 
 class AlonkaRoundPanel extends StatefulWidget {
   AlonkaRoundPanel({super.key, required this.round});
@@ -28,34 +29,40 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
 
   @override
   Widget build(BuildContext context) {
+    bool tablet = isTablet(context);
+    int crossAxisCount = tablet ? (eventController.numberOfCols + 1) : eventController.numberOfCols;
+    double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
+    double dividerThickness = tablet ? 45.0 : 30.0;
+    
     return GetX<EventController>(builder: (eventController) {
       eventController.currentAlonkaRound.value == widget.round.round;
       if (widget.round.activeParticipants.isNotEmpty) {
         var h = widget.round.activeParticipants.length / 3 + 2;
+        double heightMultiplier = tablet ? 1.3 : 1.0;
         return SizedBox(
-            height: h <= 3 ? 300 : h * 80,
+            height: h <= 3 ? (tablet ? 390 : 300) : (h * 80 * heightMultiplier),
             child: Center(
               child: Obx(() => eventController.loading.value
                   ? LinearProgressIndicator()
                   : Column(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        const Divider(
-                          thickness: 30,
+                        Divider(
+                          thickness: dividerThickness,
                         ),
                         Text('אלונקה  מקצה ${widget.round.round + 1}  ',
                             style: TextStyle(
-                                fontSize: 22, fontWeight: FontWeight.bold)),
+                                fontSize: tablet ? 28.0 : 22.0, fontWeight: FontWeight.bold)),
                         Expanded(
                             child: GridView.count(
                                 childAspectRatio:
                                     eventController.userChildAspectRatio.value,
-                                crossAxisCount: eventController.numberOfCols,
+                                crossAxisCount: crossAxisCount,
                                 children: List.generate(
                                     widget.round.activeParticipants.length,
                                     (index) {
                                   return Padding(
-                                    padding: const EdgeInsets.all(5.0),
+                                    padding: EdgeInsets.all(tablet ? 7.5 : 5.0),
                                     child: ElevatedButton(
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Theme.of(context)
@@ -152,8 +159,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                               .toString(),
                                           style: TextStyle(
                                               fontWeight: FontWeight.bold,
-                                              fontSize: eventController
-                                                  .userFontSize.value),
+                                              fontSize: scaledFontSize),
                                         )),
                                   );
                                 }))),
@@ -189,7 +195,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                               'סיים',
                               style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: eventController.userFontSize.value),
+                                  fontSize: scaledFontSize),
                             )),
                         SizedBox(
                             height: 110,
@@ -246,7 +252,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                   child: Text(
                                                     '$number', // Convert the number to a string
                                                     style: TextStyle(
-                                                        fontSize: 20,
+                                                        fontSize: tablet ? 28.0 : 20.0, // 40% bigger on tablets (20 * 1.4)
                                                         color:
                                                             Colors.orangeAccent,
                                                         fontWeight:
@@ -308,7 +314,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                   child: Text(
                                                     '$number', // Convert the number to a string
                                                     style: TextStyle(
-                                                        fontSize: 20,
+                                                        fontSize: tablet ? 28.0 : 20.0, // 40% bigger on tablets (20 * 1.4)
                                                         color: Colors.green,
                                                         fontWeight:
                                                             FontWeight.bold),
@@ -369,7 +375,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                               child: Text(
                                                 '$number', // Convert the number to a string
                                                 style: TextStyle(
-                                                    fontSize: 20,
+                                                    fontSize: tablet ? 28.0 : 20.0, // 40% bigger on tablets (20 * 1.4)
                                                     color: Colors.black,
                                                     fontWeight:
                                                         FontWeight.bold),
@@ -396,8 +402,8 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  const Divider(
-                    thickness: 30,
+                  Divider(
+                    thickness: dividerThickness,
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -417,8 +423,8 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                               },
                               icon: Icon(Icons.edit)),
                       Text(' ${widget.round.round + 1} אלונקה מקצה ',
-                          style: const TextStyle(
-                              fontSize: 22, fontWeight: FontWeight.bold)),
+                          style: TextStyle(
+                              fontSize: tablet ? 28.0 : 22.0, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   Row(
@@ -433,7 +439,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                 .toList()
                                 .toString(),
                             style: TextStyle(
-                                fontSize: 20,
+                                fontSize: tablet ? 28.0 : 20.0, // 40% bigger on tablets (20 * 1.4)
                                 color: Colors.orangeAccent,
                                 fontWeight: FontWeight.bold),
                           ),
@@ -451,8 +457,8 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                 .map((credit) => credit)
                                 .toList()
                                 .toString(),
-                            style: const TextStyle(
-                                fontSize: 20,
+                            style: TextStyle(
+                                fontSize: tablet ? 28.0 : 20.0, // 40% bigger on tablets (20 * 1.4)
                                 color: Colors.green,
                                 fontWeight: FontWeight.bold),
                           ),

@@ -10,6 +10,7 @@ import 'theme_controller.dart';
 import 'package:sairot/models/system.dart';
 import 'git_version.dart';
 import 'widgets/guideWebView.dart';
+import 'utils/tablet_utils.dart';
 
 
 
@@ -387,15 +388,23 @@ class _HomeState extends State<Home> {
                 ),
                 /// unfinalized events
                 Obx(() {
+                  bool tablet = isTablet(context);
+                  double maxWidth = tablet ? 600.0 : 400.0;
+                  
                   return !eventController.unfinalizedLoading.value
                       ? Expanded(
-                    child: ListView.builder(
-                      itemCount: eventController.unfinalizedEvents.length,
-                      itemBuilder: (context, index) {
-                        return UnfinalizedPanel(
-                            event:
-                            eventController.unfinalizedEvents[index]);
-                      },
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: maxWidth),
+                        child: ListView.builder(
+                          itemCount: eventController.unfinalizedEvents.length,
+                          itemBuilder: (context, index) {
+                            return UnfinalizedPanel(
+                                event:
+                                eventController.unfinalizedEvents[index]);
+                          },
+                        ),
+                      ),
                     ),
                   )
                       : SizedBox(
@@ -412,9 +421,17 @@ class _HomeState extends State<Home> {
                     fontStyle: FontStyle.italic,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 30.0, right: 30),
-                  child: Container(
+                Builder(
+                  builder: (context) {
+                    bool tablet = isTablet(context);
+                    double maxWidth = tablet ? 600.0 : 400.0;
+                    
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: maxWidth),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 30.0, right: 30),
+                          child: Container(
                     margin: EdgeInsets.symmetric(horizontal: 0, vertical: 10),
                     padding:
                     EdgeInsets.only(left: 40, right: 40, top: 10, bottom: 10),
@@ -585,7 +602,11 @@ class _HomeState extends State<Home> {
                         SizedBox(height: 10),
                       ],
                     ),
-                  ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 SizedBox(height: 50,)
               ]),

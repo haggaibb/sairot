@@ -3,6 +3,7 @@ import '../event_controller.dart';
 import 'package:get/get.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../widgets/guideWebView.dart';
+import '../utils/tablet_utils.dart';
 
 class GradesPage extends StatefulWidget {
   const GradesPage({super.key});
@@ -161,8 +162,40 @@ class _GradesPageState extends State<GradesPage> {
                 padding: const EdgeInsets.all(8), // Add padding for aesthetics
                 child: LayoutBuilder(
                   builder: (context, constraints) {
+                    bool tablet = isTablet(context);
                     double gridWidth = constraints.maxWidth; // Get available screen width
-                    double columnWidth = gridWidth / 7; // Divide evenly among 7 columns
+                    
+                    // For mobile, use original fixed widths. For tablets, use proportional widths
+                    double numberColumnWidth;
+                    double finalGradeWidth;
+                    double systemGradeWidth;
+                    double meeshulashWidth;
+                    double alonkaWidth;
+                    double burWidth;
+                    double sakimWidth;
+                    
+                    if (tablet) {
+                      // Calculate proportional widths for tablets
+                      double totalFixedWidth = 80 + 85 + 85 + 90 + 75 + 85;
+                      double availableWidth = gridWidth - totalFixedWidth;
+                      numberColumnWidth = availableWidth > 90 ? availableWidth : 90;
+                      double otherColumnsWidth = (gridWidth - numberColumnWidth) / 6;
+                      finalGradeWidth = otherColumnsWidth;
+                      systemGradeWidth = otherColumnsWidth;
+                      meeshulashWidth = otherColumnsWidth;
+                      alonkaWidth = otherColumnsWidth;
+                      burWidth = otherColumnsWidth;
+                      sakimWidth = otherColumnsWidth;
+                    } else {
+                      // Use original fixed widths for mobile (from the unused columns list)
+                      numberColumnWidth = 90;
+                      finalGradeWidth = 100;
+                      systemGradeWidth = 120;
+                      meeshulashWidth = 90;
+                      alonkaWidth = 90;
+                      burWidth = 70;
+                      sakimWidth = 70;
+                    }
 
                     return PlutoGrid(
                       mode: eventController.currentEvent.value.finalized
@@ -202,13 +235,13 @@ class _GradesPageState extends State<GradesPage> {
                           ),
                           field: 'number_field',
                           type: PlutoColumnType.number(),
-                          width: columnWidth,
+                          width: numberColumnWidth,
                         ),
                         PlutoColumn(
                           title: 'סופי',
                           field: 'final_grade_field',
                           type: PlutoColumnType.number(),
-                          width: 80,
+                          width: finalGradeWidth,
                         ),
                         PlutoColumn(
                           title: 'מערכת',
@@ -217,7 +250,7 @@ class _GradesPageState extends State<GradesPage> {
                           type: PlutoColumnType.number(
                             format: '#,##0.00', // Always shows 2 digits after the decimal
                           ),
-                          width: 85,
+                          width: systemGradeWidth,
                         ),
                         PlutoColumn(
                           title: 'משולש',
@@ -226,7 +259,7 @@ class _GradesPageState extends State<GradesPage> {
                           type: PlutoColumnType.number(
                             format: '#,##0.00', // Always shows 2 digits after the decimal
                           ),
-                          width: 85,
+                          width: meeshulashWidth,
                         ),
                         PlutoColumn(
                           title: 'אלונקה',
@@ -235,7 +268,7 @@ class _GradesPageState extends State<GradesPage> {
                           type: PlutoColumnType.number(
                             format: '#,##0.00', // Always shows 2 digits after the decimal
                           ),
-                          width: 90,
+                          width: alonkaWidth,
                         ),
                         PlutoColumn(
                           title: 'בור',
@@ -244,7 +277,7 @@ class _GradesPageState extends State<GradesPage> {
                           type: PlutoColumnType.number(
                             format: '#,##0.00', // Always shows 2 digits after the decimal
                           ),
-                          width: 75,
+                          width: burWidth,
                         ),
                         PlutoColumn(
                           title: 'שקים',
@@ -253,7 +286,7 @@ class _GradesPageState extends State<GradesPage> {
                           type: PlutoColumnType.number(
                             format: '#,##0.00', // Always shows 2 digits after the decimal
                           ),
-                          width: 85,
+                          width: sakimWidth,
                         ),
                       ],
                       rows: List.generate(

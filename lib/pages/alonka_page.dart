@@ -7,6 +7,7 @@ import '../widgets/alonka_round_panel.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
+import '../utils/tablet_utils.dart';
 
 class AlonkaPage extends StatefulWidget {
   const AlonkaPage({super.key});
@@ -64,6 +65,10 @@ class _AlonkaPageState extends State<AlonkaPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool tablet = isTablet(context);
+    double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
+    double buttonPadding = tablet ? 45.0 : 30.0;
+    
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -183,8 +188,8 @@ class _AlonkaPageState extends State<AlonkaPage> {
                               );
                             }),
                           )),
-                    const Divider(
-                      thickness: 30,
+                    Divider(
+                      thickness: tablet ? 45.0 : 30.0,
                     ),
 
                     /// widget loading indicator
@@ -198,6 +203,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
                           Theme.of(context).colorScheme.primary,
                           foregroundColor:
                           Theme.of(context).colorScheme.onPrimary,
+                          minimumSize: tablet ? Size(200, 60) : null,
                         ),
                         onPressed: () async {
                           _.loading.value = true;
@@ -236,8 +242,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
                               ? 'התחל סיבוב חדש (צא)'
                               : 'תחילת תרגיל',
                           style: TextStyle(
-                              fontSize:
-                              eventController.userFontSize.value,
+                              fontSize: scaledFontSize,
                               fontWeight: FontWeight.bold),
                         ))),
                     Obx(() => eventController.widgetLoading.value
@@ -257,6 +262,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
                                       Theme.of(context).colorScheme.primary,
                                   foregroundColor:
                                       Theme.of(context).colorScheme.onPrimary,
+                                  minimumSize: tablet ? Size(200, 60) : null,
                                 ),
                                 onPressed: () async {
                                   _.loading.value = true;
@@ -293,8 +299,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
                                 child: Text(
                                   'התחל סיבוב חדש (צא)',
                                   style: TextStyle(
-                                      fontSize:
-                                          eventController.userFontSize.value,
+                                      fontSize: scaledFontSize,
                                       fontWeight: FontWeight.bold),
                                 ))),
                     SizedBox(
@@ -310,6 +315,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
                                   Theme.of(context).colorScheme.primary,
                               foregroundColor:
                                   Theme.of(context).colorScheme.onPrimary,
+                              minimumSize: tablet ? Size(200, 60) : null,
                             ),
                             onPressed: () async {
                               var res = await showDialog(
@@ -333,15 +339,14 @@ class _AlonkaPageState extends State<AlonkaPage> {
                               'סיום התרגיל',
                               style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: eventController.userFontSize.value),
+                                  fontSize: scaledFontSize),
                             ))
                         : _.currentEvent.value.alonkaEndTime != null
                             ? Text(
                                 '  התרגיל הסתיים  ',
                                 style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize:
-                                        eventController.userFontSize.value),
+                                    fontSize: scaledFontSize),
                               )
                             : SizedBox.shrink(),
                     SizedBox(

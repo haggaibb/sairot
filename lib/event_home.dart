@@ -7,6 +7,7 @@ import 'theme_controller.dart';
 import 'widgets/strobe_button.dart';
 import 'models/system.dart';
 import 'widgets/guideWebView.dart';
+import 'utils/tablet_utils.dart';
 
 class EventHome extends StatefulWidget {
   const EventHome({super.key});
@@ -21,9 +22,14 @@ class _EventHomeState extends State<EventHome> {
 
 
 
-  Widget _buildShiningButton(dynamic icon, String title, VoidCallback onTap) {
+  Widget _buildShiningButton(BuildContext context, dynamic icon, String title, VoidCallback onTap) {
+    bool tablet = isTablet(context);
+    double fontSize = tablet ? 24.0 : 15.36; // 12.8 * 1.2 = 15.36 (20% bigger for mobile)
+    double iconSize = tablet ? 100.0 : 76.8; // 64.0 * 1.2 = 76.8 (20% bigger for mobile)
+    double imageScale = tablet ? 5.0 : 6.25; // 7.5 / 1.2 = 6.25 (20% bigger image for mobile)
+    
     return Padding(
-      padding: const EdgeInsets.all(15.0),
+      padding: const EdgeInsets.all(12.0),
       child: ShiningButton(
         onPressed: onTap,
         borderColor: Colors.black,
@@ -32,9 +38,9 @@ class _EventHomeState extends State<EventHome> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             icon is String
-                ? Image.asset(icon, scale: 6, color: Colors.black)
-                : Icon(icon, size: 80, color: Colors.black),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ? Image.asset(icon, scale: imageScale, color: Colors.black)
+                : Icon(icon, size: iconSize, color: Colors.black),
+            Text(title, style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -340,19 +346,19 @@ class _EventHomeState extends State<EventHome> {
                     padding: const EdgeInsets.symmetric(horizontal: 20.0),
                     child: GridView.count(
                       crossAxisCount: 2,
-                      childAspectRatio: 1.2,
+                      childAspectRatio: isTablet(context) ? 1.5 : 1.25, // 1.5 / 1.2 = 1.25 (20% bigger buttons for mobile)
                       physics: NeverScrollableScrollPhysics(), // 🔹 Prevents internal scrolling
                       shrinkWrap: true, // 🔹 Allows it to wrap only required space
                       children: [
-                        _buildShiningButton('images/meeshulash.png', 'משולש', () => Get.toNamed('/meshulash')),
-                        _buildShiningButton('images/alonka.png', 'אלונקה', () {
+                        _buildShiningButton(context, 'images/meeshulash.png', 'משולש', () => Get.toNamed('/meshulash')),
+                        _buildShiningButton(context, 'images/alonka.png', 'אלונקה', () {
                           eventController.currentAlonkaRound.value = eventController.currentEvent.value.alonkaSprints.length;
                           Get.toNamed('/alonka');
                         }),
-                        _buildShiningButton('images/bur.png', 'בור', () => Get.toNamed('/bur')),
-                        _buildShiningButton('images/sakim.png', 'שקים', () => Get.toNamed('/sakim')),
-                        _buildShiningButton(Icons.star, 'מנהיגות', () => Get.toNamed('/leadership')),
-                        _buildShiningButton(Icons.note_alt_sharp, 'ראיון אישי', () => Get.toNamed('/interview')),
+                        _buildShiningButton(context, 'images/bur.png', 'בור', () => Get.toNamed('/bur')),
+                        _buildShiningButton(context, 'images/sakim.png', 'שקים', () => Get.toNamed('/sakim')),
+                        _buildShiningButton(context, Icons.star, 'מנהיגות', () => Get.toNamed('/leadership')),
+                        _buildShiningButton(context, Icons.note_alt_sharp, 'ראיון אישי', () => Get.toNamed('/interview')),
                       ],
                     ),
                   );
@@ -363,21 +369,33 @@ class _EventHomeState extends State<EventHome> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
                   child: Obx(() {
+                    bool tablet = isTablet(context);
+                    double buttonFontSize = tablet 
+                        ? getTabletScaledFontSize(context, eventController.userFontSize.value) - 5
+                        : eventController.userFontSize.value - 5;
+                    double buttonHeight = tablet ? 150.0 : 100.0;
+                    
                     return SizedBox(
-                      height: 100,
+                      height: buttonHeight,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: tablet ? Size(200, 70) : null,
+                              ),
                               onPressed: () => Get.toNamed('/grades_page'),
                               child: Text(
                                 'ציונים',
-                                style: TextStyle(fontSize: eventController.userFontSize.value - 5, fontWeight: FontWeight.bold),
+                                style: TextStyle(fontSize: buttonFontSize, fontWeight: FontWeight.bold),
                               )),
                           ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: tablet ? Size(200, 70) : null,
+                              ),
                               onPressed: () => Get.toNamed('/participants_status'),
                               child: Text('סטטוס חניכים',
-                                  style: TextStyle(fontSize: eventController.userFontSize.value - 5, fontWeight: FontWeight.bold))),
+                                  style: TextStyle(fontSize: buttonFontSize, fontWeight: FontWeight.bold))),
                         ],
                       ),
                     );

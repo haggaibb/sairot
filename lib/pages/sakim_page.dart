@@ -8,6 +8,7 @@ import '../widgets/sakim_grid_view.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
+import '../utils/tablet_utils.dart';
 
 class SakimPage extends StatefulWidget {
   const SakimPage({super.key});
@@ -65,6 +66,11 @@ class _SakimPageState extends State<SakimPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool tablet = isTablet(context);
+    double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
+    double buttonPadding = tablet ? 45.0 : 30.0;
+    double dividerThickness = tablet ? 45.0 : 30.0;
+    
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -131,11 +137,12 @@ class _SakimPageState extends State<SakimPage> {
                         Expanded(child: SakimGridView()),
                         if (eventController.currentEvent.value.sakimEndTime == null)
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Theme.of(context).colorScheme.primary,
                                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                minimumSize: tablet ? Size(200, 60) : null,
                               ),
                               onPressed: () async {
                                 var res = await showDialog(
@@ -155,12 +162,12 @@ class _SakimPageState extends State<SakimPage> {
                                 }
                               },
                               child: Text('סיום התרגיל',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                               )),
                           )
                         else
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
                             child: Column(
                               children: [
                                 eventController.currentEvent.value.finalized
@@ -180,16 +187,16 @@ class _SakimPageState extends State<SakimPage> {
                                             : const Icon(Icons.edit),
                                         label: editModeOn
                                             ? Text('סיים',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                             )
                                             : Text('עריכה',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                             ),
                                         iconAlignment: IconAlignment.start,
                                       ),
                                 SizedBox(height: 20),
                                 Text('  התרגיל הסתיים  ',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                 ),
                               ],
                             ),
@@ -226,8 +233,8 @@ class _SakimPageState extends State<SakimPage> {
                                     );
                                   }),
                                 ),
-                                const Divider(
-                                  thickness: 30,
+                                Divider(
+                                  thickness: dividerThickness,
                                 ),
                                 SizedBox(
                                   height: 20,
@@ -237,11 +244,12 @@ class _SakimPageState extends State<SakimPage> {
                                     ? Column(
                                       children: [
                                         Padding(
-                                            padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
                                             child: ElevatedButton(
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: Theme.of(context).colorScheme.primary,
                                                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                                  minimumSize: tablet ? Size(200, 60) : null,
                                                 ),
                                                 onPressed: () async {
                                                   var res = await showDialog(
@@ -266,14 +274,14 @@ class _SakimPageState extends State<SakimPage> {
                                                 },
                                                 //eventController.currentEvent.value.save();
                                                 child: Text('סיום התרגיל',
-                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                                 )),
                                           ),
                                         SizedBox(height: 50,)
                                       ],
                                     )
                                     : Padding(
-                                        padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                                        padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
                                         child: Column(
                                           children: [
                                             eventController
@@ -299,10 +307,10 @@ class _SakimPageState extends State<SakimPage> {
                                                         : const Icon(Icons.edit),
                                                     label: editModeOn
                                                         ? Text('סיים',
-                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                                         )
                                                         : Text('עריכה',
-                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                                         ),
                                                     iconAlignment:
                                                         IconAlignment.start,
@@ -311,7 +319,7 @@ class _SakimPageState extends State<SakimPage> {
                                               height: 20,
                                             ),
                                             Text('  התרגיל הסתיים  ',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                             ),
                                           ],
                                         ),
@@ -320,7 +328,7 @@ class _SakimPageState extends State<SakimPage> {
                             )),
                     )
                   : Padding(
-                      padding: const EdgeInsets.only(top: 200),
+                      padding: EdgeInsets.only(top: tablet ? 300 : 200),
                       child: Center(
                         child: Obx(() => eventController.loading.value
                             ? SizedBox(
@@ -334,6 +342,7 @@ class _SakimPageState extends State<SakimPage> {
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Theme.of(context).colorScheme.primary,
                                         foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                        minimumSize: tablet ? Size(200, 60) : null,
                                       ),
                                       onPressed: () async {
                                         setState(() {
@@ -356,7 +365,7 @@ class _SakimPageState extends State<SakimPage> {
                                       },
                                       child: Text(
                                         'תחילת תרגיל',
-                                        style: TextStyle(fontSize: eventController.userFontSize.value, fontWeight: FontWeight.bold),
+                                        style: TextStyle(fontSize: scaledFontSize, fontWeight: FontWeight.bold),
                                       )),
                                 ],
                               )),

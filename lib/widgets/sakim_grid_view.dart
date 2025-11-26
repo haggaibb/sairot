@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'comments_dialog.dart';
 import 'package:sairot/models/sakim_round.dart';
 import '../models/types.dart';
+import '../utils/tablet_utils.dart';
 
 class SakimGridView extends StatelessWidget {
   const SakimGridView({super.key});
@@ -11,6 +12,8 @@ class SakimGridView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final eventController = Get.put(EventController());
+    bool tablet = isTablet(context);
+    double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
     
     return GetX<EventController>(builder: (_) {
       // Get all active participants
@@ -27,7 +30,7 @@ class SakimGridView extends StatelessWidget {
 
       return GridView.count(
         childAspectRatio: _.userChildAspectRatio.value,
-        crossAxisCount: 3,
+        crossAxisCount: tablet ? 4 : 3,
         mainAxisSpacing: 5,
         crossAxisSpacing: 3,
         padding: EdgeInsets.all(3),
@@ -113,7 +116,7 @@ class SakimGridView extends StatelessWidget {
                       participantNumber.toString(),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: _.userFontSize.value,
+                        fontSize: scaledFontSize,
                       ),
                       ),
                     ),
@@ -131,7 +134,7 @@ class SakimGridView extends StatelessWidget {
                       child: Text(
                         currentRound.toString(),
                         style: TextStyle(
-                          fontSize: _.userFontSize.value * 1.0,
+                          fontSize: scaledFontSize * 1.0,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),

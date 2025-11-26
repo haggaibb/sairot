@@ -8,6 +8,7 @@ import '../widgets/meshulash_grid_view.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
+import '../utils/tablet_utils.dart';
 
 class MeshulashPage extends StatefulWidget {
   const MeshulashPage({super.key});
@@ -64,6 +65,11 @@ class _MeshulashPageState extends State<MeshulashPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool tablet = isTablet(context);
+    double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
+    double buttonPadding = tablet ? 45.0 : 30.0;
+    double dividerThickness = tablet ? 45.0 : 30.0;
+    
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -130,11 +136,12 @@ class _MeshulashPageState extends State<MeshulashPage> {
                         Expanded(child: MeshulashGridView()),
                         if (eventController.currentEvent.value.meshulashEndTime == null)
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Theme.of(context).colorScheme.primary,
                                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                minimumSize: tablet ? Size(200, 60) : null,
                               ),
                               onPressed: () async {
                                 var res = await showDialog(
@@ -154,12 +161,12 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                 }
                               },
                               child: Text('סיום התרגיל',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                               )),
                           )
                         else
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
                             child: Column(
                               children: [
                                 eventController.currentEvent.value.finalized
@@ -179,16 +186,16 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                             : const Icon(Icons.save),
                                         label: !editModeOn
                                             ? Text('סיים',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                             )
                                             : Text('עריכה',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                             ),
                                         iconAlignment: IconAlignment.start,
                                       ),
                                 SizedBox(height: 20),
                                 Text('  התרגיל הסתיים  ',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                 ),
                               ],
                             ),
@@ -225,20 +232,21 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                     );
                                   }),
                                 ),
-                                const Divider(
-                                  thickness: 30,
+                                Divider(
+                                  thickness: dividerThickness,
                                 ),
                                 eventController.currentEvent.value
                                             .meshulashEndTime ==
                                         null
                                     ? Padding(
-                                        padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                                        padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
                                         child: Column(
                                           children: [
                                             ElevatedButton(
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: Theme.of(context).colorScheme.primary,
                                                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                                  minimumSize: tablet ? Size(200, 60) : null,
                                                 ),
                                                 onPressed: () async {
                                                   var res = await showDialog(
@@ -266,14 +274,14 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                                   }
                                                 },
                                                 child: Text('סיום התרגיל',
-                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                                 )),
                                             SizedBox(height: 50)
                                           ],
                                         ),
                                       )
                                     : Padding(
-                                        padding: const EdgeInsets.fromLTRB(30.0, 30.0, 30.0, 80.0),
+                                        padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
                                         child: Column(
                                           children: [
                                             eventController
@@ -301,10 +309,10 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                                         : const Icon(Icons.save),
                                                     label: !editModeOn
                                                         ? Text('סיים',
-                                                          style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
+                                                          style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
                                                         )
                                                         : Text('עריכה',
-                                                          style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
+                                                          style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
                                                         ),
                                                     iconAlignment:
                                                         IconAlignment.start,
@@ -313,7 +321,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                               height: 20,
                                             ),
                                             Text('  התרגיל הסתיים  ',
-                                              style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
+                                              style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
                                             ),
                                           ],
                                         ),
@@ -328,7 +336,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
                           child: CircularProgressIndicator(),
                         )
                       : Padding(
-                          padding: const EdgeInsets.only(top: 200),
+                          padding: EdgeInsets.only(top: tablet ? 300 : 200),
                           child: Column(
                             children: [
                               Obx(() => eventController.loading.value
@@ -352,6 +360,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                           foregroundColor: Theme.of(context)
                                               .colorScheme
                                               .onPrimary,
+                                          minimumSize: tablet ? Size(200, 60) : null,
                                         ),
                                         onPressed: () async {
                                           setState(() {
@@ -376,7 +385,7 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                         },
                                         child: Text(
                                           'תחילת תרגיל',
-                                          style: TextStyle(fontSize: eventController.userFontSize.value-5, fontWeight: FontWeight.bold ),
+                                          style: TextStyle(fontSize: tablet ? scaledFontSize - 5 : eventController.userFontSize.value - 5, fontWeight: FontWeight.bold ),
                                         ))),
                               ),
                             ],

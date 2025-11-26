@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:sairot/models/meshulash_round.dart';
 import '../widgets/comments_dialog.dart';
 import '../models/types.dart';
+import '../utils/tablet_utils.dart';
 
 class MeshulashRoundPanel extends StatefulWidget {
 
@@ -23,29 +24,33 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
 
   @override
   Widget build(BuildContext context) {
+    bool tablet = isTablet(context);
+    int crossAxisCount = tablet ? (eventController.numberOfCols + 1) : eventController.numberOfCols;
+    
     return GetX<EventController>(builder: (eventController) {
       var h = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound.length / 3 + 2;
         if (eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound.isEmpty) return SizedBox();
+        double heightMultiplier = tablet ? 1.3 : 1.0;
         return SizedBox(
-            height: h < 2 ? 120 : h * 55,
+            height: h < 2 ? (tablet ? 156 : 120) : (h * 55 * heightMultiplier),
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  const Divider(
-                    thickness: 30,
+                  Divider(
+                    thickness: tablet ? 45.0 : 30.0,
                   ),
                       widget.round.round==0?SizedBox.shrink():Text('משלוש מקצה ${widget.round.round}  ',
                       style:
-                      TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      TextStyle(fontSize: tablet ? 28.0 : 22.0, fontWeight: FontWeight.bold)),
                   Expanded(
                       child: GridView.count(
                           childAspectRatio: eventController.userChildAspectRatio.value,
-                          crossAxisCount: eventController.numberOfCols,
+                          crossAxisCount: crossAxisCount,
                           children: List.generate(
                               eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound.length, (index) {
                               return Padding(
-                                padding: const EdgeInsets.all(5.0),
+                                padding: EdgeInsets.all(tablet ? 7.5 : 5.0),
                                 child: GestureDetector(
                                   onDoubleTap: () {
                                     if (eventController.meshulashEditModeOn.value) {
@@ -116,7 +121,7 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                       },
                                       child: Text(
                                           eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index].toString(),
-                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: getTabletScaledFontSize(context, eventController.userFontSize.value)),
                                       ),
                                   ),
                                 ),
