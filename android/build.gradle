@@ -1,6 +1,6 @@
 buildscript {
     // ✅ define kotlin_version OUTSIDE repositories
-    ext.kotlin_version = '1.9.10'
+    ext.kotlin_version = '2.1.0'
 
     repositories {
         google()
