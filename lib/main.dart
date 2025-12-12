@@ -13,9 +13,6 @@ import 'pages/grades_page.dart';
 import 'pages/performance_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'pages/login_page.dart';
-import 'admin/admin_home.dart';
-import 'admin/admin_event_report_page.dart';
-import 'admin/admin_live_event_page.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'pages/interview_page.dart';
 import 'pages/leadership_page.dart';
@@ -97,18 +94,6 @@ void main() async {
               GetPage(
                 name: '/performance_page/:number',
                 page: () => PerformancePage(),
-              ),
-              GetPage(
-                name: '/admin',
-                page: () => AdminHome(),
-              ),
-              GetPage(
-                name: '/admin_event_report_page',
-                page: () => AdminEventReportPage(),
-              ),
-              GetPage(
-                name: '/admin_live_event_page',
-                page: () => AdminLiveEventPage(),
               ),
               GetPage(
                 name: '/leadership',

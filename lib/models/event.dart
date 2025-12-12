@@ -142,7 +142,6 @@ class Event {
 
   /// Save Event instance to Firestore
   Future<bool> saveToFirestore() async {
-    print("Try and Save to Firestore: $eventName - $date");
     try {
       lastUpdate = DateTime.now();
       await FirebaseFirestore.instance
@@ -153,10 +152,9 @@ class Event {
           .collection('days')
           .doc(date)
           .set(toJson());
-      print("✅ Event saved successfully: $eventName - $date");
       return true;
     } catch (e) {
-      print("❌ Error saving Event to Firestore: $e");
+      print("❌ Error saving Event to Firestore: $eventName - $date: $e");
       return false;
     }
   }

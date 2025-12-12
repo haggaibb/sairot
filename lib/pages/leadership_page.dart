@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sairot/models/participant.dart';
 import '../models/types.dart';
 import '../event_controller.dart';
@@ -32,14 +33,31 @@ class _LeadershipPageState extends State<LeadershipPage> {
 
   @override
   void dispose() {
+    // Restore portrait-only orientation when leaving
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     bool tablet = isTablet(context);
+    final orientation = MediaQuery.of(context).orientation;
+    bool isLandscape = orientation == Orientation.landscape;
     double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
-    double dividerThickness = tablet ? 45.0 : 30.0;
+    double dividerThickness = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
+    
+    // Allow landscape orientation for tablets
+    if (tablet) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     
     return PopScope(
         canPop: false,
@@ -100,8 +118,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
                         Expanded(
                           child: GridView.count(
                               childAspectRatio: eventController.userChildAspectRatio.value,
-                              crossAxisCount:
-                              eventController.numberOfCols,
+                              crossAxisCount: isLandscape && tablet ? 4 : eventController.numberOfCols,
                                 children: List.generate(
                                     eventController
                                         .currentEvent
@@ -148,7 +165,6 @@ class _LeadershipPageState extends State<LeadershipPage> {
                                                   ));
                                           if (res!=null) {
                                             if (res.contains(ParticipantStatus.Droped.name)) {
-                                              print('dropped');
                                               eventController.loading.value =
                                               true;
                                               eventController.dropParticipant(

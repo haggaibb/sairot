@@ -36,9 +36,8 @@ class Bur {
           .collection('burGrades') // Nested collection for Bur grades
           .doc(id.toString()) // Using ID as document name
           .set(toJson());
-      print("✅ Bur saved successfully: $id");
     } catch (e) {
-      print("❌ Error saving Bur to Firestore: $e");
+      print("❌ Error saving Bur to Firestore: $id: $e");
     }
   }
 

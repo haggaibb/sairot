@@ -5,6 +5,7 @@ import 'package:sairot/models/meshulash_round.dart';
 import '../widgets/comments_dialog.dart';
 import '../models/types.dart';
 import '../utils/tablet_utils.dart';
+import '../models/system.dart';
 
 class MeshulashGridView extends StatelessWidget {
   const MeshulashGridView({super.key});
@@ -28,9 +29,30 @@ class MeshulashGridView extends StatelessWidget {
         );
       }
 
+      // For tablets, use 3 columns if font size is increased (big or biggest)
+      // In landscape mode, always use 4 columns
+      final orientation = MediaQuery.of(context).orientation;
+      bool isLandscape = orientation == Orientation.landscape;
+      
+      int crossAxisCount;
+      if (tablet) {
+        if (isLandscape) {
+          crossAxisCount = 4;
+        } else if (_.system.value.accessibility == Accessibility.big || 
+            _.system.value.accessibility == Accessibility.biggest) {
+          crossAxisCount = 3;
+        } else {
+          crossAxisCount = 4;
+        }
+      } else {
+        crossAxisCount = 3;
+      }
+
       return GridView.count(
+        shrinkWrap: true,
+        physics: NeverScrollableScrollPhysics(),
         childAspectRatio: _.userChildAspectRatio.value,
-        crossAxisCount: tablet ? 4 : 3,
+        crossAxisCount: crossAxisCount,
         mainAxisSpacing: 5,
         crossAxisSpacing: 3,
         padding: EdgeInsets.all(3),
@@ -71,7 +93,6 @@ class MeshulashGridView extends StatelessWidget {
                     onPressed: () {
                       if (_.meshulashEditModeOn.value) {
                         _.loading.value = true;
-                        print(currentRound);
                         if (_.currentEvent.value.meshulashRounds.length == currentRound + 1) {
                           _.currentEvent.value.meshulashRounds.add(
                             MeshulashRound(
@@ -101,7 +122,6 @@ class MeshulashGridView extends StatelessWidget {
                       );
                       if (res != null) {
                         if (res.contains(ParticipantStatus.Droped.name)) {
-                          print('dropped');
                           _.loading.value = true;
                           _.dropParticipant(participantNumber);
                           // Remove from current round if exists

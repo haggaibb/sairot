@@ -12,3 +12,5 @@ double getTabletScaledFontSize(BuildContext context, double fontSize) {
   return isTablet(context) ? fontSize * 1.3 : fontSize;
 }
 
+
+

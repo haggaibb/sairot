@@ -45,6 +45,7 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                       TextStyle(fontSize: tablet ? 28.0 : 22.0, fontWeight: FontWeight.bold)),
                   Expanded(
                       child: GridView.count(
+                          physics: NeverScrollableScrollPhysics(),
                           childAspectRatio: eventController.userChildAspectRatio.value,
                           crossAxisCount: crossAxisCount,
                           children: List.generate(
@@ -70,7 +71,6 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                       onPressed: () {
                                         if (eventController.meshulashEditModeOn.value) {
                                           eventController.loading.value = true;
-                                          print(widget.round.round);
                                           if (eventController.currentEvent.value.meshulashRounds.length == widget.round.round+1) {
                                             eventController.currentEvent.value.meshulashRounds.add(
                                                 MeshulashRound(
@@ -106,7 +106,6 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                             ));
                                         if (res!=null) {
                                           if (res.contains(ParticipantStatus.Droped.name)) {
-                                            print('dropped');
                                             eventController.loading.value =
                                             true;
                                             eventController.dropParticipant(

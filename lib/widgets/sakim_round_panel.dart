@@ -48,6 +48,7 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                     TextStyle(fontSize: tablet ? 28.0 : 22.0, fontWeight: FontWeight.bold)),
                 Expanded(
                     child: GridView.count(
+                        physics: NeverScrollableScrollPhysics(),
                         childAspectRatio: eventController.userChildAspectRatio.value,
                         crossAxisCount: crossAxisCount,
                         children: List.generate(

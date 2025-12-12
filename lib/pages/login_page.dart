@@ -75,10 +75,7 @@ login() async {
           resizeToAvoidBottomInset: true,  // 👈 Ensures UI adjusts for the keyboard
           appBar: AppBar(
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: GestureDetector(
-              child: Text('ימי סיירות'),
-              onLongPress: () => {Get.toNamed('/admin')},
-            ),
+            title: Text('ימי סיירות'),
             centerTitle: true,
           ),
           body: SingleChildScrollView(  // 👈 Wrap entire content to enable scrolling

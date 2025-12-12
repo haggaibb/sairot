@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sairot/models/alonka_sprint.dart';
 import 'package:sairot/models/types.dart';
 import '../event_controller.dart';
@@ -60,14 +61,33 @@ class _AlonkaPageState extends State<AlonkaPage> {
   void dispose() {
     if (eventController.currentEvent.value.alonkaEndTime == null)
       _timer.cancel(); // Stop timer when widget is disposed
+    
+    // Restore portrait-only orientation when leaving
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     bool tablet = isTablet(context);
+    final orientation = MediaQuery.of(context).orientation;
+    bool isLandscape = orientation == Orientation.landscape;
     double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
-    double buttonPadding = tablet ? 45.0 : 30.0;
+    double buttonPadding = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
+    
+    // Allow landscape orientation for tablets
+    if (tablet) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     
     return Container(
       decoration: BoxDecoration(
@@ -146,58 +166,65 @@ class _AlonkaPageState extends State<AlonkaPage> {
             return SingleChildScrollView(
               controller: _scrollController,
               child: Center(
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          ' דקות  ',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          runTime.toString(),
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '  משך התרגיל  ',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        )
-                      ],
-                    ),
-                    SizedBox(
-                      height: 15,
-                    ),
-                    Obx(() => eventController.loading.value
-                        ? SizedBox(
-                            height: 100,
-                            width: 100,
-                            child: CircularProgressIndicator(),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: tablet ? 20.0 : 16.0),
+                  child: Column(
+                    children: [
+                      SizedBox(height: tablet ? 20.0 : 16.0),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            ' דקות  ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            runTime.toString(),
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '  משך התרגיל  ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           )
-                        : Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: List.generate(
-                                _.currentEvent.value.alonkaSprints.length,
-                                (index) {
-                              return Padding(
-                                padding: const EdgeInsets.all(5.0),
-                                child: AlonkaRoundPanel(
-                                  round:
-                                      _.currentEvent.value.alonkaSprints[index],
-                                ),
-                              );
-                            }),
-                          )),
-                    Divider(
-                      thickness: tablet ? 45.0 : 30.0,
-                    ),
+                        ],
+                      ),
+                      SizedBox(
+                        height: tablet ? 25.0 : 20.0,
+                      ),
+                      Obx(() => eventController.loading.value
+                          ? SizedBox(
+                              height: 100,
+                              width: 100,
+                              child: CircularProgressIndicator(),
+                            )
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: List.generate(
+                                  _.currentEvent.value.alonkaSprints.length,
+                                  (index) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(5.0),
+                                  child: AlonkaRoundPanel(
+                                    round:
+                                        _.currentEvent.value.alonkaSprints[index],
+                                  ),
+                                );
+                              }),
+                            )),
+                      SizedBox(height: tablet ? 20.0 : 15.0),
+                      Divider(
+                        thickness: tablet ? 45.0 : 30.0,
+                      ),
+                      SizedBox(height: tablet ? 25.0 : 20.0),
 
-                    /// widget loading indicator
-                    /// show hide start Alonka Exam
-                    Obx(() => eventController.loading.value || eventController.currentEvent.value
-                        .alonkaStartTime != null
-                        ?  SizedBox.shrink()
-                        :  ElevatedButton (
+                      /// widget loading indicator
+                      /// show hide start Alonka Exam
+                      Obx(() => eventController.loading.value || eventController.currentEvent.value
+                          .alonkaStartTime != null
+                          ?  SizedBox.shrink()
+                          :  Padding(
+                            padding: EdgeInsets.symmetric(horizontal: tablet ? 20.0 : 16.0),
+                            child: ElevatedButton (
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
                           Theme.of(context).colorScheme.primary,
@@ -244,7 +271,9 @@ class _AlonkaPageState extends State<AlonkaPage> {
                           style: TextStyle(
                               fontSize: scaledFontSize,
                               fontWeight: FontWeight.bold),
-                        ))),
+                        ),
+                            ),
+                          )),
                     Obx(() => eventController.widgetLoading.value
                         ? Padding(
                           padding: const EdgeInsets.all(12.0),
@@ -354,6 +383,7 @@ class _AlonkaPageState extends State<AlonkaPage> {
                     ),
                   ],
                 ),
+                  ),
               ),
             );
           })),

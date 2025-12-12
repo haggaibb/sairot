@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sairot/models/participant.dart';
 import '../models/types.dart';
 import '../event_controller.dart';
@@ -32,14 +33,31 @@ class _InterviewPageState extends State<InterviewPage> {
 
   @override
   void dispose() {
+    // Restore portrait-only orientation when leaving
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     bool tablet = isTablet(context);
+    final orientation = MediaQuery.of(context).orientation;
+    bool isLandscape = orientation == Orientation.landscape;
     double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
-    double dividerThickness = tablet ? 45.0 : 30.0;
+    double dividerThickness = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
+    
+    // Allow landscape orientation for tablets
+    if (tablet) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     
     return PopScope(
         canPop: false,
@@ -101,8 +119,7 @@ class _InterviewPageState extends State<InterviewPage> {
                         Expanded(
                           child: GridView.count(
                               childAspectRatio: eventController.userChildAspectRatio.value,
-                              crossAxisCount:
-                              eventController.numberOfCols,
+                              crossAxisCount: isLandscape && tablet ? 4 : eventController.numberOfCols,
                                 children: List.generate(
                                     eventController
                                         .currentEvent
@@ -130,10 +147,6 @@ class _InterviewPageState extends State<InterviewPage> {
                                               .currentEvent
                                               .value
                                               .finalized) return;
-                                          print(eventController
-                                              .currentEvent
-                                              .value
-                                              .activeParticipants[index].interviewInstructorComments);
                                           var res = await showDialog<List<String>>(
                                               context: context,
                                               builder: (BuildContext context) =>
@@ -151,7 +164,6 @@ class _InterviewPageState extends State<InterviewPage> {
                                                   ));
                                           if (res!=null) {
                                             if (res.contains(ParticipantStatus.Droped.name)) {
-                                              print('dropped');
                                               eventController.loading.value =
                                               true;
                                               eventController.dropParticipant(

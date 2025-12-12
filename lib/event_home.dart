@@ -24,7 +24,7 @@ class _EventHomeState extends State<EventHome> {
 
   Widget _buildShiningButton(BuildContext context, dynamic icon, String title, VoidCallback onTap) {
     bool tablet = isTablet(context);
-    double fontSize = tablet ? 24.0 : 15.36; // 12.8 * 1.2 = 15.36 (20% bigger for mobile)
+    double fontSize = tablet ? 28.8 : 15.36; // 24.0 * 1.2 = 28.8 (tablet, 20% increase), mobile stays at 15.36
     double iconSize = tablet ? 100.0 : 76.8; // 64.0 * 1.2 = 76.8 (20% bigger for mobile)
     double imageScale = tablet ? 5.0 : 6.25; // 7.5 / 1.2 = 6.25 (20% bigger image for mobile)
     
@@ -77,8 +77,16 @@ class _EventHomeState extends State<EventHome> {
               children: [
                 DrawerHeader(
                   decoration: BoxDecoration(),
+                  padding: EdgeInsets.only(
+                    bottom: isTablet(context) ? 4.0 : 8.0,
+                    top: isTablet(context) ? 4.0 : 8.0,
+                    left: 16.0,
+                    right: 16.0,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       // Text('תפריט',
                       //     style: TextStyle(
@@ -87,25 +95,29 @@ class _EventHomeState extends State<EventHome> {
                           ? Text('הארוע נסגר',
                               style: TextStyle(
                                   color: Colors.green,
-                                  fontWeight: FontWeight.bold))
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: isTablet(context) ? 14.0 : 16.0))
                           : Text(
                               'הארוע פעיל',
                               style: TextStyle(
                                   color: Colors.green,
-                                  fontWeight: FontWeight.bold),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: isTablet(context) ? 14.0 : 16.0),
                             )),
                       SizedBox(
-                        height: 12,
+                        height: isTablet(context) ? 8.0 : 12.0,
                       ),
                       Text(
                           '${eventController.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active).length} משתתפים אקטיבים ',
-                          style: TextStyle(fontSize: 16)),
+                          style: TextStyle(fontSize: isTablet(context) ? 14.0 : 16.0)),
                       Text(
                           'גירסת ציונים: ${eventController.currentEvent.value.gradeSettings.version} ',
-                          style: TextStyle(fontSize: 16)),
+                          style: TextStyle(fontSize: isTablet(context) ? 14.0 : 16.0)),
                       IconButton(
-                          icon: const Icon(Icons.info_outline),
+                          icon: Icon(Icons.info_outline, size: isTablet(context) ? 20.0 : 24.0),
                           tooltip: 'מדריך למשתמש',
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
                           onPressed: () {
                             showDialog(
                               context: context,

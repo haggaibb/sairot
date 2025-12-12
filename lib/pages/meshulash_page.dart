@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/types.dart';
 import '../event_controller.dart';
 import 'package:get/get.dart';
@@ -60,15 +61,34 @@ class _MeshulashPageState extends State<MeshulashPage> {
   void dispose() {
     if (eventController.currentEvent.value.meshulashEndTime == null)
       _timer.cancel(); // Stop timer when widget is disposed
+    
+    // Restore portrait-only orientation when leaving
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     bool tablet = isTablet(context);
+    final orientation = MediaQuery.of(context).orientation;
+    bool isLandscape = orientation == Orientation.landscape;
     double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
-    double buttonPadding = tablet ? 45.0 : 30.0;
-    double dividerThickness = tablet ? 45.0 : 30.0;
+    double buttonPadding = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
+    double dividerThickness = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
+    
+    // Allow landscape orientation for tablets
+    if (tablet) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     
     return Container(
       decoration: BoxDecoration(
@@ -131,13 +151,20 @@ class _MeshulashPageState extends State<MeshulashPage> {
             if (_isGridView) {
               return Obx(() => eventController.loading.value
                   ? LinearProgressIndicator()
-                  : Column(
-                      children: [
-                        Expanded(child: MeshulashGridView()),
-                        if (eventController.currentEvent.value.meshulashEndTime == null)
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
-                            child: ElevatedButton(
+                  : SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: MediaQuery.of(context).size.height - 
+                                    AppBar().preferredSize.height - 
+                                    MediaQuery.of(context).padding.top,
+                        ),
+                        child: Column(
+                          children: [
+                            MeshulashGridView(),
+                            if (eventController.currentEvent.value.meshulashEndTime == null)
+                              Padding(
+                                padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
+                                child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Theme.of(context).colorScheme.primary,
                                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -160,47 +187,49 @@ class _MeshulashPageState extends State<MeshulashPage> {
                                   });
                                 }
                               },
-                              child: Text('סיום התרגיל',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                              )),
-                          )
-                        else
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
-                            child: Column(
-                              children: [
-                                eventController.currentEvent.value.finalized
-                                    ? SizedBox.shrink()
-                                    : TextButton.icon(
-                                        onPressed: () {
-                                          if (editModeOn) {
-                                            eventController.currentEvent.value.saveToFirestore();
-                                          } else {}
-                                          _.meshulashEditModeOn.value = !_.meshulashEditModeOn.value;
-                                          setState(() {
-                                            editModeOn = !_.meshulashEditModeOn.value;
-                                          });
-                                        },
-                                        icon: editModeOn
-                                            ? const Icon(Icons.edit)
-                                            : const Icon(Icons.save),
-                                        label: !editModeOn
-                                            ? Text('סיים',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                            )
-                                            : Text('עריכה',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                            ),
-                                        iconAlignment: IconAlignment.start,
-                                      ),
-                                SizedBox(height: 20),
-                                Text('  התרגיל הסתיים  ',
+                                child: Text('סיום התרגיל',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                )),
+                              )
+                            else
+                              Padding(
+                                padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
+                                child: Column(
+                                  children: [
+                                    eventController.currentEvent.value.finalized
+                                        ? SizedBox.shrink()
+                                        : TextButton.icon(
+                                            onPressed: () {
+                                              if (editModeOn) {
+                                                eventController.currentEvent.value.saveToFirestore();
+                                              } else {}
+                                              _.meshulashEditModeOn.value = !_.meshulashEditModeOn.value;
+                                              setState(() {
+                                                editModeOn = !_.meshulashEditModeOn.value;
+                                              });
+                                            },
+                                            icon: editModeOn
+                                                ? const Icon(Icons.edit)
+                                                : const Icon(Icons.save),
+                                            label: !editModeOn
+                                                ? Text('סיים',
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                                )
+                                                : Text('עריכה',
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                                ),
+                                            iconAlignment: IconAlignment.start,
+                                          ),
+                                    SizedBox(height: 20),
+                                    Text('  התרגיל הסתיים  ',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                      ],
+                              ),
+                          ],
+                        ),
+                      ),
                     ));
             }
             // Show existing list view

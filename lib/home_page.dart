@@ -32,7 +32,6 @@ class _HomeState extends State<Home> {
     eventController.pastEventsLoading.value = true;
     if (eventController.selectedEvent.value == null ||
         eventController.selectedDay.value == null) {
-      print("❌ Missing Selection!");
       eventController.pastEventsLoading.value = false;
       return;
     }
@@ -41,7 +40,6 @@ class _HomeState extends State<Home> {
       eventController.selectedEvent.value!,
       eventController.selectedDay.value!,
     );
-    print('loadInstructorEvent Done!!!');
     eventController.pastEventsLoading.value = false;
   }
 
@@ -78,36 +76,49 @@ class _HomeState extends State<Home> {
                 children: [
                   DrawerHeader(
                     decoration: BoxDecoration(),
+                    padding: EdgeInsets.only(
+                      bottom: isTablet(context) ? 4.0 : 8.0,
+                      top: isTablet(context) ? 4.0 : 8.0,
+                      left: 16.0,
+                      right: 16.0,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         // Text('תפריט',
                         //     style: TextStyle(
                         //         fontWeight: FontWeight.bold, fontSize: 20)),
                         Padding(
-                          padding: const EdgeInsets.only(right: 0.0, top: 10),
+                          padding: EdgeInsets.only(
+                            right: 0.0,
+                            top: isTablet(context) ? 4.0 : 8.0,
+                            bottom: isTablet(context) ? 4.0 : 0.0,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 '${eventController.currentInstructor.firstName} ${eventController.currentInstructor.lastName}',
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: isTablet(context) ? 16.0 : 18.0,
                                   //fontWeight: FontWeight.bold,
                                   //color: Colors.white,
                                 ),
                               ),
-                              Text(
-                                eventController.currentInstructor.id,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  //color: Colors.white.withOpacity(0.9),
-                                ),
-                              ),
+                              // Text(
+                              //   eventController.currentInstructor.id,
+                              //   style: TextStyle(
+                              //     fontSize: 18,
+                              //     //color: Colors.white.withOpacity(0.9),
+                              //   ),
+                              // ),
                               Text(
                                 '[$gitBranch]',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: isTablet(context) ? 12.0 : 14.0,
                                   //color: Colors.white.withOpacity(0.9),
                                 ),
                               ),
@@ -115,8 +126,10 @@ class _HomeState extends State<Home> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.info_outline),
+                          icon: Icon(Icons.info_outline, size: isTablet(context) ? 20.0 : 24.0),
                           tooltip: 'מדריך למשתמש',
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
                           onPressed: () {
                             showDialog(
                               context: context,
@@ -350,7 +363,6 @@ class _HomeState extends State<Home> {
                         return DateTime(year, month, day);
                       }).toList();
 
-                      print(validDates);
                       // Helper to compare just the date (ignores time)
                       bool isSameDate(DateTime a, DateTime b) {
                         return a.year == b.year && a.month == b.month && a.day == b.day;
@@ -389,7 +401,7 @@ class _HomeState extends State<Home> {
                 /// unfinalized events
                 Obx(() {
                   bool tablet = isTablet(context);
-                  double maxWidth = tablet ? 600.0 : 400.0;
+                  double maxWidth = tablet ? 480.0 : 400.0;
                   
                   return !eventController.unfinalizedLoading.value
                       ? Expanded(
@@ -424,7 +436,7 @@ class _HomeState extends State<Home> {
                 Builder(
                   builder: (context) {
                     bool tablet = isTablet(context);
-                    double maxWidth = tablet ? 600.0 : 400.0;
+                    double maxWidth = tablet ? 480.0 : 400.0;
                     
                     return Center(
                       child: ConstrainedBox(

@@ -93,7 +93,6 @@ class Participant {
   /// Vertex AI
   Map<String, dynamic>fetchParticipantData(participantId) {
     Participant p = eventController.getParticipant(int.parse(participantId));
-    print(p.toJson());
     return p.toJson();
   }
 
@@ -105,7 +104,6 @@ class Participant {
     participantData["date"] = eventController.currentEvent.value.date;
     participantData["allParticipants"] = eventController.currentEvent.value.participants;
     String prompt = generatePrompt(participantData);
-    print(prompt);
     String res = await getVertexAISummary(prompt);
     participantAIReport = res;
     //print(res);

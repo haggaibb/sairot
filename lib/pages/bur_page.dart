@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sairot/models/participant.dart';
 import '../models/types.dart';
 import '../event_controller.dart';
@@ -40,6 +41,13 @@ class _BurPageState extends State<BurPage> {
   void dispose() {
     if (eventController.currentEvent.value.burEndTime == null)
       _timer.cancel(); // Stop timer when widget is disposed
+    
+    // Restore portrait-only orientation when leaving
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    
     super.dispose();
   }
 
@@ -103,15 +111,180 @@ class _BurPageState extends State<BurPage> {
               ),
               body: GetX<EventController>(builder: (_) {
                 bool tablet = isTablet(context);
+                final orientation = MediaQuery.of(context).orientation;
+                bool isLandscape = orientation == Orientation.landscape;
                 double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
-                double buttonPadding = tablet ? 45.0 : 30.0;
-                double dividerThickness = tablet ? 45.0 : 30.0;
+                double buttonPadding = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
+                double dividerThickness = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
+                
+                // Allow landscape orientation for tablets
+                if (tablet) {
+                  SystemChrome.setPreferredOrientations([
+                    DeviceOrientation.portraitUp,
+                    DeviceOrientation.portraitDown,
+                    DeviceOrientation.landscapeLeft,
+                    DeviceOrientation.landscapeRight,
+                  ]);
+                }
                 
                 return eventController.currentEvent.value.burGrades.isNotEmpty
                       ? tablet 
                         ? Obx(() => eventController.loading.value
                             ? LinearProgressIndicator()
-                            : Column(
+                            : isLandscape
+                              ? SingleChildScrollView(
+                                  child: Column(
+                                    children: [
+                                      SizedBox(
+                                        height: 20,
+                                      ),
+                                      GridView.count(
+                                          shrinkWrap: true,
+                                          physics: NeverScrollableScrollPhysics(),
+                                          childAspectRatio: eventController.userChildAspectRatio.value,
+                                          crossAxisCount: 4,
+                                          children: List.generate(
+                                              eventController
+                                                  .currentEvent
+                                                  .value
+                                                  .activeParticipants
+                                                  .length, (index) {
+                                            int burIndex = eventController
+                                                .currentEvent.value.burGrades
+                                                .indexWhere((Bur bur) =>
+                                                    bur.id ==
+                                                    eventController
+                                                        .currentEvent
+                                                        .value
+                                                        .activeParticipants[index]
+                                                        .number);
+                                            return Padding(
+                                              padding: EdgeInsets.all(7.5),
+                                              child: ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                      foregroundColor: Colors.black,
+                                                      backgroundColor:
+                                                          eventController
+                                                                      .currentEvent
+                                                                      .value
+                                                                      .burGrades[
+                                                                          burIndex]
+                                                                      .burGrade !=
+                                                                  0
+                                                              ? Colors.green
+                                                              : Theme.of(context).colorScheme.primary,),
+                                                  onPressed: () async {
+                                                    if (eventController
+                                                        .currentEvent
+                                                        .value
+                                                        .finalized) return;
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              BurGradePanel(
+                                                                  bur: eventController
+                                                                          .currentEvent
+                                                                          .value
+                                                                          .burGrades[
+                                                                      burIndex])),
+                                                    );
+                                                  },
+                                                  child: Text(eventController
+                                                      .currentEvent
+                                                      .value
+                                                      .activeParticipants[index]
+                                                      .number
+                                                      .toString(),
+                                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+
+                                                  )),
+                                            );
+                                          })),
+                                      if (!isLandscape)
+                                        Divider(
+                                          thickness: dividerThickness,
+                                        ),
+                                      _.currentEvent.value.burEndTime == null
+                                          ? Padding(
+                                              padding: EdgeInsets.all(buttonPadding),
+                                              child: ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                                    minimumSize: Size(200, 60),
+                                                  ),
+                                                  onPressed: () async {
+                                                    var res = await showDialog(
+                                                      context: context,
+                                                      builder:
+                                                          (BuildContext context) {
+                                                        return YesNoDialog();
+                                                      },
+                                                    );
+                                                    if (res) {
+                                                      eventController.loading.value =
+                                                      true;
+                                                      setState(() {
+                                                        _.currentEvent.value
+                                                            .burEndTime =
+                                                            DateTime.now();
+                                                      });
+                                                      _timer.cancel();
+                                                      eventController
+                                                          .currentEvent.value
+                                                          .saveToFirestore();
+                                                      eventController.loading.value =
+                                                      false;
+                                                    }
+                                                  },
+                                                  //eventController.currentEvent.value.save();
+                                                  child: Text('סיום התרגיל',
+                                                    style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
+                                                  )),
+                                            )
+                                          : Column(
+                                              children: [
+                                                SizedBox(
+                                                  height: 20,
+                                                ),
+                                                Text('  התרגיל הסתיים  ',
+                                                  style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
+                                                ),
+                                                SizedBox(
+                                                  height: 20,
+                                                ),
+                                                eventController.currentEvent.value
+                                                                .burEndTime !=
+                                                            null &&
+                                                        eventController.currentEvent
+                                                                .value.burGrades
+                                                                .where((item) =>
+                                                                    item.burGrade >
+                                                                    0)
+                                                                .length <
+                                                            eventController
+                                                                .currentEvent
+                                                                .value
+                                                                .burGrades
+                                                                .length
+                                                    ? Text(
+                                                        '  ${eventController.currentEvent.value.burGrades.where((item) => item.burGrade <= 0).length}  משתתפים לא קיבלו ציון סופי ',
+                                                        textDirection:
+                                                            TextDirection.rtl,
+                                                        style: TextStyle(
+                                                            color: Colors.red,
+                                                          fontWeight: FontWeight.bold,
+                                                            fontSize: scaledFontSize
+                                                        ),
+                                                      )
+                                                    : SizedBox.shrink()
+                                              ],
+                                            ),
+                                    ],
+                                  ),
+                                )
+                              : Column(
                                 children: [
                                   SizedBox(
                                     height: 20,
@@ -119,8 +292,7 @@ class _BurPageState extends State<BurPage> {
                                   Expanded(
                                     child: GridView.count(
                                         childAspectRatio: eventController.userChildAspectRatio.value,
-                                        crossAxisCount:
-                                            eventController.numberOfCols,
+                                        crossAxisCount: eventController.numberOfCols,
                                         children: List.generate(
                                             eventController
                                                 .currentEvent
@@ -276,8 +448,7 @@ class _BurPageState extends State<BurPage> {
                                               : ((eventController.currentEvent.value.activeParticipants.length / 3 + 2) * 55 * 0.8), // 20% smaller
                                           child: GridView.count(
                                               childAspectRatio: eventController.userChildAspectRatio.value,
-                                              crossAxisCount:
-                                                  eventController.numberOfCols,
+                                              crossAxisCount: isLandscape && tablet ? 4 : eventController.numberOfCols,
                                               children: List.generate(
                                                   eventController
                                                       .currentEvent

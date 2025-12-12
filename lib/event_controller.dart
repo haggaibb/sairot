@@ -85,7 +85,6 @@ class EventController extends GetxController {
       await fetchInstructorEvents();
     }
     super.onInit();
-    print('done ctx init');
     loading.value = false;
   }
 
@@ -98,20 +97,17 @@ class EventController extends GetxController {
   setUserAccessibility(Accessibility accessibility) {
     switch (accessibility) {
       case Accessibility.normal:
-        print("🔹 Setting to NORMAL mode.");
         userFontSize.value = systemSettings.accessibilitySettings['normal']['font_size'].toDouble() ?? 18;
         userChildAspectRatio.value = systemSettings.accessibilitySettings['normal']['child_aspect_ratio'].toDouble() ?? 3;
         system.value.userFontSize = userFontSize.value;
         system.value.save();
         break;
       case Accessibility.big:
-        print("🔹 Setting to BIG mode.");
         userFontSize.value = systemSettings.accessibilitySettings['big']['font_size'].toDouble() ?? 26;
         userChildAspectRatio.value = systemSettings.accessibilitySettings['big']['child_aspect_ratio'].toDouble() ?? 2.5;        system.value.userFontSize = userFontSize.value;
         system.value.save();
         break;
       case Accessibility.biggest:
-        print("🔹 Setting BIGGEST mode.");
         userFontSize.value = (systemSettings.accessibilitySettings['biggest']?['font_size'] as num?)?.toDouble() ?? 30.0;
         userChildAspectRatio.value = systemSettings.accessibilitySettings['biggest']['child_aspect_ratio'].toDouble() ?? 2;        system.value.userFontSize = userFontSize.value;
         system.value.save();
@@ -132,7 +128,6 @@ class EventController extends GetxController {
     }
   }
   deleteSystemHiveBox() async {
-    print('Delete System Hive Box');
     await Hive.deleteBoxFromDisk('system');
     Get.offAllNamed('/front_door');
   }
@@ -487,14 +482,12 @@ class EventController extends GetxController {
 
   /// Interview
   void addLeadershipComments(List<String> comments, int participantNumber) {
-    print('Add Leadership Comments');
     // Find the index of the participant by their number.
     int index = currentEvent.value.participants
         .indexWhere((participant) => participant.number == participantNumber);
     // ✅ Ensure participant exists.
     if (index != -1) {
       // Get the existing comments.
-      print('######');
       //List<String> existingComments = currentEvent.value.participants[index].leadershipInstructorComments;
       // ✅ Merge new comments without duplicates.
       //existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../event_controller.dart';
 import 'package:get/get.dart';
 import 'package:pluto_grid/pluto_grid.dart';
@@ -28,7 +29,7 @@ class _GradesPageState extends State<GradesPage> {
     PlutoColumn(
       textAlign: PlutoColumnTextAlign.center,
       width: 100,
-      title: 'ציון סופי',
+      title: 'סופי',
       field: 'final_grade_field',
       type: PlutoColumnType.number(
         negative: true,
@@ -41,7 +42,7 @@ class _GradesPageState extends State<GradesPage> {
       textAlign: PlutoColumnTextAlign.center,
       width: 120,
       readOnly: true,
-      title: 'ציוו מערכת',
+      title: 'מערכת',
       field: 'system_grade_field',
       enableEditingMode: false,
       type: PlutoColumnType.number(
@@ -119,9 +120,30 @@ class _GradesPageState extends State<GradesPage> {
     super.initState();
   }
 
+  @override
+  void dispose() {
+    // Restore portrait-only orientation when leaving
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    bool tablet = isTablet(context);
+    
+    // Allow landscape orientation for tablets
+    if (tablet) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
+    
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Container(
@@ -175,17 +197,31 @@ class _GradesPageState extends State<GradesPage> {
                     double sakimWidth;
                     
                     if (tablet) {
-                      // Calculate proportional widths for tablets
-                      double totalFixedWidth = 80 + 85 + 85 + 90 + 75 + 85;
-                      double availableWidth = gridWidth - totalFixedWidth;
-                      numberColumnWidth = availableWidth > 90 ? availableWidth : 90;
-                      double otherColumnsWidth = (gridWidth - numberColumnWidth) / 6;
-                      finalGradeWidth = otherColumnsWidth;
-                      systemGradeWidth = otherColumnsWidth;
-                      meeshulashWidth = otherColumnsWidth;
-                      alonkaWidth = otherColumnsWidth;
-                      burWidth = otherColumnsWidth;
-                      sakimWidth = otherColumnsWidth;
+                      // For tablets, ensure columns are wide enough to show full titles without truncation
+                      // First two columns are smaller
+                      numberColumnWidth = 90; // מספר
+                      finalGradeWidth = 110; // ציון סופי
+                      systemGradeWidth = 150; // ציון מערכת
+                      meeshulashWidth = 120; // משולש
+                      alonkaWidth = 120; // אלונקה
+                      burWidth = 100; // בור
+                      sakimWidth = 100; // שקים
+                      
+                      // If there's extra space, distribute it proportionally (but less to first two columns)
+                      double totalUsedWidth = numberColumnWidth + finalGradeWidth + systemGradeWidth + 
+                                            meeshulashWidth + alonkaWidth + burWidth + sakimWidth;
+                      if (gridWidth > totalUsedWidth) {
+                        double extraWidth = gridWidth - totalUsedWidth;
+                        // Distribute less to first two columns (0.5x), more to others (1.2x)
+                        double extraPerColumn = extraWidth / (0.5 + 0.5 + 1.2 + 1.2 + 1.2 + 1.2 + 1.2);
+                        numberColumnWidth += extraPerColumn * 0.5;
+                        finalGradeWidth += extraPerColumn * 0.5;
+                        systemGradeWidth += extraPerColumn * 1.2;
+                        meeshulashWidth += extraPerColumn * 1.2;
+                        alonkaWidth += extraPerColumn * 1.2;
+                        burWidth += extraPerColumn * 1.2;
+                        sakimWidth += extraPerColumn * 1.2;
+                      }
                     } else {
                       // Use original fixed widths for mobile (from the unused columns list)
                       numberColumnWidth = 90;
@@ -238,13 +274,13 @@ class _GradesPageState extends State<GradesPage> {
                           width: numberColumnWidth,
                         ),
                         PlutoColumn(
-                          title: 'סופי',
+                          title: tablet ? 'ציון סופי' : 'סופי',
                           field: 'final_grade_field',
                           type: PlutoColumnType.number(),
                           width: finalGradeWidth,
                         ),
                         PlutoColumn(
-                          title: 'מערכת',
+                          title: tablet ? 'ציון מערכת' : 'מערכת',
                           readOnly: true,
                           field: 'system_grade_field',
                           type: PlutoColumnType.number(
@@ -308,7 +344,6 @@ class _GradesPageState extends State<GradesPage> {
                         },
                       ),
                       onSelected: (PlutoGridOnSelectedEvent event) {
-                        print("selected");
                       },
                       onChanged: (PlutoGridOnChangedEvent event) {
                         if (event.columnIdx == 1 && !eventController.currentEvent.value.finalized) {

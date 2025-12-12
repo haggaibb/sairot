@@ -5,6 +5,7 @@ import 'comments_dialog.dart';
 import 'package:sairot/models/sakim_round.dart';
 import '../models/types.dart';
 import '../utils/tablet_utils.dart';
+import '../models/system.dart';
 
 class SakimGridView extends StatelessWidget {
   const SakimGridView({super.key});
@@ -28,9 +29,30 @@ class SakimGridView extends StatelessWidget {
         );
       }
 
+      // For tablets, use 3 columns if font size is increased (big or biggest)
+      // In landscape mode, always use 4 columns
+      final orientation = MediaQuery.of(context).orientation;
+      bool isLandscape = orientation == Orientation.landscape;
+      
+      int crossAxisCount;
+      if (tablet) {
+        if (isLandscape) {
+          crossAxisCount = 4;
+        } else if (_.system.value.accessibility == Accessibility.big || 
+            _.system.value.accessibility == Accessibility.biggest) {
+          crossAxisCount = 3;
+        } else {
+          crossAxisCount = 4;
+        }
+      } else {
+        crossAxisCount = 3;
+      }
+
       return GridView.count(
+        shrinkWrap: true,
+        physics: NeverScrollableScrollPhysics(),
         childAspectRatio: _.userChildAspectRatio.value,
-        crossAxisCount: tablet ? 4 : 3,
+        crossAxisCount: crossAxisCount,
         mainAxisSpacing: 5,
         crossAxisSpacing: 3,
         padding: EdgeInsets.all(3),
@@ -99,7 +121,6 @@ class SakimGridView extends StatelessWidget {
                       );
                       if (res != null) {
                         if (res.contains(ParticipantStatus.Droped.name)) {
-                          print('dropped');
                           _.loading.value = true;
                           _.dropParticipant(participantNumber);
                           // Remove from current round if exists

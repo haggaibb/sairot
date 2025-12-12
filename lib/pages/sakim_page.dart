@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/types.dart';
 import '../event_controller.dart';
 import 'package:get/get.dart';
@@ -54,6 +55,9 @@ class _SakimPageState extends State<SakimPage> {
       });
     }
     _scrollToEnd();
+    
+    // Allow landscape orientation for tablets
+    // We'll check if it's a tablet in build() and set orientation there
     super.initState();
   }
 
@@ -61,15 +65,34 @@ class _SakimPageState extends State<SakimPage> {
   void dispose() {
     if (eventController.currentEvent.value.sakimEndTime == null)
       _timer.cancel(); // Stop timer when widget is disposed
+    
+    // Restore portrait-only orientation when leaving
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     bool tablet = isTablet(context);
+    final orientation = MediaQuery.of(context).orientation;
+    bool isLandscape = orientation == Orientation.landscape;
     double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
-    double buttonPadding = tablet ? 45.0 : 30.0;
-    double dividerThickness = tablet ? 45.0 : 30.0;
+    double buttonPadding = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
+    double dividerThickness = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
+    
+    // Allow landscape orientation for tablets
+    if (tablet) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     
     return Container(
       decoration: BoxDecoration(
@@ -132,76 +155,85 @@ class _SakimPageState extends State<SakimPage> {
             if (_isGridView) {
               return Obx(() => eventController.loading.value
                   ? LinearProgressIndicator()
-                  : Column(
-                      children: [
-                        Expanded(child: SakimGridView()),
-                        if (eventController.currentEvent.value.sakimEndTime == null)
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Theme.of(context).colorScheme.primary,
-                                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                minimumSize: tablet ? Size(200, 60) : null,
-                              ),
-                              onPressed: () async {
-                                var res = await showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return YesNoDialog();
+                  : SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: MediaQuery.of(context).size.height - 
+                                    AppBar().preferredSize.height - 
+                                    MediaQuery.of(context).padding.top,
+                        ),
+                        child: Column(
+                          children: [
+                            SakimGridView(),
+                            if (eventController.currentEvent.value.sakimEndTime == null)
+                              Padding(
+                                padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                    minimumSize: tablet ? Size(200, 60) : null,
+                                  ),
+                                  onPressed: () async {
+                                    var res = await showDialog(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return YesNoDialog();
+                                      },
+                                    );
+                                    if (res) {
+                                      setState(() {
+                                        eventController.currentEvent.value.sakimEndTime = DateTime.now();
+                                        _timer.cancel();
+                                        _.sakimEditModeOn.value = false;
+                                        editModeOn = _.sakimEditModeOn.value;
+                                        eventController.currentEvent.value.saveToFirestore();
+                                      });
+                                    }
                                   },
-                                );
-                                if (res) {
-                                  setState(() {
-                                    eventController.currentEvent.value.sakimEndTime = DateTime.now();
-                                    _timer.cancel();
-                                    _.sakimEditModeOn.value = false;
-                                    editModeOn = _.sakimEditModeOn.value;
-                                    eventController.currentEvent.value.saveToFirestore();
-                                  });
-                                }
-                              },
-                              child: Text('סיום התרגיל',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                              )),
-                          )
-                        else
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
-                            child: Column(
-                              children: [
-                                eventController.currentEvent.value.finalized
-                                    ? SizedBox.shrink()
-                                    : TextButton.icon(
-                                        onPressed: () {
-                                          if (editModeOn) {
-                                            eventController.currentEvent.value.saveToFirestore();
-                                          } else {}
-                                          _.sakimEditModeOn.value = !_.sakimEditModeOn.value;
-                                          setState(() {
-                                            editModeOn = _.sakimEditModeOn.value;
-                                          });
-                                        },
-                                        icon: editModeOn
-                                            ? const Icon(Icons.save)
-                                            : const Icon(Icons.edit),
-                                        label: editModeOn
-                                            ? Text('סיים',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                            )
-                                            : Text('עריכה',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                            ),
-                                        iconAlignment: IconAlignment.start,
-                                      ),
-                                SizedBox(height: 20),
-                                Text('  התרגיל הסתיים  ',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                  child: Text('סיום התרגיל',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                  )),
+                                )
+                            else
+                              Padding(
+                                padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
+                                child: Column(
+                                  children: [
+                                    eventController.currentEvent.value.finalized
+                                        ? SizedBox.shrink()
+                                        : TextButton.icon(
+                                            onPressed: () {
+                                              if (editModeOn) {
+                                                eventController.currentEvent.value.saveToFirestore();
+                                              } else {}
+                                              _.sakimEditModeOn.value = !_.sakimEditModeOn.value;
+                                              setState(() {
+                                                editModeOn = _.sakimEditModeOn.value;
+                                              });
+                                            },
+                                            icon: editModeOn
+                                                ? const Icon(Icons.save)
+                                                : const Icon(Icons.edit),
+                                            label: editModeOn
+                                                ? Text('סיים',
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                                )
+                                                : Text('עריכה',
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                                ),
+                                            iconAlignment: IconAlignment.start,
+                                          ),
+                                    SizedBox(height: 20),
+                                    Text('  התרגיל הסתיים  ',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                      ],
+                              ),
+                          ],
+                        ),
+                      ),
                     ));
             }
             // Show existing list view

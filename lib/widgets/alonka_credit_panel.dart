@@ -19,41 +19,48 @@ class AlonkaCreditPanel extends StatelessWidget {
         style: TextStyle(fontSize: titleFontSize),
       ),
       actions: <Widget>[
-        IconButton(
-            iconSize: iconSize,
-            onPressed: () =>
-                Navigator.pop(
-                    context,
-                    AlonkaCreditTypes
-                        .Alonka),
-            icon: Image.asset(
-                color: Theme.of(context).brightness == Brightness.dark?Theme.of(context).colorScheme.primary:Colors.black,
-                width: imageWidth,
-                'images/alonka.png')
-        ),
-        IconButton(
-            iconSize: iconSize,
-            onPressed: () =>
-                Navigator.pop(
-                    context,
-                    AlonkaCreditTypes
-                        .Gerikan),
-            icon: Image.asset(
-                color: Theme.of(context).brightness == Brightness.dark?Theme.of(context).colorScheme.primary:Colors.black,
-                width: imageWidth,
-                'images/gerikan.png')
-        ),
-        IconButton(
-            iconSize: iconSize,
-            onPressed: () =>
-                Navigator.pop(
-                    context,
-                    AlonkaCreditTypes
-                        .Runner),
-            icon: Image.asset(
-                color: Theme.of(context).brightness == Brightness.dark?Theme.of(context).colorScheme.primary:Colors.black,
-                width: imageWidth,
-                'images/run.png')
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            IconButton(
+                iconSize: iconSize,
+                onPressed: () =>
+                    Navigator.pop(
+                        context,
+                        AlonkaCreditTypes
+                            .Alonka),
+                icon: Image.asset(
+                    color: Theme.of(context).brightness == Brightness.dark?Theme.of(context).colorScheme.primary:Colors.black,
+                    width: imageWidth,
+                    'images/alonka.png')
+            ),
+            if (tablet) SizedBox(width: 30.0),
+            IconButton(
+                iconSize: iconSize,
+                onPressed: () =>
+                    Navigator.pop(
+                        context,
+                        AlonkaCreditTypes
+                            .Gerikan),
+                icon: Image.asset(
+                    color: Theme.of(context).brightness == Brightness.dark?Theme.of(context).colorScheme.primary:Colors.black,
+                    width: imageWidth,
+                    'images/gerikan.png')
+            ),
+            if (tablet) SizedBox(width: 30.0),
+            IconButton(
+                iconSize: iconSize,
+                onPressed: () =>
+                    Navigator.pop(
+                        context,
+                        AlonkaCreditTypes
+                            .Runner),
+                icon: Image.asset(
+                    color: Theme.of(context).brightness == Brightness.dark?Theme.of(context).colorScheme.primary:Colors.black,
+                    width: imageWidth,
+                    'images/run.png')
+            ),
+          ],
         ),
       ],
     );

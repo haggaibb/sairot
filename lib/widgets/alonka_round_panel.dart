@@ -45,16 +45,18 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
               child: Obx(() => eventController.loading.value
                   ? LinearProgressIndicator()
                   : Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Divider(
                           thickness: dividerThickness,
                         ),
-                        Text('אלונקה  מקצה ${widget.round.round + 1}  ',
+                        Text('אלונקה מקצה ${widget.round.round + 1}',
                             style: TextStyle(
                                 fontSize: tablet ? 28.0 : 22.0, fontWeight: FontWeight.bold)),
+                        SizedBox(height: tablet ? 8.0 : 6.0),
                         Expanded(
                             child: GridView.count(
+                                physics: NeverScrollableScrollPhysics(),
                                 childAspectRatio:
                                     eventController.userChildAspectRatio.value,
                                 crossAxisCount: crossAxisCount,
@@ -135,7 +137,6 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                               ));
                                           if (res != null) {
                                             if (res.contains(ParticipantStatus.Droped.name)) {
-                                              print('dropped');
                                               eventController.loading.value =
                                                   true;
                                               eventController.dropParticipant(
@@ -163,6 +164,7 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                         )),
                                   );
                                 }))),
+                        SizedBox(height: tablet ? 8.0 : 6.0),
                         ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor:
@@ -197,207 +199,186 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                   fontWeight: FontWeight.bold,
                                   fontSize: scaledFontSize),
                             )),
-                        SizedBox(
-                            height: 110,
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
+                        SizedBox(height: tablet ? 8.0 : 6.0),
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom: tablet ? 20.0 : 16.0,
+                            top: tablet ? 8.0 : 6.0,
+                          ),
+                          child: SizedBox(
+                            height: tablet ? 45 : 40,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Row(
-                                          children: List.generate(1, (index) {
-                                        return Padding(
-                                          padding: const EdgeInsets.all(1.0),
-                                          child: Row(
-                                            children: widget.round.alonkaCredits
-                                                .map((number) {
-                                              return GestureDetector(
-                                                onDoubleTap: () => setState(() {
-                                                  widget.round.alonkaCredits
-                                                      .remove(number);
-                                                  widget
-                                                      .round.activeParticipants
-                                                      .add(number);
-                                                  //widget.round.activeParticipants.sort();
-                                                }),
-                                                onLongPress: () async {
-                                                  var res = await showDialog<List<String>>(
-                                                    context: context,
-                                                    builder: (BuildContext context) => CommentsDialog(
-                                                      commentsList: eventController
-                                                          .gradesData
-                                                          .listOfCommentsAlonka,
-                                                      selectedComments: (eventController
-                                                              .getParticipant(number))
-                                                          .alonkaInstructorComments,
-                                                      title: number.toString(),
-                                                    ),
-                                                  );
-                                                  if (res != null) {
-                                                    if (res.contains(ParticipantStatus.Droped.name)) {
-                                                      eventController.loading.value = true;
-                                                      eventController.dropParticipant(number);
-                                                      widget.round.alonkaCredits.remove(number);
-                                                      eventController.loading.value = false;
-                                                    } else {
-                                                      eventController.addAlonkaComments(res, number);
-                                                    }
-                                                  }
-                                                },
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.all(8.0),
-                                                  child: Text(
-                                                    '$number', // Convert the number to a string
-                                                    style: TextStyle(
-                                                        fontSize: tablet ? 28.0 : 20.0, // 40% bigger on tablets (20 * 1.4)
-                                                        color:
-                                                            Colors.orangeAccent,
-                                                        fontWeight:
-                                                            FontWeight.bold),
-                                                  ),
-                                                ),
-                                              );
-                                            }).toList(), // Convert the iterable to a list of widgets
-                                          ),
-                                        );
-                                      })),
-                                      const SizedBox(
-                                        width: 25,
-                                      ),
-                                      Row(
-                                          children: List.generate(1, (index) {
-                                        return Padding(
-                                          padding: const EdgeInsets.all(1.0),
-                                          child: Row(
-                                            children: widget
-                                                .round.gerikanCredits
-                                                .map((number) {
-                                              return GestureDetector(
-                                                onDoubleTap: () => setState(() {
-                                                  widget.round.gerikanCredits
-                                                      .remove(number);
-                                                  widget
-                                                      .round.activeParticipants
-                                                      .add(number);
-                                                  //widget.round.activeParticipants.sort();
-                                                }),
-                                                onLongPress: () async {
-                                                  var res = await showDialog<List<String>>(
-                                                    context: context,
-                                                    builder: (BuildContext context) => CommentsDialog(
-                                                      commentsList: eventController
-                                                          .gradesData
-                                                          .listOfCommentsAlonka,
-                                                      selectedComments: (eventController
-                                                              .getParticipant(number))
-                                                          .alonkaInstructorComments,
-                                                      title: number.toString(),
-                                                    ),
-                                                  );
-                                                  if (res != null) {
-                                                    if (res.contains(ParticipantStatus.Droped.name)) {
-                                                      eventController.loading.value = true;
-                                                      eventController.dropParticipant(number);
-                                                      widget.round.gerikanCredits.remove(number);
-                                                      eventController.loading.value = false;
-                                                    } else {
-                                                      eventController.addAlonkaComments(res, number);
-                                                    }
-                                                  }
-                                                },
-                                                child: Padding(
-                                                  padding:
-                                                      const EdgeInsets.all(8.0),
-                                                  child: Text(
-                                                    '$number', // Convert the number to a string
-                                                    style: TextStyle(
-                                                        fontSize: tablet ? 28.0 : 20.0, // 40% bigger on tablets (20 * 1.4)
-                                                        color: Colors.green,
-                                                        fontWeight:
-                                                            FontWeight.bold),
-                                                  ),
-                                                ),
-                                              );
-                                            }).toList(), // Convert the iterable to a list of widgets
-                                          ),
-                                        );
-                                      })),
-                                    ],
-                                  ),
-                                  const SizedBox(
-                                    width: 25,
-                                  ),
-                                  Row(
-                                      children: List.generate(1, (index) {
-                                    return Padding(
-                                      padding: const EdgeInsets.all(1.0),
-                                      child: Row(
-                                        children: widget.round.runCredits
-                                            .map((number) {
-                                          return GestureDetector(
-                                            onDoubleTap: () => setState(() {
-                                              widget.round.runCredits
-                                                  .remove(number);
-                                              widget.round.activeParticipants
-                                                  .add(number);
-                                              //widget.round.activeParticipants.sort();
-                                            }),
-                                            onLongPress: () async {
-                                              var res = await showDialog<List<String>>(
-                                                context: context,
-                                                builder: (BuildContext context) => CommentsDialog(
-                                                  commentsList: eventController
-                                                      .gradesData
-                                                      .listOfCommentsAlonka,
-                                                  selectedComments: (eventController
-                                                          .getParticipant(number))
-                                                      .alonkaInstructorComments,
-                                                  title: number.toString(),
-                                                ),
-                                              );
-                                              if (res != null) {
-                                                if (res.contains(ParticipantStatus.Droped.name)) {
-                                                  eventController.loading.value = true;
-                                                  eventController.dropParticipant(number);
-                                                  widget.round.runCredits.remove(number);
-                                                  eventController.loading.value = false;
-                                                } else {
-                                                  eventController.addAlonkaComments(res, number);
-                                                }
-                                              }
-                                            },
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.all(8.0),
-                                              child: Text(
-                                                '$number', // Convert the number to a string
-                                                style: TextStyle(
-                                                    fontSize: tablet ? 28.0 : 20.0, // 40% bigger on tablets (20 * 1.4)
-                                                    color: Colors.black,
-                                                    fontWeight:
-                                                        FontWeight.bold),
+                                  ...widget.round.alonkaCredits
+                                      .map((number) {
+                                        return GestureDetector(
+                                          onDoubleTap: () => setState(() {
+                                            widget.round.alonkaCredits
+                                                .remove(number);
+                                            widget
+                                                .round.activeParticipants
+                                                .add(number);
+                                          }),
+                                          onLongPress: () async {
+                                            var res = await showDialog<List<String>>(
+                                              context: context,
+                                              builder: (BuildContext context) => CommentsDialog(
+                                                commentsList: eventController
+                                                    .gradesData
+                                                    .listOfCommentsAlonka,
+                                                selectedComments: (eventController
+                                                        .getParticipant(number))
+                                                    .alonkaInstructorComments,
+                                                title: number.toString(),
                                               ),
+                                            );
+                                            if (res != null) {
+                                              if (res.contains(ParticipantStatus.Droped.name)) {
+                                                eventController.loading.value = true;
+                                                eventController.dropParticipant(number);
+                                                widget.round.alonkaCredits.remove(number);
+                                                eventController.loading.value = false;
+                                              } else {
+                                                eventController.addAlonkaComments(res, number);
+                                              }
+                                            }
+                                          },
+                                          child: Padding(
+                                            padding:
+                                                const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              '$number',
+                                              style: TextStyle(
+                                                  fontSize: tablet ? 18.0 : 16.0,
+                                                  color:
+                                                      Colors.orangeAccent,
+                                                  fontWeight:
+                                                      FontWeight.bold),
                                             ),
-                                          );
-                                        }).toList(), // Convert the iterable to a list of widgets
-                                      ),
-                                    );
-                                  })),
-                                  const SizedBox(
-                                    height: 15,
-                                  ),
+                                          ),
+                                        );
+                                      }),
+                                  if (widget.round.alonkaCredits.isNotEmpty && widget.round.gerikanCredits.isNotEmpty)
+                                    const SizedBox(
+                                      width: 25,
+                                    ),
+                                  ...widget
+                                      .round.gerikanCredits
+                                      .map((number) {
+                                        return GestureDetector(
+                                          onDoubleTap: () => setState(() {
+                                            widget.round.gerikanCredits
+                                                .remove(number);
+                                            widget
+                                                .round.activeParticipants
+                                                .add(number);
+                                          }),
+                                          onLongPress: () async {
+                                            var res = await showDialog<List<String>>(
+                                              context: context,
+                                              builder: (BuildContext context) => CommentsDialog(
+                                                commentsList: eventController
+                                                    .gradesData
+                                                    .listOfCommentsAlonka,
+                                                selectedComments: (eventController
+                                                        .getParticipant(number))
+                                                    .alonkaInstructorComments,
+                                                title: number.toString(),
+                                              ),
+                                            );
+                                            if (res != null) {
+                                              if (res.contains(ParticipantStatus.Droped.name)) {
+                                                eventController.loading.value = true;
+                                                eventController.dropParticipant(number);
+                                                widget.round.gerikanCredits.remove(number);
+                                                eventController.loading.value = false;
+                                              } else {
+                                                eventController.addAlonkaComments(res, number);
+                                              }
+                                            }
+                                          },
+                                          child: Padding(
+                                            padding:
+                                                const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              '$number',
+                                              style: TextStyle(
+                                                  fontSize: tablet ? 18.0 : 16.0,
+                                                  color: Colors.green,
+                                                  fontWeight:
+                                                      FontWeight.bold),
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                  if (widget.round.runCredits.isNotEmpty && (widget.round.alonkaCredits.isNotEmpty || widget.round.gerikanCredits.isNotEmpty))
+                                    const SizedBox(
+                                      width: 25,
+                                    ),
+                                  ...widget.round.runCredits
+                                      .map((number) {
+                                        return GestureDetector(
+                                          onDoubleTap: () => setState(() {
+                                            widget.round.runCredits
+                                                .remove(number);
+                                            widget.round.activeParticipants
+                                                .add(number);
+                                          }),
+                                          onLongPress: () async {
+                                            var res = await showDialog<List<String>>(
+                                              context: context,
+                                              builder: (BuildContext context) => CommentsDialog(
+                                                commentsList: eventController
+                                                    .gradesData
+                                                    .listOfCommentsAlonka,
+                                                selectedComments: (eventController
+                                                        .getParticipant(number))
+                                                    .alonkaInstructorComments,
+                                                title: number.toString(),
+                                              ),
+                                            );
+                                            if (res != null) {
+                                              if (res.contains(ParticipantStatus.Droped.name)) {
+                                                eventController.loading.value = true;
+                                                eventController.dropParticipant(number);
+                                                widget.round.runCredits.remove(number);
+                                                eventController.loading.value = false;
+                                              } else {
+                                                eventController.addAlonkaComments(res, number);
+                                              }
+                                            }
+                                          },
+                                          child: Padding(
+                                            padding:
+                                                const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              '$number',
+                                              style: TextStyle(
+                                                  fontSize: tablet ? 18.0 : 16.0,
+                                                  color: Colors.black,
+                                                  fontWeight:
+                                                      FontWeight.bold),
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
                                 ],
                               ),
-                            )),
+                            ),
+                          ),
+                        ),
                       ],
-                    )),
-            ));
+                    ),
+                  ),
+            ),
+        );
       } else {
         return SizedBox(
-            height: 115,
+            height: tablet ? 180 : 150,
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -422,52 +403,75 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                 });
                               },
                               icon: Icon(Icons.edit)),
-                      Text(' ${widget.round.round + 1} אלונקה מקצה ',
+                      Text('אלונקה מקצה ${widget.round.round + 1}',
                           style: TextStyle(
                               fontSize: tablet ? 28.0 : 22.0, fontWeight: FontWeight.bold)),
                     ],
                   ),
-                  Row(
-                    children: [
-                      Row(
-                          children: List.generate(1, (index) {
-                        return Padding(
-                          padding: const EdgeInsets.all(1.0),
-                          child: Text(
-                            widget.round.alonkaCredits
-                                .map((credit) => credit)
-                                .toList()
-                                .toString(),
-                            style: TextStyle(
-                                fontSize: tablet ? 28.0 : 20.0, // 40% bigger on tablets (20 * 1.4)
-                                color: Colors.orangeAccent,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        );
-                      })),
-                      const SizedBox(
-                        width: 25,
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            ...widget.round.alonkaCredits
+                                .map((credit) {
+                              return Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  '$credit',
+                                  style: TextStyle(
+                                      fontSize: tablet ? 18.0 : 16.0,
+                                      color: Colors.orangeAccent,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              );
+                            }).toList(),
+                            if (widget.round.alonkaCredits.isNotEmpty && widget.round.gerikanCredits.isNotEmpty)
+                              const SizedBox(
+                                width: 25,
+                              ),
+                            ...widget.round.gerikanCredits
+                                .map((credit) {
+                              return Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  '$credit',
+                                  style: TextStyle(
+                                      fontSize: tablet ? 18.0 : 16.0,
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              );
+                            }).toList(),
+                            if (widget.round.runCredits.isNotEmpty && (widget.round.alonkaCredits.isNotEmpty || widget.round.gerikanCredits.isNotEmpty))
+                              const SizedBox(
+                                width: 25,
+                              ),
+                            ...widget.round.runCredits
+                                .map((credit) {
+                              return Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  '$credit',
+                                  style: TextStyle(
+                                      fontSize: tablet ? 18.0 : 16.0,
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              );
+                            }).toList(),
+                          ],
+                        ),
                       ),
-                      Row(
-                          children: List.generate(1, (index) {
-                        return Padding(
-                          padding: const EdgeInsets.all(1.0),
-                          child: Text(
-                            widget.round.gerikanCredits
-                                .map((credit) => credit)
-                                .toList()
-                                .toString(),
-                            style: TextStyle(
-                                fontSize: tablet ? 28.0 : 20.0, // 40% bigger on tablets (20 * 1.4)
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        );
-                      })),
-                    ],
+                    ),
                   ),
-                  const SizedBox(
-                    height: 15,
+                  SizedBox(
+                    height: tablet ? 40 : 30,
                   ),
                 ],
               ),
