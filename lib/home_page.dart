@@ -264,6 +264,13 @@ class _HomeState extends State<Home> {
               centerTitle: true,
               actions: [
                 IconButton(
+                    onPressed: () => MdmKiosk.openWifiPicker(),
+                    icon: Icon(
+                      Icons.wifi_find_rounded,
+                      color: Colors.grey,
+                      size: 30.0,
+                    )),
+                IconButton(
                   icon: const Icon(Icons.info_outline),
                   tooltip: 'מדריך למשתמש',
                   onPressed: () {
@@ -626,4 +633,13 @@ class _HomeState extends State<Home> {
       ),
     );
   }
+}
+
+
+class MdmKiosk {
+  static const _ch = MethodChannel('kiosk_settings');
+
+  static Future<void> openKioskSettings() =>
+      _ch.invokeMethod('openKioskSettings');
+  static Future<void> openWifiPicker() => _ch.invokeMethod('openWifiPicker');
 }

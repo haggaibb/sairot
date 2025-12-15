@@ -5,6 +5,7 @@ import '../event_controller.dart';
 import 'dart:async';
 import '../widgets/logo.dart';
 import '../widgets/sonar.dart';
+import 'package:flutter/services.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,38 +19,36 @@ class _LoginPageState extends State<LoginPage> {
   TextEditingController idCtrl = TextEditingController();
   late Timer _connectionTimer;
 
-login() async {
-  if (await eventController.login(idCtrl.text)) {
-    _connectionTimer.cancel();
-    eventController.loading.value=true;
-    await eventController.getUnfinalizedEvents();
-    await eventController.fetchInstructorEvents();
-    eventController.loading.value=false;
-    Get.toNamed('/home');
-  }
-  else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(" לא נמצא מדריך עם ת.ז. " + idCtrl.text,
-          style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            fontSize: 16
+  login() async {
+    if (await eventController.login(idCtrl.text)) {
+      _connectionTimer.cancel();
+      eventController.loading.value = true;
+      await eventController.getUnfinalizedEvents();
+      await eventController.fetchInstructorEvents();
+      eventController.loading.value = false;
+      Get.toNamed('/home');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            " לא נמצא מדריך עם ת.ז. " + idCtrl.text,
+            style: TextStyle(
+                fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
           ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
         ),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
-      ),
-    );
+      );
+    }
   }
-}
 
   @override
-  void initState()  {
-      _connectionTimer = Timer.periodic(Duration(seconds: 3), (Timer timer) async {
-        eventController.isConnected.value = eventController.isConnected.value;
-        //if (eventController.isConnected.value) _connectionTimer.cancel();
-      });
+  void initState() {
+    _connectionTimer =
+        Timer.periodic(Duration(seconds: 3), (Timer timer) async {
+      eventController.isConnected.value = eventController.isConnected.value;
+      //if (eventController.isConnected.value) _connectionTimer.cancel();
+    });
     super.initState();
   }
 
@@ -72,113 +71,149 @@ login() async {
           ),
         ),
         child: Scaffold(
-          resizeToAvoidBottomInset: true,  // 👈 Ensures UI adjusts for the keyboard
+          resizeToAvoidBottomInset:
+              true, // 👈 Ensures UI adjusts for the keyboard
           appBar: AppBar(
+            leading: IconButton(
+                onPressed: () => MdmKiosk.openWifiPicker(),
+                icon: Icon(
+                  Icons.wifi_find_rounded,
+                  color: Colors.grey,
+                  size: 30.0,
+                )),
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             title: Text('ימי סיירות'),
             centerTitle: true,
           ),
-          body: SingleChildScrollView(  // 👈 Wrap entire content to enable scrolling
+          body: SingleChildScrollView(
+            // 👈 Wrap entire content to enable scrolling
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Center(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,  // 👈 Prevents unnecessary stretching
+                  mainAxisSize:
+                      MainAxisSize.min, // 👈 Prevents unnecessary stretching
                   children: [
                     const SizedBox(height: 10),
                     GestureDetector(
-                      onLongPress: () => {
-                        eventController.deleteSystemHiveBox()
-                      },
-                        child: ShineEffectLogo()
-                    ),
+                        onLongPress: () =>
+                            {eventController.deleteSystemHiveBox()},
+                        child: ShineEffectLogo()),
                     //Image.asset('images/wings-logo.png', width: 250),
                     const SizedBox(height: 50),
 
                     // 🔄 Use Obx for dynamic UI updates
                     Obx(() => !eventController.loading.value
                         ? Column(
-                      children: [
-                        Text(
-                          'מסך הזדהות של המדריך',
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 40),
+                            children: [
+                              Text(
+                                'מסך הזדהות של המדריך',
+                                style: TextStyle(
+                                    fontSize: 24, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 40),
 
-                        // 📌 TextField inside a Constrained Box
-                        SizedBox(
-                          width: 200,
-                          child: TextField(
-                            onSubmitted: (value) async {
-                              await login();
-                            },
-                            controller: idCtrl,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                            decoration: InputDecoration(
-                              labelText: "ת.ז.",
-                              labelStyle: TextStyle(
-                                fontSize: 16,
-                                color: Theme.of(context).colorScheme.primary,
+                              // 📌 TextField inside a Constrained Box
+                              SizedBox(
+                                width: 200,
+                                child: TextField(
+                                  onSubmitted: (value) async {
+                                    await login();
+                                  },
+                                  controller: idCtrl,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly
+                                  ],
+                                  decoration: InputDecoration(
+                                    labelText: "ת.ז.",
+                                    labelStyle: TextStyle(
+                                      fontSize: 16,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                    hintText: "הזן תעודת זהות כאן",
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey.shade500,
+                                    ),
+                                    prefixIcon: Icon(Icons.badge_outlined,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary),
+                                    filled: true,
+                                    fillColor: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.grey.shade800
+                                        : Colors.grey.shade100,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                      borderSide: BorderSide(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          width: 1.5),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                      borderSide: BorderSide(
+                                          color: Colors.grey.shade400,
+                                          width: 1.5),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                      borderSide: BorderSide(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          width: 2.0),
+                                    ),
+                                    errorBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                      borderSide: BorderSide(
+                                          color: Colors.red, width: 1.5),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(
+                                        vertical: 14.0, horizontal: 16.0),
+                                  ),
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
+                                ),
                               ),
-                              hintText: "הזן תעודת זהות כאן",
-                              hintStyle: TextStyle(
-                                color: Colors.grey.shade500,
-                              ),
-                              prefixIcon: Icon(Icons.badge_outlined, color: Theme.of(context).colorScheme.primary),
-                              filled: true,
-                              fillColor: Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.grey.shade800
-                                  : Colors.grey.shade100,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: BorderSide(color: Colors.grey.shade400, width: 1.5),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2.0),
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                                borderSide: BorderSide(color: Colors.red, width: 1.5),
-                              ),
-                              contentPadding: EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-                            ),
-                            style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurface),
-                          ),
-                        ),
-                        const SizedBox(height: 30),
+                              const SizedBox(height: 30),
 
-                        // 📌 Login Button
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            elevation: 10,
-                            backgroundColor: Theme.of(context).colorScheme.primary,
-                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                          onPressed: () async {
-                           await login();
-                          },
-                          child: const Text("הזדהות",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    )
+                              // 📌 Login Button
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  elevation: 10,
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                                onPressed: () async {
+                                  await login();
+                                },
+                                child: const Text(
+                                  "הזדהות",
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          )
                         : Column(
-                      children: [
-                        const SizedBox(height: 200),
-                        SizedBox(width: 150, child: LinearProgressIndicator()),
-                        Text('טוען נתונים...',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    )
-                    ),
+                            children: [
+                              const SizedBox(height: 200),
+                              SizedBox(
+                                  width: 150, child: LinearProgressIndicator()),
+                              Text(
+                                'טוען נתונים...',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          )),
                   ],
                 ),
               ),
@@ -188,7 +223,12 @@ login() async {
       ),
     );
   }
-
-
 }
 
+class MdmKiosk {
+  static const _ch = MethodChannel('kiosk_settings');
+
+  static Future<void> openKioskSettings() =>
+      _ch.invokeMethod('openKioskSettings');
+  static Future<void> openWifiPicker() => _ch.invokeMethod('openWifiPicker');
+}
