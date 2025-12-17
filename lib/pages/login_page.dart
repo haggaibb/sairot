@@ -3,9 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../event_controller.dart';
 import 'dart:async';
+import 'dart:io';
 import '../widgets/logo.dart';
-import '../widgets/sonar.dart';
-import 'package:flutter/services.dart';
+// import '../widgets/sonar.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,6 +18,32 @@ class _LoginPageState extends State<LoginPage> {
   final eventController = Get.put(EventController());
   TextEditingController idCtrl = TextEditingController();
   late Timer _connectionTimer;
+
+  String? _androidId;
+  String? _androidIdError;
+  bool _showAndroidId = false;
+
+  Future<void> _loadAndroidIdIfNeeded() async {
+    if (!Platform.isAndroid) return;
+    if (_androidId != null || _androidIdError != null) return;
+    try {
+      final id = await MdmKiosk.getAndroidId();
+      if (!mounted) return;
+      setState(() {
+        _androidId = id;
+        _androidIdError = null;
+      });
+      // ignore: avoid_print
+      print('Android ID: ${id ?? '<null>'}');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _androidIdError = e.toString();
+      });
+      // ignore: avoid_print
+      print('Android ID fetch failed: $e');
+    }
+  }
 
   login() async {
     if (await eventController.login(idCtrl.text)) {
@@ -44,12 +70,13 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void initState() {
+    super.initState();
+
     _connectionTimer =
         Timer.periodic(Duration(seconds: 3), (Timer timer) async {
       eventController.isConnected.value = eventController.isConnected.value;
       //if (eventController.isConnected.value) _connectionTimer.cancel();
     });
-    super.initState();
   }
 
   @override
@@ -106,11 +133,45 @@ class _LoginPageState extends State<LoginPage> {
                     Obx(() => !eventController.loading.value
                         ? Column(
                             children: [
-                              Text(
-                                'מסך הזדהות של המדריך',
-                                style: TextStyle(
-                                    fontSize: 24, fontWeight: FontWeight.bold),
+                              GestureDetector(
+                                onLongPress: () async {
+                                  if (!Platform.isAndroid) return;
+                                  setState(() {
+                                    _showAndroidId = !_showAndroidId;
+                                  });
+                                  if (_showAndroidId) {
+                                    await _loadAndroidIdIfNeeded();
+                                  }
+                                },
+                                child: Text(
+                                  'מסך הזדהות של המדריך',
+                                  style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold),
+                                ),
                               ),
+                              const SizedBox(height: 10),
+                              // Device ID (Android only) - helpful for support/debug.
+                              if (Platform.isAndroid && _showAndroidId)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 8.0, horizontal: 12.0),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(8.0),
+                                  ),
+                                  child: _androidIdError != null
+                                      ? Text(
+                                          'Android ID error: $_androidIdError',
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.red),
+                                        )
+                                      : SelectableText(
+                                          'Android ID: ${_androidId ?? 'loading...'}',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                ),
                               const SizedBox(height: 40),
 
                               // 📌 TextField inside a Constrained Box
@@ -231,4 +292,5 @@ class MdmKiosk {
   static Future<void> openKioskSettings() =>
       _ch.invokeMethod('openKioskSettings');
   static Future<void> openWifiPicker() => _ch.invokeMethod('openWifiPicker');
+  static Future<String?> getAndroidId() => _ch.invokeMethod<String>('getAndroidId');
 }

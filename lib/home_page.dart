@@ -642,4 +642,6 @@ class MdmKiosk {
   static Future<void> openKioskSettings() =>
       _ch.invokeMethod('openKioskSettings');
   static Future<void> openWifiPicker() => _ch.invokeMethod('openWifiPicker');
+  static Future<String?> getAndroidId() =>
+      _ch.invokeMethod<String>('getAndroidId');
 }
