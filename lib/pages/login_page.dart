@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../event_controller.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../widgets/logo.dart';
 // import '../widgets/sonar.dart';
 
@@ -21,31 +23,211 @@ class _LoginPageState extends State<LoginPage> {
 
   String? _androidId;
   String? _androidIdError;
+  String? _deviceName;
+  String? _deviceNameError;
   bool _showAndroidId = false;
+  bool _didDumpDeviceInfoToConsole = false;
+  bool _deviceRegistered = false;
+  String? _deviceNumber;
 
-  Future<void> _loadAndroidIdIfNeeded() async {
+  void _dumpAndroidDeviceInfoToConsole(AndroidDeviceInfo info) {
+    final pretty = const JsonEncoder.withIndent('  ').convert(info.data);
+    // debugPrint chunks long messages automatically, so this won't get truncated as easily.
+    debugPrint('=== device_info_plus: AndroidDeviceInfo ===');
+    debugPrint(pretty);
+    debugPrint('=== end AndroidDeviceInfo ===');
+  }
+
+  Future<void> _loadDeviceInfoIfNeeded() async {
     if (!Platform.isAndroid) return;
-    if (_androidId != null || _androidIdError != null) return;
+
     try {
-      final id = await MdmKiosk.getAndroidId();
-      if (!mounted) return;
-      setState(() {
-        _androidId = id;
-        _androidIdError = null;
-      });
-      // ignore: avoid_print
-      print('Android ID: ${id ?? '<null>'}');
+      if (_deviceName == null && _deviceNameError == null) {
+        final info = await DeviceInfoPlugin().androidInfo;
+
+        if (!_didDumpDeviceInfoToConsole) {
+          _dumpAndroidDeviceInfoToConsole(info);
+          if (mounted) {
+            setState(() {
+              _didDumpDeviceInfoToConsole = true;
+            });
+          } else {
+            _didDumpDeviceInfoToConsole = true;
+          }
+        }
+
+        final name = '${info.manufacturer} ${info.model}'.trim();
+        if (!mounted) return;
+        setState(() {
+          _deviceName = name;
+          _deviceNameError = null;
+        });
+        // ignore: avoid_print
+        print('Device name: $name');
+      }
+
+      if (_androidId == null && _androidIdError == null) {
+        final id = await MdmKiosk.getAndroidId();
+        if (!mounted) return;
+        setState(() {
+          _androidId = id;
+          _androidIdError = null;
+        });
+        // ignore: avoid_print
+        print('Android ID: ${id ?? '<null>'}');
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _androidIdError = e.toString();
+        final msg = e.toString();
+        _deviceNameError ??= msg;
+        _androidIdError ??= msg;
       });
       // ignore: avoid_print
-      print('Android ID fetch failed: $e');
+      print('Device info fetch failed: $e');
     }
   }
 
+  /// Check device registration and show dialog if needed
+  Future<bool> _checkDeviceRegistration() async {
+    if (!Platform.isAndroid) return true; // Skip on non-Android
+    
+    if (_androidId == null || _androidId!.isEmpty) {
+      // Get Android ID if not already loaded
+      try {
+        final id = await MdmKiosk.getAndroidId();
+        if (id == null || id.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('לא ניתן לקבל מזהה מכשיר'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return false;
+        }
+        setState(() {
+          _androidId = id;
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('שגיאה בקבלת מזהה מכשיר'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return false;
+      }
+    }
+
+    // Check if device is registered
+    final deviceDoc = await eventController.getDeviceDocument(_androidId!);
+    if (deviceDoc != null && deviceDoc['deviceNumber'] != null) {
+      setState(() {
+        _deviceRegistered = true;
+        _deviceNumber = deviceDoc['deviceNumber'] as String?;
+      });
+      return true; // Device already registered
+    }
+
+    // Device not registered, show dialog
+    return await _showDeviceNumberDialog();
+  }
+
+  /// Show dialog to input device number
+  Future<bool> _showDeviceNumberDialog() async {
+    final deviceNumberController = TextEditingController();
+
+    return await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: Text('הזנת מספר מכשיר'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'מספר המכשיר מופיע על גב הטאבלט',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                SizedBox(height: 16),
+                TextField(
+                  controller: deviceNumberController,
+                  decoration: InputDecoration(
+                    labelText: 'מספר מכשיר',
+                    hintText: 'הזן מספר מכשיר',
+                    border: OutlineInputBorder(),
+                  ),
+                  autofocus: true,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('ביטול'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final deviceNumber = deviceNumberController.text.trim();
+                  if (deviceNumber.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('אנא הזן מספר מכשיר'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  // Check if device number is already registered
+                  final isRegistered = await eventController.isDeviceNumberRegistered(deviceNumber);
+                  if (isRegistered) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('מספר מכשיר זה כבר רשום במערכת'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  // Register device number
+                  final success = await eventController.registerDeviceNumber(_androidId!, deviceNumber);
+                  if (success) {
+                    setState(() {
+                      _deviceRegistered = true;
+                      _deviceNumber = deviceNumber;
+                    });
+                    Navigator.of(context).pop(true);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('שגיאה ברישום מספר מכשיר'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                child: Text('אישור'),
+              ),
+            ],
+          ),
+        );
+      },
+    ) ?? false;
+  }
+
   login() async {
+    // First check device registration
+    final deviceValid = await _checkDeviceRegistration();
+    if (!deviceValid) {
+      return; // Don't proceed if device number wasn't validated
+    }
+
+    // Now proceed with instructor login
     if (await eventController.login(idCtrl.text)) {
       _connectionTimer.cancel();
       eventController.loading.value = true;
@@ -77,6 +259,37 @@ class _LoginPageState extends State<LoginPage> {
       eventController.isConnected.value = eventController.isConnected.value;
       //if (eventController.isConnected.value) _connectionTimer.cancel();
     });
+
+    // Load device registration status on page load
+    _loadDeviceRegistration();
+  }
+
+  /// Load device registration status from Firestore
+  Future<void> _loadDeviceRegistration() async {
+    if (!Platform.isAndroid) return;
+
+    try {
+      // Get Android ID
+      final androidId = await MdmKiosk.getAndroidId();
+      if (androidId == null || androidId.isEmpty) {
+        return;
+      }
+
+      setState(() {
+        _androidId = androidId;
+      });
+
+      // Check if device is registered
+      final deviceDoc = await eventController.getDeviceDocument(androidId);
+      if (deviceDoc != null && deviceDoc['deviceNumber'] != null) {
+        setState(() {
+          _deviceRegistered = true;
+          _deviceNumber = deviceDoc['deviceNumber'] as String?;
+        });
+      }
+    } catch (e) {
+      print('Error loading device registration: $e');
+    }
   }
 
   @override
@@ -140,36 +353,50 @@ class _LoginPageState extends State<LoginPage> {
                                     _showAndroidId = !_showAndroidId;
                                   });
                                   if (_showAndroidId) {
-                                    await _loadAndroidIdIfNeeded();
+                                    await _loadDeviceInfoIfNeeded();
                                   }
                                 },
                                 child: Text(
-                                  'מסך הזדהות של המדריך',
+                                  '!מסך הזדהות של המדריך',
                                   style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold),
                                 ),
                               ),
                               const SizedBox(height: 10),
-                              // Device ID (Android only) - helpful for support/debug.
+                              // Device info (Android only) - helpful for support/debug.
                               if (Platform.isAndroid && _showAndroidId)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 8.0, horizontal: 12.0),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.08),
+                                    color: Colors.black.withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(8.0),
                                   ),
-                                  child: _androidIdError != null
+                                  child: (_androidIdError != null ||
+                                          _deviceNameError != null)
                                       ? Text(
-                                          'Android ID error: $_androidIdError',
+                                          'Device info error: ${_deviceNameError ?? _androidIdError}',
                                           style: const TextStyle(
                                               fontSize: 12,
                                               color: Colors.red),
                                         )
-                                      : SelectableText(
-                                          'Android ID: ${_androidId ?? 'loading...'}',
-                                          style: const TextStyle(fontSize: 12),
+                                      : Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            SelectableText(
+                                              'Device: ${_deviceName ?? 'loading...'}',
+                                              style: const TextStyle(
+                                                  fontSize: 12),
+                                            ),
+                                            SelectableText(
+                                              'Android ID: ${_androidId ?? 'loading...'}',
+                                              style: const TextStyle(
+                                                  fontSize: 12),
+                                            ),
+                                          ],
                                         ),
                                 ),
                               const SizedBox(height: 40),

@@ -55,6 +55,7 @@ firebase.json
 .firebaserc
 .firebase/
 android/local.properties
+android/key.properties
 *.keystore
 *.jks
 *.p12

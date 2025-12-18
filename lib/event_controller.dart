@@ -16,7 +16,9 @@ import 'models/instructor.dart';
 import 'models/system.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'theme_controller.dart';
 import 'utils/logger.dart';
 
@@ -743,6 +745,115 @@ class EventController extends GetxController {
     }
   }
 
+  /// Get device document from Firestore by Android ID
+  Future<Map<String, dynamic>?> getDeviceDocument(String androidId) async {
+    try {
+      final doc = await firestore.collection('devices').doc(androidId).get();
+      if (doc.exists) {
+        return doc.data();
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error getting device document: $e');
+      return null;
+    }
+  }
+
+  /// Check if device number is already registered by another device
+  Future<bool> isDeviceNumberRegistered(String deviceNumber) async {
+    try {
+      final query = await firestore
+          .collection('devices')
+          .where('deviceNumber', isEqualTo: deviceNumber)
+          .limit(1)
+          .get();
+      
+      return query.docs.isNotEmpty;
+    } catch (e) {
+      print('❌ Error checking device number: $e');
+      return false;
+    }
+  }
+
+  /// Register device number to Firestore
+  Future<bool> registerDeviceNumber(String androidId, String deviceNumber) async {
+    try {
+      // Check if device number is already registered
+      final isRegistered = await isDeviceNumberRegistered(deviceNumber);
+      if (isRegistered) {
+        return false; // Device number already in use
+      }
+
+      final deviceData = {
+        'androidId': androidId,
+        'deviceNumber': deviceNumber,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      await firestore
+          .collection('devices')
+          .doc(androidId)
+          .set(deviceData, SetOptions(merge: true));
+
+      print('✅ Device number registered: $deviceNumber for Android ID $androidId');
+      return true;
+    } catch (e) {
+      print('❌ Error registering device number: $e');
+      return false;
+    }
+  }
+
+  /// Register device to Firestore
+  Future<void> registerDevice() async {
+    try {
+      if (!Platform.isAndroid) return;
+      
+      final androidId = await _getAndroidId();
+      if (androidId == null || androidId.isEmpty) {
+        print('⚠️ Could not get Android ID for device registration');
+        return;
+      }
+
+      // Get existing device document to preserve deviceNumber
+      final existingDevice = await getDeviceDocument(androidId);
+      final deviceNumber = existingDevice?['deviceNumber'] as String?;
+
+      final deviceData = {
+        'androidId': androidId,
+        'instructorId': currentInstructor.id,
+        'instructorFullName': '${currentInstructor.firstName} ${currentInstructor.lastName}',
+        'lastLogin': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // Preserve deviceNumber if it exists
+      if (deviceNumber != null && deviceNumber.isNotEmpty) {
+        deviceData['deviceNumber'] = deviceNumber;
+      }
+
+      await firestore
+          .collection('devices')
+          .doc(androidId)
+          .set(deviceData, SetOptions(merge: true));
+
+      print('✅ Device registered: $androidId for instructor ${currentInstructor.id}');
+    } catch (e) {
+      print('❌ Error registering device: $e');
+    }
+  }
+
+  /// Get Android ID using MethodChannel
+  Future<String?> _getAndroidId() async {
+    try {
+      const MethodChannel channel = MethodChannel('kiosk_settings');
+      final String? androidId = await channel.invokeMethod<String>('getAndroidId');
+      return androidId;
+    } catch (e) {
+      print('❌ Error getting Android ID: $e');
+      return null;
+    }
+  }
+
   /// log in
   login(String id) async {
     loading.value = true;
@@ -751,6 +862,10 @@ class EventController extends GetxController {
       system.value.loggedIn = id;
       system.value.save();
       currentInstructor = i;
+      
+      // Register device to Firestore after successful login
+      await registerDevice();
+      
       loading.value = false;
       return true;
     } else {
@@ -791,6 +906,12 @@ class EventController extends GetxController {
         loggedIn.value = true;
         toggleTheme(system.value.isDarkMode);
         currentInstructor = getInstructor(system.value.loggedIn)?? currentInstructor;
+        
+        // Register device if instructor is logged in
+        if (currentInstructor.id.isNotEmpty) {
+          await registerDevice();
+        }
+        
         return true;
       } else {
         print('Not logged in');

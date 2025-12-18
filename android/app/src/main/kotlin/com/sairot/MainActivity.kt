@@ -1,4 +1,4 @@
-package com.example.sairot
+package com.sairot
 
 import android.content.ComponentName
 import android.content.Intent
