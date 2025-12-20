@@ -144,6 +144,50 @@ class Event {
   Future<bool> saveToFirestore() async {
     try {
       lastUpdate = DateTime.now();
+      
+      // Debug: Verify instructorGrade values are present before saving
+      if (finalized) {
+        print('🔍 Saving finalized event - verifying instructorGrade values:');
+        int activeCount = 0;
+        int gradesSetCount = 0;
+        for (var p in participants) {
+          if (p.status == ParticipantStatus.Active) {
+            activeCount++;
+            if (p.instructorGrade > 0) {
+              gradesSetCount++;
+            }
+            print('  Participant ${p.number}: instructorGrade = ${p.instructorGrade}');
+          }
+        }
+        print('  Summary: $gradesSetCount/$activeCount active participants have instructorGrade set');
+        
+        if (gradesSetCount == 0 && activeCount > 0) {
+          print('⚠️ WARNING: No instructorGrade values found for active participants!');
+        }
+      }
+      
+      final eventJson = toJson();
+      
+      // Debug: Verify instructorGrade in JSON
+      if (finalized) {
+        final participantsJson = eventJson['participants'] as List<dynamic>?;
+        if (participantsJson != null) {
+          print('🔍 Verifying instructorGrade in JSON:');
+          int jsonGradesSetCount = 0;
+          for (var pJson in participantsJson) {
+            final pMap = pJson as Map<String, dynamic>;
+            if (pMap['status'] == 'Active') {
+              final grade = pMap['instructorGrade'] ?? 0;
+              if (grade > 0) {
+                jsonGradesSetCount++;
+              }
+              print('  Participant ${pMap['number']}: instructorGrade = $grade');
+            }
+          }
+          print('  JSON Summary: $jsonGradesSetCount active participants have instructorGrade in JSON');
+        }
+      }
+      
       await FirebaseFirestore.instance
           .collection('Results')
           .doc(instructorId)
@@ -151,7 +195,9 @@ class Event {
           .doc(eventName)
           .collection('days')
           .doc(date)
-          .set(toJson());
+          .set(eventJson);
+      
+      print('✅ Event saved successfully: $eventName - $date (finalized: $finalized)');
       return true;
     } catch (e) {
       print("❌ Error saving Event to Firestore: $eventName - $date: $e");

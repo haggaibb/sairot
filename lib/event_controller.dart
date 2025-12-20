@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sairot/models/bur.dart';
 import 'package:sairot/models/meshulash_round.dart';
 import 'package:sairot/models/participant.dart';
+import 'package:sairot/models/qualified_recruit.dart';
 import 'package:sairot/models/system_settings.dart';
 import 'models/types.dart';
 import 'models/alonka_sprint.dart';
@@ -21,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme_controller.dart';
 import 'utils/logger.dart';
+import '../widgets/final_classification_dialog.dart';
 
 
 class EventController extends GetxController {
@@ -852,6 +854,130 @@ class EventController extends GetxController {
       print('❌ Error getting Android ID: $e');
       return null;
     }
+  }
+
+  /// Finalize event and update qualified recruits in Firestore
+  Future<bool> finalizeEventAndUpdateQualifiedRecruits() async {
+    try {
+      // Filter qualified participants by final grade (instructorGrade >= 5) and Active status
+      // Note: We use instructorGrade (final grade), NOT systemGrade
+      List<Participant> qualifiedRecruits = currentEvent.value.participants
+          .where((p) =>
+              p.status == ParticipantStatus.Active &&
+              p.instructorGrade >= 5) // Final grade comparison
+          .toList();
+
+      if (qualifiedRecruits.isEmpty) {
+        print('ℹ️ No qualified recruits to save (instructorGrade >= 5)');
+        return true; // Not an error, just no qualified recruits
+      }
+
+      final eventName = currentEvent.value.eventName;
+      final date = currentEvent.value.date;
+      final instructorId = currentEvent.value.instructorId;
+      final instructorName = currentEvent.value.instructorName;
+      final groupNumber = currentEvent.value.groupNumber;
+
+      // Path: /AdminIndex/{eventName}/days/{day}/qualified_recruits/{participantNumber}
+      final qualifiedRecruitsRef = firestore
+          .collection('AdminIndex')
+          .doc(eventName)
+          .collection('days')
+          .doc(date)
+          .collection('qualified_recruits');
+
+      // Save each qualified recruit with new unified structure
+      for (Participant participant in qualifiedRecruits) {
+        // New unified structure with nested participantData
+        Map<String, dynamic> recruitData = {
+          'participantNumber': participant.number,
+          'participantData': participant.toJson(), // Full participant data nested
+          'eventName': eventName,
+          'day': date, // Use 'day' for consistency (renamed from 'date')
+          'finalizedAt': FieldValue.serverTimestamp(), // When instructor finalized
+          'finalizedBy': instructorId, // Instructor ID who finalized
+          'finalizedByName': instructorName, // Instructor name who finalized
+          'groupNumber': groupNumber,
+          'instructorId': instructorId,
+          'instructorName': instructorName,
+        };
+
+        // Use participant number as document ID (unique within event)
+        // SetOptions(merge: true) will preserve finalStatus if admin app set it
+        await qualifiedRecruitsRef
+            .doc(participant.number.toString())
+            .set(recruitData, SetOptions(merge: true));
+      }
+
+      print(
+          '✅ Successfully saved ${qualifiedRecruits.length} qualified recruits to Firestore');
+      return true;
+    } catch (e) {
+      print('❌ Error saving qualified recruits to Firestore: $e');
+      return false;
+    }
+  }
+
+  /// Update qualified recruit final classification
+  /// @deprecated Final classification should only be done in sairot_admin app, not in sairot app
+  /// This method is kept for backward compatibility but should not be used
+  @Deprecated('Final classification should only be done in sairot_admin app')
+  Future<bool> updateQualifiedRecruitClassification({
+    required String eventName,
+    required String date,
+    required int participantNumber,
+    required FinalClassification classification,
+    String? classifiedBy,
+  }) async {
+    print('⚠️ WARNING: updateQualifiedRecruitClassification is deprecated. Final classification should only be done in sairot_admin app.');
+    return false;
+  }
+
+  /// Get qualified recruit document from Firestore
+  /// Reads from unified structure with participantData nested field
+  Future<QualifiedRecruit?> getQualifiedRecruit({
+    required String eventName,
+    required String date,
+    required int participantNumber,
+  }) async {
+    try {
+      final docSnapshot = await firestore
+          .collection('AdminIndex')
+          .doc(eventName)
+          .collection('days')
+          .doc(date)
+          .collection('qualified_recruits')
+          .doc(participantNumber.toString())
+          .get();
+
+      if (docSnapshot.exists && docSnapshot.data() != null) {
+        // fromJson will handle both old and new structures
+        return QualifiedRecruit.fromJson(docSnapshot.data()!);
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error getting qualified recruit: $e');
+      return null;
+    }
+  }
+
+  /// Show final classification dialog and update qualified recruit
+  /// @deprecated Final classification should only be done in sairot_admin app, not in sairot app
+  /// This method is kept for backward compatibility but should not be used
+  @Deprecated('Final classification should only be done in sairot_admin app')
+  Future<void> showFinalClassificationDialogAndUpdate({
+    required BuildContext context,
+    required String eventName,
+    required String date,
+    required int participantNumber,
+  }) async {
+    print('⚠️ WARNING: showFinalClassificationDialogAndUpdate is deprecated. Final classification should only be done in sairot_admin app.');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('סיווג סופי יכול להיעשות רק באפליקציית המנהל'),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
 
   /// log in

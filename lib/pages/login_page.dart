@@ -357,7 +357,7 @@ class _LoginPageState extends State<LoginPage> {
                                   }
                                 },
                                 child: Text(
-                                  '!מסך הזדהות של המדריך',
+                                  'מסך הזדהות של המדריך',
                                   style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold),

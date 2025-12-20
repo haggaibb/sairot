@@ -164,8 +164,36 @@ class _EventHomeState extends State<EventHome> {
                             );
                             if (res) {
                               eventController.loading.value = true;
+                              
+                              // Debug: Log instructorGrade values before finalization
+                              print('🔍 Before finalization - instructorGrade values:');
+                              for (var p in eventController.currentEvent.value.participants) {
+                                if (p.status == ParticipantStatus.Active) {
+                                  print('  Participant ${p.number}: instructorGrade = ${p.instructorGrade}');
+                                }
+                              }
+                              
+                              // Save qualified recruits to Firestore FIRST (while grades are definitely in memory)
+                              try {
+                                await eventController.finalizeEventAndUpdateQualifiedRecruits();
+                              } catch (e) {
+                                print('❌ Error saving qualified recruits: $e');
+                                // Don't block finalization if qualified recruits save fails
+                              }
+                              
+                              // NOW set finalized flag
                               eventController.currentEvent.value.finalized = true;
                               eventController.currentEvent.refresh();
+                              
+                              // Debug: Verify instructorGrade values are still present before saving
+                              print('🔍 Before saving finalized event - instructorGrade values:');
+                              for (var p in eventController.currentEvent.value.participants) {
+                                if (p.status == ParticipantStatus.Active) {
+                                  print('  Participant ${p.number}: instructorGrade = ${p.instructorGrade}');
+                                }
+                              }
+                              
+                              // Save the event with finalized flag AND all instructorGrade values
                               if(await eventController.currentEvent.value.saveToFirestore()) {
                                 showCustomMessageAlert(context, "הצלחה",
                                     "הארוע נסגר בהצלחה", Icons.check);
