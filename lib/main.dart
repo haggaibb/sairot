@@ -12,6 +12,7 @@ import 'pages/bur_page.dart';
 import 'pages/grades_page.dart';
 import 'pages/performance_page.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'pages/login_page.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'pages/interview_page.dart';
@@ -23,7 +24,14 @@ import 'home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  
+  // Initialize Firebase with platform-specific options
+  // Uses firebase_options.dart which contains the correct config for each platform
+  // - Web: Uses the same web app config as sairot_admin
+  // - Android: Uses the config from google-services.json (com.sairot package)
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   final themeController = Get.put(ThemeController());
   SystemChrome.setPreferredOrientations(
           [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown])

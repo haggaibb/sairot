@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -117,6 +118,13 @@ class ConnectivityController extends GetxController {
   /// 🔥 Backup Local Hive File to Firebase
   Future<bool> backupHiveToFirebase(String eventName, String day, String instructorId) async {
     try {
+      // On web, Hive backup to Firebase Storage is not supported the same way
+      // Web uses IndexedDB which doesn't expose file paths
+      if (kIsWeb) {
+        print("⚠️ Hive backup to Firebase Storage is not supported on web platform");
+        return false;
+      }
+
       // 📂 Get local Hive file path
       final dir = await getApplicationDocumentsDirectory();
       final localFilePath = '${dir.path}/hive/$eventName/$day/$instructorId.hive';

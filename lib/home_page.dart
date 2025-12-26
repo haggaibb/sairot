@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
 import 'event_controller.dart';
 import 'models/instructor.dart';
@@ -11,6 +12,7 @@ import 'package:sairot/models/system.dart';
 import 'git_version.dart';
 import 'widgets/guideWebView.dart';
 import 'utils/tablet_utils.dart';
+import 'services/platform_service.dart';
 
 
 
@@ -25,6 +27,7 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   final eventController = Get.put(EventController());
   final themeController = Get.put(ThemeController());
+  final platformService = PlatformService.create();
 
 
   /// Load Selected Instructor's Event
@@ -263,13 +266,18 @@ class _HomeState extends State<Home> {
               title: Text('ימי סיירות'),
               centerTitle: true,
               actions: [
-                IconButton(
-                    onPressed: () => MdmKiosk.openWifiPicker(),
-                    icon: Icon(
-                      Icons.wifi_find_rounded,
-                      color: Colors.grey,
-                      size: 30.0,
-                    )),
+                if (!kIsWeb)
+                  IconButton(
+                      onPressed: () async {
+                        if (await platformService.canOpenKioskSettings()) {
+                          await platformService.openWifiPicker();
+                        }
+                      },
+                      icon: Icon(
+                        Icons.wifi_find_rounded,
+                        color: Colors.grey,
+                        size: 30.0,
+                      )),
                 IconButton(
                   icon: const Icon(Icons.info_outline),
                   tooltip: 'מדריך למשתמש',
@@ -635,13 +643,3 @@ class _HomeState extends State<Home> {
   }
 }
 
-
-class MdmKiosk {
-  static const _ch = MethodChannel('kiosk_settings');
-
-  static Future<void> openKioskSettings() =>
-      _ch.invokeMethod('openKioskSettings');
-  static Future<void> openWifiPicker() => _ch.invokeMethod('openWifiPicker');
-  static Future<String?> getAndroidId() =>
-      _ch.invokeMethod<String>('getAndroidId');
-}

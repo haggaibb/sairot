@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sairot/models/bur.dart';
 import 'package:sairot/models/meshulash_round.dart';
 import 'package:sairot/models/participant.dart';
@@ -17,12 +18,11 @@ import 'models/instructor.dart';
 import 'models/system.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme_controller.dart';
 import 'utils/logger.dart';
-import '../widgets/final_classification_dialog.dart';
+import 'services/platform_service.dart';
 
 
 class EventController extends GetxController {
@@ -32,6 +32,7 @@ class EventController extends GetxController {
   var pastEventsLoading = false.obs;
   GradeSettings gradesData = GradeSettings();
   final themeController = Get.put(ThemeController());
+  final platformService = PlatformService.create();
 
   /// Event Days
   String currentEventName = '';
@@ -74,10 +75,20 @@ class EventController extends GetxController {
   @override
   onInit() async {
     loading.value = true;
-    var dir = await getApplicationDocumentsDirectory();
-    if (!Hive.isAdapterRegistered(102)) Hive.registerAdapter(SystemAdapter());
-    if (!Hive.isAdapterRegistered(200)) Hive.registerAdapter(AccessibilityAdapter());
-    await Hive.initFlutter(dir.path);
+    // On web, Hive uses IndexedDB and doesn't need a file path
+    // On mobile, we need to get the documents directory
+    if (kIsWeb) {
+      // Web: Hive uses IndexedDB automatically, no path needed
+      if (!Hive.isAdapterRegistered(102)) Hive.registerAdapter(SystemAdapter());
+      if (!Hive.isAdapterRegistered(200)) Hive.registerAdapter(AccessibilityAdapter());
+      await Hive.initFlutter(); // No path needed on web
+    } else {
+      // Mobile: Get the documents directory for Hive file storage
+      var dir = await getApplicationDocumentsDirectory();
+      if (!Hive.isAdapterRegistered(102)) Hive.registerAdapter(SystemAdapter());
+      if (!Hive.isAdapterRegistered(200)) Hive.registerAdapter(AccessibilityAdapter());
+      await Hive.initFlutter(dir.path);
+    }
     await initSystemHiveBox();
     await gradesUpdate();
     await getSystemSettings();
@@ -808,7 +819,10 @@ class EventController extends GetxController {
   /// Register device to Firestore
   Future<void> registerDevice() async {
     try {
-      if (!Platform.isAndroid) return;
+      // Device registration is Android-only - skip on web
+      if (kIsWeb || !platformService.requiresDeviceRegistration()) {
+        return;
+      }
       
       final androidId = await _getAndroidId();
       if (androidId == null || androidId.isEmpty) {
@@ -844,12 +858,10 @@ class EventController extends GetxController {
     }
   }
 
-  /// Get Android ID using MethodChannel
+  /// Get Android ID using PlatformService
   Future<String?> _getAndroidId() async {
     try {
-      const MethodChannel channel = MethodChannel('kiosk_settings');
-      final String? androidId = await channel.invokeMethod<String>('getAndroidId');
-      return androidId;
+      return await platformService.getDeviceId();
     } catch (e) {
       print('❌ Error getting Android ID: $e');
       return null;

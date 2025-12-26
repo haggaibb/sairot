@@ -1,7 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import '../event_controller.dart';
 import 'package:get/get.dart';
@@ -33,7 +33,7 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
 
  /// OCR
   ///
-  File? _imageFile;
+  Uint8List? _imageFile;
   final ImagePicker _picker = ImagePicker();
   bool isLoading = false;
   final model = FirebaseVertexAI.instance.generativeModel(model: 'gemini-2.0-flash-001');
@@ -42,8 +42,11 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
     final XFile? image = await _picker.pickImage(source: src);
     if (image == null) return;
 
+    // Read image bytes directly (works on both mobile and web)
+    final imageBytes = await image.readAsBytes();
+
     setState(() {
-      _imageFile = File(image.path);
+      _imageFile = imageBytes;
     });
 
     // Send to Vertex AI
@@ -51,13 +54,12 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
   }
 
   // 📤 Convert image to Base64 and send to Vertex AI
-  Future<void> _sendToVertexAI(File imageFile) async {
+  Future<void> _sendToVertexAI(Uint8List imageBytes) async {
   // Provide a text prompt to include with the image
     eventController.loading.value = true;
     final prompt = TextPart("extract the data into json");
   // Prepare images for input
-    final image = await imageFile.readAsBytes();
-    final imagePart = InlineDataPart('image/jpeg', image);
+    final imagePart = InlineDataPart('image/jpeg', imageBytes);
 
 // To generate text output, call generateContent with the text and image
     final response = await model.generateContent(
@@ -98,8 +100,8 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
     }
 
     try {
-      // ✅ Now decode JSON properly
-      var jsonData = jsonDecode(response);
+      // ✅ Now decode JSON properly (decoded but not used in this method)
+      jsonDecode(response);
       //print("✅ Decoded JSON: $jsonData");
     } catch (e) {
       print("❌ JSON Decoding Error: $e");

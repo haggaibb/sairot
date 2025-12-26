@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
 import '../event_controller.dart';
 import 'dart:async';
@@ -7,6 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../widgets/logo.dart';
+import '../services/platform_service.dart';
 // import '../widgets/sonar.dart';
 
 class LoginPage extends StatefulWidget {
@@ -18,6 +20,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final eventController = Get.put(EventController());
+  final platformService = PlatformService.create();
   TextEditingController idCtrl = TextEditingController();
   late Timer _connectionTimer;
 
@@ -39,7 +42,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _loadDeviceInfoIfNeeded() async {
-    if (!Platform.isAndroid) return;
+    if (kIsWeb || !Platform.isAndroid) return;
 
     try {
       if (_deviceName == null && _deviceNameError == null) {
@@ -67,7 +70,7 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (_androidId == null && _androidIdError == null) {
-        final id = await MdmKiosk.getAndroidId();
+        final id = await platformService.getDeviceId();
         if (!mounted) return;
         setState(() {
           _androidId = id;
@@ -90,12 +93,15 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Check device registration and show dialog if needed
   Future<bool> _checkDeviceRegistration() async {
-    if (!Platform.isAndroid) return true; // Skip on non-Android
+    // Device registration is Android-only - skip on web
+    if (kIsWeb || !platformService.requiresDeviceRegistration()) {
+      return true; // Skip device registration on web
+    }
     
     if (_androidId == null || _androidId!.isEmpty) {
       // Get Android ID if not already loaded
       try {
-        final id = await MdmKiosk.getAndroidId();
+        final id = await platformService.getDeviceId();
         if (id == null || id.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -266,11 +272,14 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Load device registration status from Firestore
   Future<void> _loadDeviceRegistration() async {
-    if (!Platform.isAndroid) return;
+    // Device registration is Android-only - skip on web
+    if (kIsWeb || !platformService.requiresDeviceRegistration()) {
+      return;
+    }
 
     try {
       // Get Android ID
-      final androidId = await MdmKiosk.getAndroidId();
+      final androidId = await platformService.getDeviceId();
       if (androidId == null || androidId.isEmpty) {
         return;
       }
@@ -314,8 +323,12 @@ class _LoginPageState extends State<LoginPage> {
           resizeToAvoidBottomInset:
               true, // 👈 Ensures UI adjusts for the keyboard
           appBar: AppBar(
-            leading: IconButton(
-                onPressed: () => MdmKiosk.openWifiPicker(),
+            leading: kIsWeb ? null : IconButton(
+                onPressed: () async {
+                  if (await platformService.canOpenKioskSettings()) {
+                    await platformService.openWifiPicker();
+                  }
+                },
                 icon: Icon(
                   Icons.wifi_find_rounded,
                   color: Colors.grey,
@@ -348,7 +361,7 @@ class _LoginPageState extends State<LoginPage> {
                             children: [
                               GestureDetector(
                                 onLongPress: () async {
-                                  if (!Platform.isAndroid) return;
+                                  if (kIsWeb || !Platform.isAndroid) return;
                                   setState(() {
                                     _showAndroidId = !_showAndroidId;
                                   });
@@ -365,7 +378,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               const SizedBox(height: 10),
                               // Device info (Android only) - helpful for support/debug.
-                              if (Platform.isAndroid && _showAndroidId)
+                              if (!kIsWeb && Platform.isAndroid && _showAndroidId)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 8.0, horizontal: 12.0),
@@ -513,11 +526,3 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-class MdmKiosk {
-  static const _ch = MethodChannel('kiosk_settings');
-
-  static Future<void> openKioskSettings() =>
-      _ch.invokeMethod('openKioskSettings');
-  static Future<void> openWifiPicker() => _ch.invokeMethod('openWifiPicker');
-  static Future<String?> getAndroidId() => _ch.invokeMethod<String>('getAndroidId');
-}
