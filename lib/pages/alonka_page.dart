@@ -9,6 +9,9 @@ import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
+import '../services/exercise_context_service.dart';
+import '../services/user_preferences_service.dart';
+import '../widgets/floating_ptt_button.dart';
 
 class AlonkaPage extends StatefulWidget {
   const AlonkaPage({super.key});
@@ -23,9 +26,15 @@ class _AlonkaPageState extends State<AlonkaPage> {
   late Timer _timer;
   final ScrollController _scrollController = ScrollController();
   bool inOrderOfArrival = true;
+  bool _floatingPttEnabled = false;
+  bool _volumeButtonPttEnabled = false;
 
   @override
   void initState() {
+    // Set exercise context for STT
+    ExerciseContextService().setCurrentExercise('alonka');
+    _loadSttPreferences();
+    
     runTime = eventController.currentEvent.value.getAlonkaRunTime();
     if (eventController.currentEvent.value.alonkaEndTime == null) {
       _timer = Timer.periodic(Duration(seconds: 5), (Timer timer) {
@@ -36,6 +45,17 @@ class _AlonkaPageState extends State<AlonkaPage> {
     }
     _scrollToEnd();
     super.initState();
+  }
+
+  Future<void> _loadSttPreferences() async {
+    final floatingEnabled = await UserPreferencesService.getFloatingPttButton();
+    final volumeEnabled = await UserPreferencesService.getVolumeButtonPtt();
+    if (mounted) {
+      setState(() {
+        _floatingPttEnabled = floatingEnabled;
+        _volumeButtonPttEnabled = volumeEnabled;
+      });
+    }
   }
 
   void _scrollToEnd() {
@@ -59,6 +79,9 @@ class _AlonkaPageState extends State<AlonkaPage> {
 
   @override
   void dispose() {
+    // Clear exercise context when leaving page
+    ExerciseContextService().clearExercise();
+    
     if (eventController.currentEvent.value.alonkaEndTime == null)
       _timer.cancel(); // Stop timer when widget is disposed
     
@@ -97,7 +120,9 @@ class _AlonkaPageState extends State<AlonkaPage> {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
           appBar: AppBar(
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             centerTitle: true,
@@ -386,7 +411,17 @@ class _AlonkaPageState extends State<AlonkaPage> {
                   ),
               ),
             );
-          })),
+          }),
+        ),
+        // Floating PTT Button - OUTSIDE Scaffold, on top of everything
+        if (_floatingPttEnabled || _volumeButtonPttEnabled)
+          FloatingPttButton(
+            instructorId: eventController.currentInstructor.id,
+            enabled: _floatingPttEnabled || _volumeButtonPttEnabled,
+            showButton: _floatingPttEnabled,
+          ),
+      ],
+    ),
     );
   }
 }

@@ -10,6 +10,9 @@ import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
+import '../services/exercise_context_service.dart';
+import '../services/user_preferences_service.dart';
+import '../widgets/floating_ptt_button.dart';
 
 class BurPage extends StatefulWidget {
   const BurPage({super.key});
@@ -22,9 +25,15 @@ class _BurPageState extends State<BurPage> {
   final eventController = Get.put(EventController());
   int runTime = 0;
   late Timer _timer;
+  bool _floatingPttEnabled = false;
+  bool _volumeButtonPttEnabled = false;
 
   @override
   void initState() {
+    // Set exercise context for STT
+    ExerciseContextService().setCurrentExercise('bur');
+    _loadSttPreferences();
+    
     // Removed debug print of bur IDs
     runTime = eventController.currentEvent.value.getBurRunTime();
     if (eventController.currentEvent.value.burEndTime == null) {
@@ -37,8 +46,22 @@ class _BurPageState extends State<BurPage> {
     super.initState();
   }
 
+  Future<void> _loadSttPreferences() async {
+    final floatingEnabled = await UserPreferencesService.getFloatingPttButton();
+    final volumeEnabled = await UserPreferencesService.getVolumeButtonPtt();
+    if (mounted) {
+      setState(() {
+        _floatingPttEnabled = floatingEnabled;
+        _volumeButtonPttEnabled = volumeEnabled;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    // Clear exercise context when leaving page
+    ExerciseContextService().clearExercise();
+    
     if (eventController.currentEvent.value.burEndTime == null)
       _timer.cancel(); // Stop timer when widget is disposed
     
@@ -70,7 +93,9 @@ class _BurPageState extends State<BurPage> {
               end: Alignment.bottomRight,
             ),
           ),
-          child: Scaffold(
+          child: Stack(
+            children: [
+              Scaffold(
               appBar: AppBar(
                 //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
                 centerTitle: true,
@@ -631,7 +656,18 @@ class _BurPageState extends State<BurPage> {
                                     ))),
                           ),
                         );
-              })),
-        ));
+              }),
+          ), // Scaffold closing
+          // Floating PTT Button - OUTSIDE Scaffold, on top of everything
+          if (_floatingPttEnabled || _volumeButtonPttEnabled)
+            FloatingPttButton(
+              instructorId: eventController.currentInstructor.id,
+              enabled: _floatingPttEnabled || _volumeButtonPttEnabled,
+              showButton: _floatingPttEnabled,
+            ),
+        ],
+      ),
+        ),
+    );
   }
 }

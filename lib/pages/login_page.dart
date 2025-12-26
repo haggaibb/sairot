@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../widgets/logo.dart';
 import '../services/platform_service.dart';
+import '../utils/tablet_utils.dart';
 // import '../widgets/sonar.dart';
 
 class LoginPage extends StatefulWidget {
@@ -93,9 +94,19 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Check device registration and show dialog if needed
   Future<bool> _checkDeviceRegistration() async {
-    // Device registration is Android-only - skip on web
-    if (kIsWeb || !platformService.requiresDeviceRegistration()) {
+    // Device registration is required only for tablets, not phones or web
+    if (kIsWeb) {
       return true; // Skip device registration on web
+    }
+    
+    // Check if device is a tablet - only tablets require device registration
+    if (!isTablet(context)) {
+      return true; // Skip device registration on phones
+    }
+    
+    // For tablets, check if device registration is required
+    if (!platformService.requiresDeviceRegistration()) {
+      return true; // Skip if service says not required
     }
     
     if (_androidId == null || _androidId!.isEmpty) {
@@ -272,9 +283,19 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Load device registration status from Firestore
   Future<void> _loadDeviceRegistration() async {
-    // Device registration is Android-only - skip on web
-    if (kIsWeb || !platformService.requiresDeviceRegistration()) {
-      return;
+    // Device registration is required only for tablets, not phones or web
+    if (kIsWeb) {
+      return; // Skip device registration on web
+    }
+    
+    // Check if device is a tablet - only tablets require device registration
+    if (!mounted || !isTablet(context)) {
+      return; // Skip device registration on phones
+    }
+    
+    // For tablets, check if device registration is required
+    if (!platformService.requiresDeviceRegistration()) {
+      return; // Skip if service says not required
     }
 
     try {

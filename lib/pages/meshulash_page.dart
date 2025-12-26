@@ -10,6 +10,9 @@ import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
+import '../services/exercise_context_service.dart';
+import '../services/user_preferences_service.dart';
+import '../widgets/floating_ptt_button.dart';
 
 class MeshulashPage extends StatefulWidget {
   const MeshulashPage({super.key});
@@ -25,6 +28,8 @@ class _MeshulashPageState extends State<MeshulashPage> {
   late bool editModeOn;
   bool _isGridView = false;
   final ScrollController _scrollController = ScrollController();
+  bool _floatingPttEnabled = false;
+  bool _volumeButtonPttEnabled = false;
 
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -38,6 +43,10 @@ class _MeshulashPageState extends State<MeshulashPage> {
 
   @override
   void initState() {
+    // Set exercise context for STT
+    ExerciseContextService().setCurrentExercise('meshulash');
+    _loadSttPreferences();
+    
     if (eventController.currentEvent.value.meshulashEndTime != null) {
       eventController.meshulashEditModeOn.value = false;
       editModeOn = eventController.meshulashEditModeOn.value;
@@ -55,6 +64,17 @@ class _MeshulashPageState extends State<MeshulashPage> {
     }
     _scrollToEnd();
     super.initState();
+  }
+
+  Future<void> _loadSttPreferences() async {
+    final floatingEnabled = await UserPreferencesService.getFloatingPttButton();
+    final volumeEnabled = await UserPreferencesService.getVolumeButtonPtt();
+    if (mounted) {
+      setState(() {
+        _floatingPttEnabled = floatingEnabled;
+        _volumeButtonPttEnabled = volumeEnabled;
+      });
+    }
   }
 
   @override
@@ -98,7 +118,9 @@ class _MeshulashPageState extends State<MeshulashPage> {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
           appBar: AppBar(
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             centerTitle: true,
@@ -145,7 +167,9 @@ class _MeshulashPageState extends State<MeshulashPage> {
               )
             ],
           ),
-          body: GetX<EventController>(builder: (_) {
+          body: Stack(
+            children: [
+              GetX<EventController>(builder: (_) {
             editModeOn = _.meshulashEditModeOn.value;
             // Show grid view if enabled
             if (_isGridView) {
@@ -421,7 +445,19 @@ class _MeshulashPageState extends State<MeshulashPage> {
                           ),
                         )),
             );
-          })),
+              }),
+            ],
+          ),
+        ),
+          // Floating PTT Button - OUTSIDE Scaffold, on top of everything
+          if (_floatingPttEnabled || _volumeButtonPttEnabled)
+            FloatingPttButton(
+              instructorId: eventController.currentInstructor.id,
+              enabled: _floatingPttEnabled || _volumeButtonPttEnabled,
+              showButton: _floatingPttEnabled,
+            ),
+        ],
+      ),
     );
   }
 }

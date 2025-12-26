@@ -10,6 +10,9 @@ import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
+import '../services/exercise_context_service.dart';
+import '../services/user_preferences_service.dart';
+import '../widgets/floating_ptt_button.dart';
 
 class SakimPage extends StatefulWidget {
   const SakimPage({super.key});
@@ -25,6 +28,8 @@ class _SakimPageState extends State<SakimPage> {
   late bool editModeOn;
   bool _isGridView = false;
   final ScrollController _scrollController = ScrollController();
+  bool _floatingPttEnabled = false;
+  bool _volumeButtonPttEnabled = false;
 
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -38,6 +43,10 @@ class _SakimPageState extends State<SakimPage> {
 
   @override
   void initState() {
+    // Set exercise context for STT
+    ExerciseContextService().setCurrentExercise('sakim');
+    _loadSttPreferences();
+    
     if (eventController.currentEvent.value.sakimEndTime != null) {
       eventController.sakimEditModeOn.value = false;
       editModeOn = eventController.sakimEditModeOn.value;
@@ -61,8 +70,22 @@ class _SakimPageState extends State<SakimPage> {
     super.initState();
   }
 
+  Future<void> _loadSttPreferences() async {
+    final floatingEnabled = await UserPreferencesService.getFloatingPttButton();
+    final volumeEnabled = await UserPreferencesService.getVolumeButtonPtt();
+    if (mounted) {
+      setState(() {
+        _floatingPttEnabled = floatingEnabled;
+        _volumeButtonPttEnabled = volumeEnabled;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    // Clear exercise context when leaving page
+    ExerciseContextService().clearExercise();
+    
     if (eventController.currentEvent.value.sakimEndTime == null)
       _timer.cancel(); // Stop timer when widget is disposed
     
@@ -102,7 +125,9 @@ class _SakimPageState extends State<SakimPage> {
           end: Alignment.bottomRight,
         ),
       ),
-      child: Scaffold(
+      child: Stack(
+        children: [
+          Scaffold(
           appBar: AppBar(
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             centerTitle: true,
@@ -404,7 +429,17 @@ class _SakimPageState extends State<SakimPage> {
                       ),
                     ),
             );
-          })),
+          }),
+        ),
+          // Floating PTT Button - OUTSIDE Scaffold, on top of everything
+          if (_floatingPttEnabled || _volumeButtonPttEnabled)
+            FloatingPttButton(
+              instructorId: eventController.currentInstructor.id,
+              enabled: _floatingPttEnabled || _volumeButtonPttEnabled,
+              showButton: _floatingPttEnabled,
+            ),
+        ],
+      ),
     );
   }
 }

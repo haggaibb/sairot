@@ -8,6 +8,9 @@ import 'widgets/strobe_button.dart';
 import 'models/system.dart';
 import 'widgets/guideWebView.dart';
 import 'utils/tablet_utils.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'services/user_preferences_service.dart';
+import 'widgets/floating_ptt_button.dart';
 
 class EventHome extends StatefulWidget {
   const EventHome({super.key});
@@ -19,8 +22,8 @@ class EventHome extends StatefulWidget {
 class _EventHomeState extends State<EventHome> {
   final eventController = Get.put(EventController());
   final themeController = Get.put(ThemeController());
-
-
+  bool _floatingPttEnabled = false;
+  bool _volumeButtonPttEnabled = false;
 
   Widget _buildShiningButton(BuildContext context, dynamic icon, String title, VoidCallback onTap) {
     bool tablet = isTablet(context);
@@ -50,6 +53,48 @@ class _EventHomeState extends State<EventHome> {
   @override
   void initState() {
     super.initState();
+    _loadSttPreferences();
+  }
+
+  Future<void> _loadSttPreferences() async {
+    final floatingEnabled = await UserPreferencesService.getFloatingPttButton();
+    final volumeEnabled = await UserPreferencesService.getVolumeButtonPtt();
+    if (mounted) {
+      setState(() {
+        _floatingPttEnabled = floatingEnabled;
+        _volumeButtonPttEnabled = volumeEnabled;
+      });
+    }
+  }
+
+  Future<void> _saveFloatingPttButton(bool value) async {
+    setState(() {
+      _floatingPttEnabled = value;
+    });
+    await UserPreferencesService.saveFloatingPttButton(value);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(value ? 'כפתור מיקרופון מופעל' : 'כפתור מיקרופון מושבת'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveVolumeButtonPtt(bool value) async {
+    setState(() {
+      _volumeButtonPttEnabled = value;
+    });
+    await UserPreferencesService.saveVolumeButtonPtt(value);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(value ? 'כפתורי עוצמת קול מופעלים' : 'כפתורי עוצמת קול מושבתים'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   @override
@@ -69,7 +114,9 @@ class _EventHomeState extends State<EventHome> {
             end: Alignment.bottomRight,
           ),
         ),
-        child: Scaffold(
+        child: Stack(
+          children: [
+            Scaffold(
           drawer: Drawer(
             child: ListView(
               // Important: Remove any padding from the ListView.
@@ -325,6 +372,23 @@ class _EventHomeState extends State<EventHome> {
                     ],
                   ),
                 ),
+                /// Floating PTT Button
+                SwitchListTile(
+                  title: const Text('כפתור מיקרופון צף'),
+                  subtitle: const Text('הצג כפתור מיקרופון צף להוספת הערות קוליות'),
+                  value: _floatingPttEnabled,
+                  onChanged: _saveFloatingPttButton,
+                ),
+                /// Volume Button PTT
+                SwitchListTile(
+                  title: const Text('כפתורי עוצמת קול'),
+                  subtitle: Text(
+                    'השתמש בכפתורי עוצמת הקול להקלטה קולית${kIsWeb ? '' : '\nזמין באפליקציה בלבד (לא בדפדפן)'}',
+                    style: kIsWeb ? TextStyle(color: Colors.grey[600], fontSize: 12) : TextStyle(color: Colors.orange[700], fontSize: 12, fontStyle: FontStyle.italic),
+                  ),
+                  value: _volumeButtonPttEnabled,
+                  onChanged: kIsWeb ? null : _saveVolumeButtonPtt, // Disable on web
+                ),
               ],
             ),
           ),
@@ -349,9 +413,11 @@ class _EventHomeState extends State<EventHome> {
               )
             ],
           ),
-          body:SingleChildScrollView(
-            child: Column(
-              children: [
+          body: Stack(
+            children: [
+              SingleChildScrollView(
+                child: Column(
+                  children: [
                 /// Group Data
                 Column(
                   children: [
@@ -443,9 +509,20 @@ class _EventHomeState extends State<EventHome> {
                 ),
 
                 SizedBox(height: 30,)
-              ],
-            ),
+                  ],
+                ),
+              ),
+            ],
           ),
+        ),
+            // Floating PTT Button - OUTSIDE Scaffold, on top of everything
+            if (_floatingPttEnabled || _volumeButtonPttEnabled)
+              FloatingPttButton(
+                instructorId: eventController.currentInstructor.id,
+                enabled: _floatingPttEnabled || _volumeButtonPttEnabled,
+                showButton: _floatingPttEnabled,
+              ),
+          ],
         ),
       ),
     );

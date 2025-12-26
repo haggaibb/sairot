@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
 import 'event_controller.dart';
 import 'pages/event_settings_page.dart';
@@ -24,6 +25,14 @@ import 'home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Hide system navigation bar on mobile (not web)
+  if (!kIsWeb) {
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.immersiveSticky,
+      overlays: [SystemUiOverlay.top], // Keep status bar, hide navigation bar
+    );
+  }
   
   // Initialize Firebase with platform-specific options
   // Uses firebase_options.dart which contains the correct config for each platform

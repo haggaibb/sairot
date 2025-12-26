@@ -16,7 +16,9 @@ abstract class PlatformService {
   /// Open WiFi picker (Android only)
   Future<void> openWifiPicker();
 
-  /// Check if device registration is required (Android only)
+  /// Check if device registration is required (Android tablets only, not phones or web)
+  /// Note: This returns true for all Android devices. The actual tablet check
+  /// should be done in the UI layer using MediaQuery since this service doesn't have BuildContext.
   bool requiresDeviceRegistration();
 
   /// Factory method to get the appropriate platform service
@@ -72,7 +74,7 @@ class AndroidPlatformService implements PlatformService {
 
   @override
   bool requiresDeviceRegistration() {
-    return true; // Android requires device registration
+    return true; // Android devices may require registration (tablet check done in UI)
   }
 }
 

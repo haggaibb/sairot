@@ -7,6 +7,9 @@ import 'package:get/get.dart';
 import '../widgets/comments_dialog.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
+import '../services/exercise_context_service.dart';
+import '../services/user_preferences_service.dart';
+import '../widgets/floating_ptt_button.dart';
 
 
 class InterviewPage extends StatefulWidget {
@@ -18,9 +21,15 @@ class InterviewPage extends StatefulWidget {
 
 class _InterviewPageState extends State<InterviewPage> {
   final eventController = Get.put(EventController());
+  bool _floatingPttEnabled = false;
+  bool _volumeButtonPttEnabled = false;
 
   @override
   void initState() {
+    // Set exercise context for STT
+    ExerciseContextService().setCurrentExercise('interview');
+    _loadSttPreferences();
+    
     //setState(() async {
     eventController.currentEvent.value.activeParticipants = [];
     for (Participant p in eventController.currentEvent.value
@@ -31,8 +40,22 @@ class _InterviewPageState extends State<InterviewPage> {
     super.initState();
   }
 
+  Future<void> _loadSttPreferences() async {
+    final floatingEnabled = await UserPreferencesService.getFloatingPttButton();
+    final volumeEnabled = await UserPreferencesService.getVolumeButtonPtt();
+    if (mounted) {
+      setState(() {
+        _floatingPttEnabled = floatingEnabled;
+        _volumeButtonPttEnabled = volumeEnabled;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    // Clear exercise context when leaving page
+    ExerciseContextService().clearExercise();
+    
     // Restore portrait-only orientation when leaving
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -76,7 +99,9 @@ class _InterviewPageState extends State<InterviewPage> {
               end: Alignment.bottomRight,
             ),
           ),
-          child: Scaffold(
+          child: Stack(
+            children: [
+              Scaffold(
               resizeToAvoidBottomInset: true,
               appBar: AppBar(
                 //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -199,7 +224,17 @@ class _InterviewPageState extends State<InterviewPage> {
                         ),
                       ],
                     )),
-          ),
-        ));
+          ), // Scaffold closing
+          // Floating PTT Button - OUTSIDE Scaffold, on top of everything
+          if (_floatingPttEnabled || _volumeButtonPttEnabled)
+            FloatingPttButton(
+              instructorId: eventController.currentInstructor.id,
+              enabled: _floatingPttEnabled || _volumeButtonPttEnabled,
+              showButton: _floatingPttEnabled,
+            ),
+        ],
+      ),
+        ),
+    );
   }
 }

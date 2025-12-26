@@ -515,6 +515,31 @@ class EventController extends GetxController {
       print("❌ Participant not found with number: $participantNumber");
     }
   }
+
+  /// Bur - Add a comment to a Bur's instructorComments list
+  void addBurComment(String comment, int participantNumber) {
+    // Find the Bur by participant number (bur.id == participantNumber)
+    int burIndex = currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == participantNumber);
+    
+    if (burIndex != -1) {
+      // Get the existing comments
+      List<String> existingComments = currentEvent.value.burGrades[burIndex].instructorComments;
+      
+      // Add new comment if it doesn't already exist (merge, don't replace)
+      if (!existingComments.contains(comment)) {
+        existingComments.add(comment);
+        currentEvent.value.burGrades[burIndex].instructorComments = existingComments;
+        print("✅ Bur comment added successfully to participant $participantNumber: $comment");
+        currentEvent.value.saveToFirestore();
+        currentEvent.refresh();
+      } else {
+        print("⚠️ Bur comment already exists for participant $participantNumber: $comment");
+      }
+    } else {
+      print("❌ Bur not found with participant number: $participantNumber");
+    }
+  }
+
   Color getInterviewStatus(){
     int count = 0;
     var list = currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
