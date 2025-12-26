@@ -54,6 +54,9 @@ android/app/google-services.json
 firebase.json
 .firebaserc
 .firebase/
+firebase-debug.log
+firebase-debug.*.log
+.firebaserc.local
 android/local.properties
 android/key.properties
 *.keystore
