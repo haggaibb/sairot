@@ -28,7 +28,7 @@ echo "🧹 Cleaning project..."
 flutter clean
 flutter pub get
 
-# 🛠️ Choose build type: apk or aab
+# 🛠️ Choose build type: apk, aab, or web
 BUILD_TYPE=${1:-apk}  # default = apk
 
 echo "🚀 Building $PROJECT_NAME ($GIT_BRANCH → $GIT_VERSION) as $BUILD_TYPE..."
@@ -37,17 +37,29 @@ if [ "$BUILD_TYPE" = "apk" ]; then
   flutter build apk --release
   ORIGINAL_OUTPUT="build/app/outputs/flutter-apk/app-release.apk"
   FINAL_OUTPUT="${PROJECT_NAME}_${GIT_BRANCH}_${GIT_VERSION}.apk"
+  # ✅ Copy and rename the output file
+  echo "📦 Output: $FINAL_OUTPUT"
+  cp "$ORIGINAL_OUTPUT" "$FINAL_OUTPUT"
 elif [ "$BUILD_TYPE" = "aab" ]; then
   flutter build appbundle --release
   ORIGINAL_OUTPUT="build/app/outputs/bundle/release/app-release.aab"
   FINAL_OUTPUT="${PROJECT_NAME}_${GIT_BRANCH}_${GIT_VERSION}.aab"
+  # ✅ Copy and rename the output file
+  echo "📦 Output: $FINAL_OUTPUT"
+  cp "$ORIGINAL_OUTPUT" "$FINAL_OUTPUT"
+elif [ "$BUILD_TYPE" = "web" ]; then
+  flutter build web --release
+  WEB_OUTPUT_DIR="build/web"
+  FINAL_OUTPUT_DIR="${PROJECT_NAME}_web_${GIT_BRANCH}_${GIT_VERSION}"
+  # ✅ Copy the web build to a versioned directory
+  echo "📦 Web build output: $FINAL_OUTPUT_DIR/"
+  cp -r "$WEB_OUTPUT_DIR" "$FINAL_OUTPUT_DIR"
+  echo "✅ Web build available in: $FINAL_OUTPUT_DIR/"
+  echo "   Deploy the contents of this directory to your web server"
 else
   echo "❌ Invalid build type: $BUILD_TYPE"
+  echo "   Supported types: apk, aab, web"
   exit 1
 fi
-
-# ✅ Copy and rename the output file
-echo "📦 Output: $FINAL_OUTPUT"
-cp "$ORIGINAL_OUTPUT" "$FINAL_OUTPUT"
 
 echo "✅ Build complete!"

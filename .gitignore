@@ -92,6 +92,5 @@ logs/
 *.temp
 *~
 
-# Firebase configuration files (contain API keys)
+# Firebase configuration files (contain API keys and sensitive data)
 **/firebase_options.dart
-lib/firebase_options.dart
