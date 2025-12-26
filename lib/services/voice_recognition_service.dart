@@ -405,18 +405,42 @@ class VoiceRecognitionService {
     _isListening = false;
     
     // Wait longer for final result to arrive (speech engine may take time)
-    if (isMobileWeb && _accumulatedResult.isNotEmpty && _lastResult.isEmpty) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // If still no final result, use accumulated (already cleaned or raw based on _disableCleaning)
-      if (_lastResult.isEmpty && _accumulatedResult.isNotEmpty) {
-        _lastResult = _accumulatedResult;
-        onResult?.call(_lastResult);
+    if (isMobileWeb) {
+      // Check if we have accumulated result first
+      if (_accumulatedResult.isNotEmpty && _lastResult.isEmpty) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // If still no final result, use accumulated (already cleaned or raw based on _disableCleaning)
+        if (_lastResult.isEmpty && _accumulatedResult.isNotEmpty) {
+          _lastResult = _accumulatedResult;
+          onResult?.call(_lastResult);
+          _accumulatedResult = '';
+        } else if (_lastResult.isEmpty && _accumulatedResult.isEmpty) {
+          // No result at all - call onResult with empty string to reset state
+          // This will stop the processing indicator
+          onResult?.call('');
+        }
+      } else if (_accumulatedResult.isEmpty && _lastResult.isEmpty) {
+        // No accumulated result and no final result - stop processing immediately
+        // Wait a short time in case final result is still coming
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (_lastResult.isEmpty) {
+          // No result - call onResult with empty string to stop processing indicator
+          onResult?.call('');
+        }
+      }
+    } else if (!isMobileWeb) {
+      // For desktop web, if no result was received, call onResult with empty string
+      // This ensures the UI resets properly even if no text was recognized
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (_lastResult.isEmpty) {
+        onResult?.call('');
       }
     }
     
-    // Don't call onListeningStopped here - it will be called by the final result callback
-    // or by the onStatus callback
+    // Always call onListeningStopped to ensure UI state is reset
+    // The final result callback might not always fire, especially for empty results
+    onListeningStopped?.call();
   }
 
   /// Cancel current listening session

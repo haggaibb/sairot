@@ -111,6 +111,20 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
         await Future.delayed(const Duration(milliseconds: 50));
         
         if (mounted && !_isShowingDialog) {
+          // Check if result is empty before handling
+          if (text.trim().isEmpty) {
+            print('🎤 Empty result - resetting state');
+            // Ensure all states are cleared for empty result
+            setState(() {
+              _isProcessing = false;
+            });
+            // Force UI update to reset button state
+            if (mounted) {
+              setState(() {});
+            }
+            return;
+          }
+          
           await _handlePttResult(text);
         }
       }
@@ -167,7 +181,15 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     }
     
     // Processing state is already cleared by onResult wrapper before this is called
+    // Empty text is already handled in onResult callback, so this shouldn't be reached with empty text
     if (text.trim().isEmpty) {
+      print('🎤 Empty text in _handlePttResult - should not reach here');
+      // Ensure state is cleared
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
       return;
     }
 

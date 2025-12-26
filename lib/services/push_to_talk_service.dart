@@ -57,6 +57,7 @@ class PushToTalkService {
       } else {
         _isProcessing = false; // Ensure it's false
       }
+      // Always call onResult, even with empty text, to ensure UI state is reset
       onResult?.call(text);
     };
 
@@ -92,14 +93,34 @@ class PushToTalkService {
         // Only start processing indicator if we haven't received a result yet
         // This prevents processing from restarting after onResult has been called
         // Double-check the flag here as well to be absolutely sure
+        // IMPORTANT: On mobile web, check if there's actually text to process
+        // If lastResult is empty, there might be no text, so don't start processing yet
+        // The stopListening() method will call onResult('') if no text, which will stop processing
         if (!_hasReceivedResult && !_isProcessing && !_disableProcessingIndicator) {
-          _isProcessing = true;
-          // Wrap callback to check flag one more time as final safeguard
-          if (!_disableProcessingIndicator && !_voiceService.isCleaningDisabled) {
-            onProcessingStarted?.call();
+          // Check if we have any result text - if empty, don't start processing
+          // On mobile web, if there's no accumulated text, the result will be empty
+          final hasText = _voiceService.lastResult.isNotEmpty;
+          
+          if (hasText) {
+            // We have text to process - start the indicator
+            _isProcessing = true;
+            // Wrap callback to check flag one more time as final safeguard
+            if (!_disableProcessingIndicator && !_voiceService.isCleaningDisabled) {
+              onProcessingStarted?.call();
+            } else {
+              // Flag was set after we checked, revert processing state
+              _isProcessing = false;
+            }
           } else {
-            // Flag was set after we checked, revert processing state
+            // No text to process - don't start processing indicator
+            // The result callback will be called with empty string, which will reset state
             _isProcessing = false;
+          }
+        } else if (_hasReceivedResult) {
+          // Result already received - ensure processing is stopped
+          _isProcessing = false;
+          if (!_disableProcessingIndicator && !_voiceService.isCleaningDisabled) {
+            onProcessingStopped?.call();
           }
         }
       }
