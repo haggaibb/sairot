@@ -33,6 +33,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _didDumpDeviceInfoToConsole = false;
   bool _deviceRegistered = false;
   String? _deviceNumber;
+  bool _hasLoadedDeviceRegistration = false; // Prevent multiple calls to _loadDeviceRegistration
 
   void _dumpAndroidDeviceInfoToConsole(AndroidDeviceInfo info) {
     final pretty = const JsonEncoder.withIndent('  ').convert(info.data);
@@ -276,9 +277,18 @@ class _LoginPageState extends State<LoginPage> {
       eventController.isConnected.value = eventController.isConnected.value;
       //if (eventController.isConnected.value) _connectionTimer.cancel();
     });
+  }
 
-    // Load device registration status on page load
-    _loadDeviceRegistration();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Load device registration status after dependencies are available
+    // This is called after initState and when MediaQuery is available
+    // Only load once to prevent multiple calls
+    if (!_hasLoadedDeviceRegistration) {
+      _hasLoadedDeviceRegistration = true;
+      _loadDeviceRegistration();
+    }
   }
 
   /// Load device registration status from Firestore
