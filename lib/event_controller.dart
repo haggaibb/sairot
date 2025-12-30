@@ -742,6 +742,56 @@ class EventController extends GetxController {
     currentEvent.value.participants[participantIndex].instructorGrade = grade;
     currentEvent.value.saveToFirestore();
   }
+
+  /// Get rank information for a participant in a specific exercise
+  /// Returns a map with 'rank' (1-based) and 'total' (total participants)
+  Map<String, int> getExerciseRank(int participantNumber, String exerciseName) {
+    List<Participant> activeParticipants = 
+        currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
+    
+    // Sort participants by grade (descending - higher grade = better rank)
+    List<Participant> sortedParticipants;
+    switch (exerciseName) {
+      case 'meshulash':
+        sortedParticipants = List.from(activeParticipants)
+          ..sort((a, b) => b.meshulashGrade.compareTo(a.meshulashGrade));
+        break;
+      case 'alonka':
+        sortedParticipants = List.from(activeParticipants)
+          ..sort((a, b) => b.alonkaGrade.compareTo(a.alonkaGrade));
+        break;
+      case 'bur':
+        sortedParticipants = List.from(activeParticipants)
+          ..sort((a, b) => b.burGrade.compareTo(a.burGrade));
+        break;
+      case 'sakim':
+        sortedParticipants = List.from(activeParticipants)
+          ..sort((a, b) => b.sakimGrade.compareTo(a.sakimGrade));
+        break;
+      default:
+        return {'rank': 0, 'total': activeParticipants.length};
+    }
+    
+    // Find participant's position (1-based)
+    int rank = sortedParticipants.indexWhere((p) => p.number == participantNumber) + 1;
+    if (rank == 0) rank = activeParticipants.length; // If not found, assume last
+    
+    return {
+      'rank': rank,
+      'total': activeParticipants.length,
+    };
+  }
+
+  /// Get all exercise ranks for a participant (for system grade breakdown)
+  /// Returns a map of exercise names to rank information
+  Map<String, Map<String, int>> getAllExerciseRanks(int participantNumber) {
+    return {
+      'meshulash': getExerciseRank(participantNumber, 'meshulash'),
+      'alonka': getExerciseRank(participantNumber, 'alonka'),
+      'bur': getExerciseRank(participantNumber, 'bur'),
+      'sakim': getExerciseRank(participantNumber, 'sakim'),
+    };
+  }
   saveParticipantsAIReport(int number, String report) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);

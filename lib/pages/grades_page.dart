@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
+import '../widgets/exercise_ranking_dialog.dart';
+import '../widgets/system_grade_breakdown_dialog.dart';
 
 class GradesPage extends StatefulWidget {
   const GradesPage({super.key});
@@ -251,11 +253,14 @@ class _GradesPageState extends State<GradesPage> {
                           return Colors.white;
                         }
                       },
-                      configuration: const PlutoGridConfiguration(
+                      configuration: PlutoGridConfiguration(
                         style: PlutoGridStyleConfig(
                           activatedBorderColor: Colors.transparent, // remove cell border highlight
                         ),
                         //columnSize: PlutoGridColumnSizeConfig(autoSizeMode: PlutoAutoSizeMode.scale),
+                        columnSize: const PlutoGridColumnSizeConfig(
+                          resizeMode: PlutoResizeMode.normal,
+                        ),
                       ),
                       columns: [
                         PlutoColumn(
@@ -272,12 +277,39 @@ class _GradesPageState extends State<GradesPage> {
                           field: 'number_field',
                           type: PlutoColumnType.number(),
                           width: numberColumnWidth,
+                          renderer: (rendererContext) {
+                            final int participantNumber = rendererContext.cell.value as int;
+                            return GestureDetector(
+                              onDoubleTap: () {
+                                Get.toNamed('/performance_page/$participantNumber');
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Text(
+                                  participantNumber.toString(),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         PlutoColumn(
                           title: tablet ? 'ציון סופי' : 'סופי',
                           field: 'final_grade_field',
                           type: PlutoColumnType.number(),
                           width: finalGradeWidth,
+                          renderer: (rendererContext) {
+                            final double grade = (rendererContext.cell.value as num?)?.toDouble() ?? 0.0;
+                            return Container(
+                              alignment: Alignment.center,
+                              child: Text(
+                                grade.toStringAsFixed(0),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.black),
+                              ),
+                            );
+                          },
                         ),
                         PlutoColumn(
                           title: tablet ? 'ציון מערכת' : 'מערכת',
@@ -287,6 +319,28 @@ class _GradesPageState extends State<GradesPage> {
                             format: '#,##0.00', // Always shows 2 digits after the decimal
                           ),
                           width: systemGradeWidth,
+                          renderer: (rendererContext) {
+                            final double grade = (rendererContext.cell.value as num?)?.toDouble() ?? 0.0;
+                            final int participantNumber = rendererContext.row.cells['number_field']?.value as int;
+                            return GestureDetector(
+                              onDoubleTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => SystemGradeBreakdownDialog(
+                                    participantNumber: participantNumber,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Text(
+                                  grade.toStringAsFixed(2),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         PlutoColumn(
                           title: 'משולש',
@@ -296,6 +350,31 @@ class _GradesPageState extends State<GradesPage> {
                             format: '#,##0.00', // Always shows 2 digits after the decimal
                           ),
                           width: meeshulashWidth,
+                          renderer: (rendererContext) {
+                            final double grade = (rendererContext.cell.value as num?)?.toDouble() ?? 0.0;
+                            final int participantNumber = rendererContext.row.cells['number_field']?.value as int;
+                            return GestureDetector(
+                              onDoubleTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => ExerciseRankingDialog(
+                                    participantNumber: participantNumber,
+                                    exerciseName: 'meshulash',
+                                    exerciseNameHebrew: 'משולש',
+                                    grade: grade,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Text(
+                                  grade.toStringAsFixed(2),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         PlutoColumn(
                           title: 'אלונקה',
@@ -305,6 +384,31 @@ class _GradesPageState extends State<GradesPage> {
                             format: '#,##0.00', // Always shows 2 digits after the decimal
                           ),
                           width: alonkaWidth,
+                          renderer: (rendererContext) {
+                            final double grade = (rendererContext.cell.value as num?)?.toDouble() ?? 0.0;
+                            final int participantNumber = rendererContext.row.cells['number_field']?.value as int;
+                            return GestureDetector(
+                              onDoubleTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => ExerciseRankingDialog(
+                                    participantNumber: participantNumber,
+                                    exerciseName: 'alonka',
+                                    exerciseNameHebrew: 'אלונקה',
+                                    grade: grade,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Text(
+                                  grade.toStringAsFixed(2),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         PlutoColumn(
                           title: 'בור',
@@ -314,6 +418,31 @@ class _GradesPageState extends State<GradesPage> {
                             format: '#,##0.00', // Always shows 2 digits after the decimal
                           ),
                           width: burWidth,
+                          renderer: (rendererContext) {
+                            final double grade = (rendererContext.cell.value as num?)?.toDouble() ?? 0.0;
+                            final int participantNumber = rendererContext.row.cells['number_field']?.value as int;
+                            return GestureDetector(
+                              onDoubleTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => ExerciseRankingDialog(
+                                    participantNumber: participantNumber,
+                                    exerciseName: 'bur',
+                                    exerciseNameHebrew: 'בור',
+                                    grade: grade,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Text(
+                                  grade.toStringAsFixed(2),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         PlutoColumn(
                           title: 'שקים',
@@ -323,6 +452,31 @@ class _GradesPageState extends State<GradesPage> {
                             format: '#,##0.00', // Always shows 2 digits after the decimal
                           ),
                           width: sakimWidth,
+                          renderer: (rendererContext) {
+                            final double grade = (rendererContext.cell.value as num?)?.toDouble() ?? 0.0;
+                            final int participantNumber = rendererContext.row.cells['number_field']?.value as int;
+                            return GestureDetector(
+                              onDoubleTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => ExerciseRankingDialog(
+                                    participantNumber: participantNumber,
+                                    exerciseName: 'sakim',
+                                    exerciseNameHebrew: 'שקים',
+                                    grade: grade,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Text(
+                                  grade.toStringAsFixed(2),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ],
                       rows: List.generate(
@@ -335,16 +489,22 @@ class _GradesPageState extends State<GradesPage> {
                               'number_field': PlutoCell(value: participant.number),
                               'final_grade_field': PlutoCell(value: (participant.instructorGrade as num?)?.toDouble() ?? 0.0),
                               'system_grade_field': PlutoCell(value: (participant.systemGrade as num?)?.toDouble() ?? 0.0),
-                              'meeshulash_field': PlutoCell(value: (participant.meshulashGrade as num?)?.toDouble() ?? 0.0),
-                              'alonka_field': PlutoCell(value: (participant.alonkaGrade as num?)?.toDouble() ?? 0.0),
-                              'bur_field': PlutoCell(value: (participant.burGrade as num?)?.toDouble() ?? 0.0),
-                              'sakim_field': PlutoCell(value: (participant.sakimGrade as num?)?.toDouble() ?? 0.0),
+                              'meeshulash_field': PlutoCell(
+                                value: (participant.meshulashGrade as num?)?.toDouble() ?? 0.0,
+                              ),
+                              'alonka_field': PlutoCell(
+                                value: (participant.alonkaGrade as num?)?.toDouble() ?? 0.0,
+                              ),
+                              'bur_field': PlutoCell(
+                                value: (participant.burGrade as num?)?.toDouble() ?? 0.0,
+                              ),
+                              'sakim_field': PlutoCell(
+                                value: (participant.sakimGrade as num?)?.toDouble() ?? 0.0,
+                              ),
                             },
                           );
                         },
                       ),
-                      onSelected: (PlutoGridOnSelectedEvent event) {
-                      },
                       onChanged: (PlutoGridOnChangedEvent event) {
                         if (event.columnIdx == 1 && !eventController.currentEvent.value.finalized) {
                           final int participantNumber = event.row.cells['number_field']?.value as int;
@@ -353,12 +513,11 @@ class _GradesPageState extends State<GradesPage> {
                           eventController.setParticipantsGrade(participantNumber, newGrade.toInt());
                         }
                       },
-                      onRowDoubleTap: (PlutoGridOnRowDoubleTapEvent event) {
-                        final int participantNumber = event.row.cells['number_field']?.value as int;
-                        Get.toNamed('/performance_page/$participantNumber');
-                      },
                       onLoaded: (PlutoGridOnLoadedEvent event) {
+                        // Enable cell selection so onSelected fires on tap
                         event.stateManager.setSelecting(true);
+                        // Clear any initial selection to ensure onSelected fires on first tap
+                        event.stateManager.clearCurrentCell();
                       },
                     );
                   },
