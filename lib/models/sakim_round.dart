@@ -1,5 +1,3 @@
-import '../models/types.dart';
-
 class SakimRound {
   SakimRound({required this.round, required this.participantsInRound});
 

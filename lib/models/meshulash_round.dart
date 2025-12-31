@@ -1,5 +1,3 @@
-import '../models/types.dart';
-
 class MeshulashRound {
   MeshulashRound({required this.round, required this.participantsInRound});
 

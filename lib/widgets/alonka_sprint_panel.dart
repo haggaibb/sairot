@@ -136,8 +136,7 @@ class _AlonkaSprintPanelState extends State<AlonkaSprintPanel> {
                                           }
                                         },
                                         onLongPress: () async {
-                                          var res = await showDialog<
-                                              ParticipantStatus>(
+                                          await showDialog<ParticipantStatus>(
                                               context: context,
                                               builder: (BuildContext context) =>
                                               const ParticipantActionDialog());

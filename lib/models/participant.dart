@@ -100,7 +100,7 @@ class Participant {
     var participantData = fetchParticipantData(participantId);
     /// get bur comments. for id eventController.get
     int participantBurIndex = eventController.currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == number);
-    participantData["burInstructorComments"] = eventController.currentEvent.value.burGrades[participantBurIndex].instructorComments??'';
+    participantData["burInstructorComments"] = eventController.currentEvent.value.burGrades[participantBurIndex].instructorComments ?? '';
     participantData["date"] = eventController.currentEvent.value.date;
     participantData["allParticipants"] = eventController.currentEvent.value.participants;
     String prompt = generatePrompt(participantData);

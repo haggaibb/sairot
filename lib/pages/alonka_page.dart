@@ -100,7 +100,6 @@ class _AlonkaPageState extends State<AlonkaPage> {
     final orientation = MediaQuery.of(context).orientation;
     bool isLandscape = orientation == Orientation.landscape;
     double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
-    double buttonPadding = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
     
     // Allow landscape orientation for tablets
     if (tablet) {

@@ -1,6 +1,5 @@
 import 'package:hive/hive.dart';
 import '../models/event.dart';
-import '../models/participant.dart';
 import '../models/types.dart'; // Assuming ParticipantStatus is defined here
 
 

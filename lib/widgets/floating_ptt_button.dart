@@ -795,7 +795,7 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
             child: Material(
               elevation: 8.0,
               borderRadius: BorderRadius.circular(28.0),
-              shadowColor: Colors.black.withOpacity(0.5),
+              shadowColor: Colors.black.withValues(alpha: 0.5),
               child: GestureDetector(
                 onPanUpdate: _handlePanUpdate,
                 onPanEnd: _handlePanEnd,
@@ -809,7 +809,7 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
                       color: _pttService.isRecording ? Colors.red : Colors.blue,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 8.0,
                           offset: Offset(0, 4),
                         ),
@@ -906,10 +906,10 @@ class _RecordingIndicatorState extends State<_RecordingIndicator>
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.red.withOpacity(0.9),
+              color: Colors.red.withValues(alpha: 0.9),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.red.withOpacity(0.5),
+                  color: Colors.red.withValues(alpha: 0.5),
                   blurRadius: 12,
                   spreadRadius: 2,
                 ),
@@ -935,10 +935,10 @@ class _ProcessingIndicator extends StatelessWidget {
       height: 56,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.blue.withOpacity(0.9),
+        color: Colors.blue.withValues(alpha: 0.9),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.5),
+            color: Colors.blue.withValues(alpha: 0.5),
             blurRadius: 12,
             spreadRadius: 2,
           ),

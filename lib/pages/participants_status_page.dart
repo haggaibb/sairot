@@ -144,8 +144,8 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
           ? (tablet ? 156 : 120)
           : ((participants.length / 3 + 2) * 55 * heightMultiplier),
       color: status == ParticipantStatus.Active
-          ? Colors.green.shade800.withOpacity(0.7)
-          : Colors.red.shade300.withOpacity(0.7),
+          ? Colors.green.shade800.withValues(alpha: 0.7)
+          : Colors.red.shade300.withValues(alpha: 0.7),
       child: GridView.count(
         crossAxisSpacing: 20,
         crossAxisCount: crossAxisCount,

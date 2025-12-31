@@ -1,5 +1,3 @@
-import 'types.dart';
-
 class SystemSettings {
   SystemSettings();
 

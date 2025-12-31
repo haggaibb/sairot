@@ -154,7 +154,7 @@ class _BurGradePanelState extends State<BurGradePanel> {
                               ),
                             ),
                             selected: isSelected,
-                            selectedColor: isCustom ? Colors.blue.withOpacity(0.3) : Colors.blue,
+                            selectedColor: isCustom ? Colors.blue.withValues(alpha: 0.3) : Colors.blue,
                             onSelected: (bool selected) {
                               setState(() {
                                 if (selected) {

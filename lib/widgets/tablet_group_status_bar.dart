@@ -6,15 +6,14 @@ class TabletGroupStatusBar extends StatelessWidget {
   TabletGroupStatusBar({super.key, required this.event});
 
   @override
-  Color meshulashColor = Colors.black;
-  Color alonkaColor = Colors.black;
-  Color burColor = Colors.black;
-  Color sakimColor = Colors.black;
-  Color leadershipColor = Colors.black;
-  Color interviewColor = Colors.black;
-
-
   Widget build(BuildContext context) {
+    Color meshulashColor = Colors.black;
+    Color alonkaColor = Colors.black;
+    Color burColor = Colors.black;
+    Color sakimColor = Colors.black;
+    Color leadershipColor = Colors.black;
+    Color interviewColor = Colors.black;
+
     if (event.meshulashStartTime != null) {
       if (event.meshulashEndTime != null) {
         /// its done

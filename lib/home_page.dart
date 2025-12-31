@@ -1,6 +1,5 @@
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
 import 'event_controller.dart';
@@ -315,11 +314,11 @@ class _HomeState extends State<Home> {
                               Theme.of(context)
                                   .colorScheme
                                   .primary
-                                  .withOpacity(0.6),
+                                  .withValues(alpha: 0.6),
                               Theme.of(context)
                                   .colorScheme
                                   .primary
-                                  .withOpacity(0.3),
+                                  .withValues(alpha: 0.3),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -327,7 +326,7 @@ class _HomeState extends State<Home> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 8,
                               offset: Offset(0, 4),
                             ),
@@ -350,7 +349,7 @@ class _HomeState extends State<Home> {
                               eventController.currentInstructor.id,
                               style: TextStyle(
                                 fontSize: 18,
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                               ),
                             ),
                           ],
@@ -485,7 +484,7 @@ class _HomeState extends State<Home> {
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
+                                  color: Colors.black.withValues(alpha: 0.1),
                                   blurRadius: 6,
                                   offset: Offset(0, 4),
                                 ),
@@ -551,7 +550,7 @@ class _HomeState extends State<Home> {
                               borderRadius: BorderRadius.circular(12),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
+                                  color: Colors.black.withValues(alpha: 0.1),
                                   blurRadius: 6,
                                   offset: Offset(0, 4),
                                 ),

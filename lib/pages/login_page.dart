@@ -31,8 +31,8 @@ class _LoginPageState extends State<LoginPage> {
   String? _deviceNameError;
   bool _showAndroidId = false;
   bool _didDumpDeviceInfoToConsole = false;
-  bool _deviceRegistered = false;
-  String? _deviceNumber;
+  bool _deviceRegistered = false; // Track device registration status
+  String? _deviceNumber; // Store device number
   bool _hasLoadedDeviceRegistration = false; // Prevent multiple calls to _loadDeviceRegistration
 
   void _dumpAndroidDeviceInfoToConsole(AndroidDeviceInfo info) {
