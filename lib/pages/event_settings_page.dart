@@ -288,116 +288,125 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                           bool tablet = isTablet(context);
                           // Increase recruit number column width for tablet to hold 3 digits
                           final recruitNumberWidth = tablet ? 150.0 : 100.0;
-                          final nameColumnWidth = tablet ? 200.0 : 25.0;
+                          // Increase name column width for mobile to prevent clipping
+                          final nameColumnWidth = tablet ? 200.0 : 180.0;
                           
                           return Container(
                             height: 300, // Set height as per your requirement
                             child: SingleChildScrollView(
                               scrollDirection: Axis.vertical,
-                              child: participants.isNotEmpty
-                                  ? DataTable(
-                                columnSpacing: 12,
-                                columns: [
-                                  DataColumn(
-                                    label: SizedBox(
-                                      width: 20,
-                                      child: Text(
-                                        '',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: SizedBox(
-                                      width: nameColumnWidth,
-                                      child: Text(
-                                        'שם או ת.ז.',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                  DataColumn(
-                                    label: SizedBox(
-                                      width: recruitNumberWidth,
-                                      child: Text(
-                                        'חולצה',
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                  const DataColumn(label: SizedBox.shrink()),
-                                ],
-                                rows: participants.asMap().entries.map(
-                                      (entry) => DataRow(
-                                    cells: [
-                                      DataCell(
-                                        Container(
-                                          width: 30,
-                                          alignment: Alignment.center,
-                                          child: Text(
-                                            (entry.key + 1).toString(),
-                                            textAlign: TextAlign.center,
-                                            softWrap: false,
-                                            maxLines: 1,
-                                          ),
-                                        ),
-                                      ), // ✅ Print index (1-based)
-                                      DataCell(
-                                        SizedBox(
-                                          width: nameColumnWidth,
-                                          child: Text(
-                                            entry.value.name,
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                      ), // ✅ Contact Name
-                                      DataCell(
-                                        ConstrainedBox(
-                                          constraints: BoxConstraints(
-                                            minWidth: recruitNumberWidth,
-                                            maxWidth: recruitNumberWidth,
-                                          ),
-                                          child: Container(
-                                            alignment: Alignment.center,
-                                            child: Text(
-                                              entry.value.number.toString(),
-                                              textAlign: TextAlign.center,
-                                              softWrap: false,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.clip,
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: participants.isNotEmpty
+                                    ? DataTable(
+                                        columnSpacing: 12,
+                                        columns: [
+                                          DataColumn(
+                                            label: SizedBox(
+                                              width: 20,
+                                              child: Text(
+                                                '',
+                                                textAlign: TextAlign.center,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ), // ✅ Contact Number
-                                      DataCell(
-                                        SizedBox(
-                                          width: 40,
-                                          child: IconButton(
-                                            icon: Icon(Icons.delete),
-                                            onPressed: () async {
-                                              var res = await showDialog(
-                                                context: context,
-                                                builder:
-                                                    (BuildContext context) {
-                                                  return YesNoDialog();
-                                                },
-                                              );
-                                              if (res) {
-                                                setState(() {
-                                                  participants.removeWhere((participant) => participant.number == entry.value.number);
-                                                });
-                                              }
-                                            },
-                                            splashColor: Colors.red,
+                                          DataColumn(
+                                            label: SizedBox(
+                                              width: nameColumnWidth,
+                                              child: Text(
+                                                'שם או ת.ז.',
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
                                           ),
-                                        )
-                                      ), // ✅ Delete button
-
-                                    ],
-                                  ),
-                                ).toList(),
-                              )
-                                  : SizedBox.shrink(),
+                                          DataColumn(
+                                            label: SizedBox(
+                                              width: recruitNumberWidth,
+                                              child: Text(
+                                                'חולצה',
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                          ),
+                                          const DataColumn(label: SizedBox.shrink()),
+                                        ],
+                                        rows: participants.asMap().entries.map(
+                                          (entry) => DataRow(
+                                            cells: [
+                                              DataCell(
+                                                Container(
+                                                  width: 30,
+                                                  alignment: Alignment.center,
+                                                  child: Text(
+                                                    (entry.key + 1).toString(),
+                                                    textAlign: TextAlign.center,
+                                                    softWrap: false,
+                                                    maxLines: 1,
+                                                  ),
+                                                ),
+                                              ), // ✅ Print index (1-based)
+                                              DataCell(
+                                                ConstrainedBox(
+                                                  constraints: BoxConstraints(
+                                                    minWidth: nameColumnWidth,
+                                                    maxWidth: nameColumnWidth,
+                                                  ),
+                                                  child: Text(
+                                                    entry.value.name,
+                                                    textAlign: TextAlign.center,
+                                                    softWrap: false,
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ), // ✅ Contact Name
+                                              DataCell(
+                                                ConstrainedBox(
+                                                  constraints: BoxConstraints(
+                                                    minWidth: recruitNumberWidth,
+                                                    maxWidth: recruitNumberWidth,
+                                                  ),
+                                                  child: Container(
+                                                    alignment: Alignment.center,
+                                                    child: Text(
+                                                      entry.value.number.toString(),
+                                                      textAlign: TextAlign.center,
+                                                      softWrap: false,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.clip,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ), // ✅ Contact Number
+                                              DataCell(
+                                                SizedBox(
+                                                  width: 40,
+                                                  child: IconButton(
+                                                    icon: Icon(Icons.delete),
+                                                    onPressed: () async {
+                                                      var res = await showDialog(
+                                                        context: context,
+                                                        builder:
+                                                            (BuildContext context) {
+                                                          return YesNoDialog();
+                                                        },
+                                                      );
+                                                      if (res) {
+                                                        setState(() {
+                                                          participants.removeWhere((participant) => participant.number == entry.value.number);
+                                                        });
+                                                      }
+                                                    },
+                                                    splashColor: Colors.red,
+                                                  ),
+                                                ),
+                                              ), // ✅ Delete button
+                                            ],
+                                          ),
+                                        ).toList(),
+                                      )
+                                    : SizedBox.shrink(),
+                              ),
                             ),
                           );
                         },
