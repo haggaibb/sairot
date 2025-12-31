@@ -78,7 +78,7 @@ class _BurPageState extends State<BurPage> {
   Widget build(BuildContext context) {
     return PopScope(
         canPop: false,
-        onPopInvoked: (didPop) {
+        onPopInvokedWithResult: (didPop, result) {
           if (!didPop) {
             eventController.loading.value = true;
             Get.back();

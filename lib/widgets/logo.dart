@@ -40,7 +40,7 @@ class _ShineEffectImageState extends State<ShineEffectLogo>
                 return LinearGradient(
                   colors: [
                     Colors.transparent,
-                    Colors.white.withOpacity(0.8),
+                    Colors.white.withValues(alpha: 0.8),
                     Colors.transparent
                   ],
                   stops: const [0.3, 0.5, 0.7],

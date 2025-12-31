@@ -97,8 +97,6 @@ class _AlonkaPageState extends State<AlonkaPage> {
   @override
   Widget build(BuildContext context) {
     bool tablet = isTablet(context);
-    final orientation = MediaQuery.of(context).orientation;
-    bool isLandscape = orientation == Orientation.landscape;
     double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
     
     // Allow landscape orientation for tablets

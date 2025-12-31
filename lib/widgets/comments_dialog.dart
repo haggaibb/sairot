@@ -107,7 +107,7 @@ class _CommentsDialogState extends State<CommentsDialog> {
                     ),
                   ),
                   selected: isSelected,
-                  selectedColor: Colors.blue.withOpacity(0.3), // Light blue for selection
+                  selectedColor: Colors.blue.withValues(alpha: 0.3), // Light blue for selection
                   onSelected: (bool selected) {
                     setState(() {
                       if (selected) {

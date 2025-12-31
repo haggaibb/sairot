@@ -52,7 +52,7 @@ class SonarPainter extends CustomPainter {
 
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..color = Colors.greenAccent.withOpacity(0.3);
+      ..color = Colors.greenAccent.withValues(alpha: 0.3);
 
     // Draw concentric circles
     for (var i = 1; i <= 3; i++) {
@@ -66,7 +66,7 @@ class SonarPainter extends CustomPainter {
       ..shader = SweepGradient(
         startAngle: 0,
         endAngle: 0.3,
-        colors: [Colors.greenAccent.withOpacity(0.7), Colors.transparent],
+        colors: [Colors.greenAccent.withValues(alpha: 0.7), Colors.transparent],
       ).createShader(Rect.fromCircle(center: center, radius: radius));
 
     final angle = sweep * 2 * 3.14159;

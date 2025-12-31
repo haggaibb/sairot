@@ -84,7 +84,7 @@ class _InterviewPageState extends State<InterviewPage> {
     
     return PopScope(
         canPop: false,
-        onPopInvoked: (didPop) {
+        onPopInvokedWithResult: (didPop, result) {
           if (!didPop) {
             eventController.loading.value = true;
             Get.back();

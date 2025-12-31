@@ -385,9 +385,11 @@ class VoiceRecognitionService {
         }
       },
       localeId: 'he-IL', // Hebrew (Israel) locale
-      listenMode: listenMode,
-      cancelOnError: true,
-      partialResults: true,
+      listenOptions: stt.SpeechListenOptions(
+        listenMode: listenMode,
+        cancelOnError: true,
+        partialResults: true,
+      ),
     );
   }
 

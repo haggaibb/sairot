@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:sairot/models/participant.dart';
 import '../event_controller.dart';
 
 class LeadershipChart extends StatelessWidget {
@@ -11,7 +10,6 @@ class LeadershipChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final eventController = Get.put(EventController());
-    int participantIndex = eventController.currentEvent.value.participants.indexWhere((participant) => participant.number== number);
     return Scaffold(
       //appBar: AppBar(title: Text("Participant Progress Chart")),
       body: Padding(

@@ -48,7 +48,7 @@ class _ShiningButtonState extends State<ShiningButton>
 
     _backgroundAnimation = ColorTween(
       begin: Colors.greenAccent,
-      end: Colors.white.withOpacity(0.3),
+      end: Colors.white.withValues(alpha: 0.3),
     ).animate(_backgroundController);
 
     // 🔄 Start or stop animation based on the initial color

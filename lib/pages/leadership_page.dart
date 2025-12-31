@@ -84,7 +84,7 @@ class _LeadershipPageState extends State<LeadershipPage> {
     
     return PopScope(
         canPop: false,
-        onPopInvoked: (didPop) {
+        onPopInvokedWithResult: (didPop, result) {
           if (!didPop) {
             eventController.loading.value = true;
             Get.back();

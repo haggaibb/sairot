@@ -175,11 +175,11 @@ class MeshulashCharts extends StatelessWidget {
                         horizontalInterval: 1,
                         verticalInterval: 1,
                         getDrawingHorizontalLine: (value) => FlLine(
-                          color: Colors.grey.withOpacity(0.3),
+                          color: Colors.grey.withValues(alpha: 0.3),
                           strokeWidth: 1,
                         ),
                         getDrawingVerticalLine: (value) => FlLine(
-                          color: Colors.grey.withOpacity(0.3),
+                          color: Colors.grey.withValues(alpha: 0.3),
                           strokeWidth: 1,
                         ),
                       ),
