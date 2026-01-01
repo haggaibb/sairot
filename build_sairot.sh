@@ -44,12 +44,10 @@ elif [ "$BUILD_TYPE" = "aab" ]; then
 elif [ "$BUILD_TYPE" = "web" ]; then
   flutter build web --release
   WEB_OUTPUT_DIR="build/web"
-  FINAL_OUTPUT_DIR="${PROJECT_NAME}_web_${GIT_BRANCH}_${GIT_VERSION}"
-  # ✅ Copy the web build to a versioned directory
-  echo "📦 Web build output: $FINAL_OUTPUT_DIR/"
-  cp -r "$WEB_OUTPUT_DIR" "$FINAL_OUTPUT_DIR"
-  echo "✅ Web build available in: $FINAL_OUTPUT_DIR/"
-  echo "   Deploy the contents of this directory to your web server"
+  # ✅ Build output is in build/web as expected by firebase.json
+  echo "📦 Web build output: $WEB_OUTPUT_DIR/"
+  echo "✅ Web build available in: $WEB_OUTPUT_DIR/"
+  echo "   Firebase hosting expects build in: $WEB_OUTPUT_DIR/"
 else
   echo "❌ Invalid build type: $BUILD_TYPE"
   echo "   Supported types: apk, aab, web"

@@ -58,6 +58,7 @@ dependencies:
   speech_to_text: ^7.0.0
   permission_handler: ^11.3.1
   shared_preferences: ^2.2.2
+  package_info_plus: ^8.0.0
 
 
 
