@@ -10,6 +10,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import '../widgets/logo.dart';
 import '../services/platform_service.dart';
 import '../utils/tablet_utils.dart';
+import '../git_version.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 // import '../widgets/sonar.dart';
 
 class LoginPage extends StatefulWidget {
@@ -335,6 +337,74 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  /// Show version info dialog
+  Future<void> _showVersionDialog() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              title: Text('מידע גרסה'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('גרסת אפליקציה: ${packageInfo.version}'),
+                  SizedBox(height: 8),
+                  Text('מספר בנייה: ${packageInfo.buildNumber}'),
+                  SizedBox(height: 8),
+                  Text('גרסת Git: $gitVersion'),
+                  SizedBox(height: 8),
+                  Text('ענף: $gitBranch'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('אישור'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      // Fallback if package_info_plus fails
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              title: Text('מידע גרסה'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('גרסת Git: $gitVersion'),
+                  SizedBox(height: 8),
+                  Text('ענף: $gitBranch'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('אישור'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+  }
+
   @override
   void dispose() {
     _connectionTimer.cancel(); // Stop timer when widget is disposed
@@ -369,7 +439,10 @@ class _LoginPageState extends State<LoginPage> {
                   size: 30.0,
                 )),
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: Text('ימי סיירות'),
+            title: GestureDetector(
+              onDoubleTap: _showVersionDialog,
+              child: Text('ימי סיירות'),
+            ),
             centerTitle: true,
           ),
           body: SingleChildScrollView(
