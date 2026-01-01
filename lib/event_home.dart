@@ -11,6 +11,7 @@ import 'utils/tablet_utils.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'services/user_preferences_service.dart';
 import 'widgets/floating_ptt_button.dart';
+import 'mixins/event_validation_mixin.dart';
 
 class EventHome extends StatefulWidget {
   const EventHome({super.key});
@@ -19,7 +20,7 @@ class EventHome extends StatefulWidget {
   State<EventHome> createState() => _EventHomeState();
 }
 
-class _EventHomeState extends State<EventHome> {
+class _EventHomeState extends State<EventHome> with EventValidationMixin {
   final eventController = Get.put(EventController());
   final themeController = Get.put(ThemeController());
   bool _floatingPttEnabled = false;
@@ -53,6 +54,7 @@ class _EventHomeState extends State<EventHome> {
   @override
   void initState() {
     super.initState();
+    checkEventValidity();
     _loadSttPreferences();
   }
 
@@ -154,9 +156,9 @@ class _EventHomeState extends State<EventHome> {
                       SizedBox(
                         height: isTablet(context) ? 8.0 : 12.0,
                       ),
-                      Text(
+                      Obx(() => Text(
                           '${eventController.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active).length} משתתפים אקטיבים ',
-                          style: TextStyle(fontSize: isTablet(context) ? 14.0 : 16.0)),
+                          style: TextStyle(fontSize: isTablet(context) ? 14.0 : 16.0))),
                       Text(
                           'גירסת ציונים: ${eventController.currentEvent.value.gradeSettings.version} ',
                           style: TextStyle(fontSize: isTablet(context) ? 14.0 : 16.0)),

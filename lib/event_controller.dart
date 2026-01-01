@@ -846,6 +846,41 @@ class EventController extends GetxController {
     }
 
   }
+
+  /// Restore a participant to Active status and add them back to the appropriate round
+  /// If they're not in any round, adds them to round 0
+  void restoreParticipantToRound(int number, String exerciseType) {
+    var participant = currentEvent.value.participants
+        .firstWhereOrNull((p) => p.number == number);
+    
+    if (participant == null) return;
+    
+    participant.status = ParticipantStatus.Active;
+    
+    if (exerciseType == 'meshulash') {
+      // Check if participant is already in any round
+      bool isInAnyRound = currentEvent.value.meshulashRounds.any(
+        (round) => round.participantsInRound.contains(number)
+      );
+      
+      // If not in any round, add to round 0
+      if (!isInAnyRound && currentEvent.value.meshulashRounds.isNotEmpty) {
+        currentEvent.value.meshulashRounds[0].participantsInRound.add(number);
+      }
+    } else if (exerciseType == 'sakim') {
+      // Check if participant is already in any round
+      bool isInAnyRound = currentEvent.value.sakimRounds.any(
+        (round) => round.participantsInRound.contains(number)
+      );
+      
+      // If not in any round, add to round 0
+      if (!isInAnyRound && currentEvent.value.sakimRounds.isNotEmpty) {
+        currentEvent.value.sakimRounds[0].participantsInRound.add(number);
+      }
+    }
+    
+    update(); // Trigger GetX UI refresh
+  }
   calculateGrades() {
     for (Participant p in currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active)) {
       p.alonkaGrade = getAlonkaGrade(p.number);

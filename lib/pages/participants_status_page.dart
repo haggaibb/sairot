@@ -4,6 +4,7 @@ import 'package:sairot/models/types.dart';
 import '../event_controller.dart';
 import '../models/participant.dart';
 import '../utils/tablet_utils.dart';
+import '../mixins/event_validation_mixin.dart';
 
 class ParticipantsStatusPage extends StatefulWidget {
   const ParticipantsStatusPage({super.key});
@@ -12,8 +13,24 @@ class ParticipantsStatusPage extends StatefulWidget {
   State<ParticipantsStatusPage> createState() => _ParticipantsStatusPageState();
 }
 
-class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
+class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> with EventValidationMixin {
   final eventController = Get.put(EventController());
+
+  @override
+  void initState() {
+    super.initState();
+    checkEventValidity();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh the event state when page becomes visible again
+    // This ensures UI updates when navigating back from other pages
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      eventController.currentEvent.refresh();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,8 +82,47 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                                       (p) => p.number == participantNumber);
 
                               if (participant != null) {
+                                // Update status immediately
                                 participant.status = ParticipantStatus.Active;
-                                _.currentEvent.refresh(); // Ensure UI updates
+                                
+                                // Restore participant to the appropriate round
+                                // Position data indicates which round they were in
+                                // If they have N positions, they moved through N rounds, so they should be in round N
+                                
+                                // Check meshulash
+                                if (participant.meshulashPositions.isNotEmpty && _.currentEvent.value.meshulashRounds.isNotEmpty) {
+                                  int targetRound = participant.meshulashPositions.length; // Round number = number of positions
+                                  // Ensure target round exists, if not use the highest available round
+                                  if (targetRound >= _.currentEvent.value.meshulashRounds.length) {
+                                    targetRound = _.currentEvent.value.meshulashRounds.length - 1;
+                                  }
+                                  if (targetRound < 0) targetRound = 0;
+                                  
+                                  // Add to target round if not already there
+                                  if (!_.currentEvent.value.meshulashRounds[targetRound].participantsInRound.contains(participantNumber)) {
+                                    _.currentEvent.value.meshulashRounds[targetRound].participantsInRound.add(participantNumber);
+                                  }
+                                }
+                                
+                                // Check sakim
+                                if (participant.sakimPositions.isNotEmpty && _.currentEvent.value.sakimRounds.isNotEmpty) {
+                                  int targetRound = participant.sakimPositions.length;
+                                  if (targetRound >= _.currentEvent.value.sakimRounds.length) {
+                                    targetRound = _.currentEvent.value.sakimRounds.length - 1;
+                                  }
+                                  if (targetRound < 0) targetRound = 0;
+                                  
+                                  if (!_.currentEvent.value.sakimRounds[targetRound].participantsInRound.contains(participantNumber)) {
+                                    _.currentEvent.value.sakimRounds[targetRound].participantsInRound.add(participantNumber);
+                                  }
+                                }
+                                
+                                // Update UI immediately (synchronously) to prevent flicker
+                                _.currentEvent.refresh();
+                                _.update();
+                                
+                                // Save to Firestore asynchronously (don't await to avoid blocking UI)
+                                _.currentEvent.value.saveToFirestore();
                               }
                             },
                             builder: (context, candidateData, rejectedData) {
@@ -105,14 +161,15 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> {
                                       (p) => p.number == participantNumber);
 
                               if (participant != null) {
+                                // Update status immediately
                                 participant.status = ParticipantStatus.Droped;
-
-                                // Ensure UI updates properly
-                                _.currentEvent.update((val) {
-                                  val?.participants = List.from(
-                                      val.participants); // Force update
-                                });
-                                _.update(); // Trigger GetX UI refresh
+                                
+                                // Update UI immediately (synchronously) to prevent flicker
+                                _.currentEvent.refresh();
+                                _.update();
+                                
+                                // Save to Firestore asynchronously (don't await to avoid blocking UI)
+                                _.currentEvent.value.saveToFirestore();
                               }
                             },
                             builder: (context, candidateData, rejectedData) {

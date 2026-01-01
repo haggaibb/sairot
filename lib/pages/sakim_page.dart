@@ -13,6 +13,7 @@ import '../utils/tablet_utils.dart';
 import '../services/exercise_context_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
+import '../mixins/event_validation_mixin.dart';
 
 class SakimPage extends StatefulWidget {
   const SakimPage({super.key});
@@ -21,7 +22,7 @@ class SakimPage extends StatefulWidget {
   State<SakimPage> createState() => _SakimPageState();
 }
 
-class _SakimPageState extends State<SakimPage> {
+class _SakimPageState extends State<SakimPage> with EventValidationMixin {
   final eventController = Get.put(EventController());
   int runTime = 0;
   late Timer _timer;
@@ -43,6 +44,8 @@ class _SakimPageState extends State<SakimPage> {
 
   @override
   void initState() {
+    super.initState();
+    checkEventValidity();
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('sakim');
     _loadSttPreferences();

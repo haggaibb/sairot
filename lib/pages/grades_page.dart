@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
 import '../widgets/custom_grades_table.dart';
+import '../mixins/event_validation_mixin.dart';
 
 class GradesPage extends StatefulWidget {
   const GradesPage({super.key});
@@ -13,14 +14,15 @@ class GradesPage extends StatefulWidget {
   State<GradesPage> createState() => _GradesPageState();
 }
 
-class _GradesPageState extends State<GradesPage> {
+class _GradesPageState extends State<GradesPage> with EventValidationMixin {
   final eventController = Get.put(EventController());
 
 
   @override
   void initState() {
-    eventController.calculateGrades();
     super.initState();
+    checkEventValidity();
+    eventController.calculateGrades();
   }
 
   @override

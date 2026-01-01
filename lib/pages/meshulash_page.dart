@@ -13,6 +13,7 @@ import '../utils/tablet_utils.dart';
 import '../services/exercise_context_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
+import '../mixins/event_validation_mixin.dart';
 
 class MeshulashPage extends StatefulWidget {
   const MeshulashPage({super.key});
@@ -21,7 +22,7 @@ class MeshulashPage extends StatefulWidget {
   State<MeshulashPage> createState() => _MeshulashPageState();
 }
 
-class _MeshulashPageState extends State<MeshulashPage> {
+class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin {
   final eventController = Get.put(EventController());
   int runTime = 0;
   late Timer _timer;
@@ -43,6 +44,8 @@ class _MeshulashPageState extends State<MeshulashPage> {
 
   @override
   void initState() {
+    super.initState();
+    checkEventValidity();
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('meshulash');
     _loadSttPreferences();

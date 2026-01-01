@@ -10,6 +10,7 @@ import '../utils/tablet_utils.dart';
 import '../services/exercise_context_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
+import '../mixins/event_validation_mixin.dart';
 
 
 class LeadershipPage extends StatefulWidget {
@@ -19,13 +20,15 @@ class LeadershipPage extends StatefulWidget {
   State<LeadershipPage> createState() => _LeadershipPageState();
 }
 
-class _LeadershipPageState extends State<LeadershipPage> {
+class _LeadershipPageState extends State<LeadershipPage> with EventValidationMixin {
   final eventController = Get.put(EventController());
   bool _floatingPttEnabled = false;
   bool _volumeButtonPttEnabled = false;
 
   @override
   void initState() {
+    super.initState();
+    checkEventValidity();
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('leadership');
     _loadSttPreferences();

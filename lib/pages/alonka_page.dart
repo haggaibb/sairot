@@ -12,6 +12,7 @@ import '../utils/tablet_utils.dart';
 import '../services/exercise_context_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
+import '../mixins/event_validation_mixin.dart';
 
 class AlonkaPage extends StatefulWidget {
   const AlonkaPage({super.key});
@@ -20,7 +21,7 @@ class AlonkaPage extends StatefulWidget {
   State<AlonkaPage> createState() => _AlonkaPageState();
 }
 
-class _AlonkaPageState extends State<AlonkaPage> {
+class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
   final eventController = Get.put(EventController());
   int runTime = 0;
   late Timer _timer;
@@ -31,6 +32,8 @@ class _AlonkaPageState extends State<AlonkaPage> {
 
   @override
   void initState() {
+    super.initState();
+    checkEventValidity();
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('alonka');
     _loadSttPreferences();

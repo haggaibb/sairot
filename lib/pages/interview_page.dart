@@ -10,6 +10,7 @@ import '../utils/tablet_utils.dart';
 import '../services/exercise_context_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
+import '../mixins/event_validation_mixin.dart';
 
 
 class InterviewPage extends StatefulWidget {
@@ -19,13 +20,15 @@ class InterviewPage extends StatefulWidget {
   State<InterviewPage> createState() => _InterviewPageState();
 }
 
-class _InterviewPageState extends State<InterviewPage> {
+class _InterviewPageState extends State<InterviewPage> with EventValidationMixin {
   final eventController = Get.put(EventController());
   bool _floatingPttEnabled = false;
   bool _volumeButtonPttEnabled = false;
 
   @override
   void initState() {
+    super.initState();
+    checkEventValidity();
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('interview');
     _loadSttPreferences();
