@@ -36,17 +36,11 @@ echo "🚀 Building $PROJECT_NAME ($GIT_BRANCH → $GIT_VERSION) as $BUILD_TYPE.
 if [ "$BUILD_TYPE" = "apk" ]; then
   flutter build apk --release
   ORIGINAL_OUTPUT="build/app/outputs/flutter-apk/app-release.apk"
-  FINAL_OUTPUT="${PROJECT_NAME}_${GIT_BRANCH}_${GIT_VERSION}.apk"
-  # ✅ Copy and rename the output file
-  echo "📦 Output: $FINAL_OUTPUT"
-  cp "$ORIGINAL_OUTPUT" "$FINAL_OUTPUT"
+  echo "📦 APK available at: $ORIGINAL_OUTPUT"
 elif [ "$BUILD_TYPE" = "aab" ]; then
   flutter build appbundle --release
   ORIGINAL_OUTPUT="build/app/outputs/bundle/release/app-release.aab"
-  FINAL_OUTPUT="${PROJECT_NAME}_${GIT_BRANCH}_${GIT_VERSION}.aab"
-  # ✅ Copy and rename the output file
-  echo "📦 Output: $FINAL_OUTPUT"
-  cp "$ORIGINAL_OUTPUT" "$FINAL_OUTPUT"
+  echo "📦 AAB available at: $ORIGINAL_OUTPUT"
 elif [ "$BUILD_TYPE" = "web" ]; then
   flutter build web --release
   WEB_OUTPUT_DIR="build/web"

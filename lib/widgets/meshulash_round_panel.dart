@@ -50,6 +50,23 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                           crossAxisCount: crossAxisCount,
                           children: List.generate(
                               eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound.length, (index) {
+                              final participantNumber = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index];
+                              // Calculate absolute position based on entry order
+                              // Count participants in higher (better) rounds, then add index in current round
+                              final currentRound = widget.round.round;
+                              int participantsAhead = 0;
+                              
+                              // Count all participants in rounds higher than current round
+                              for (var round in eventController.currentEvent.value.meshulashRounds) {
+                                if (round.round > currentRound) {
+                                  participantsAhead += round.participantsInRound.length;
+                                }
+                              }
+                              
+                              // Position = participants ahead + index in current round + 1
+                              final position = participantsAhead + index + 1;
+                              final scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
+                              
                               return Padding(
                                 padding: EdgeInsets.all(tablet ? 7.5 : 5.0),
                                 child: GestureDetector(
@@ -63,65 +80,88 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                       eventController.loading.value = false;
                                     }
                                   },
-                                  child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Theme.of(context).colorScheme.primary,
-                                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                  child: Stack(
+                                    children: [
+                                      ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Theme.of(context).colorScheme.primary,
+                                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                          ),
+                                          onPressed: () {
+                                            if (eventController.meshulashEditModeOn.value) {
+                                              eventController.loading.value = true;
+                                              if (eventController.currentEvent.value.meshulashRounds.length == widget.round.round+1) {
+                                                eventController.currentEvent.value.meshulashRounds.add(
+                                                    MeshulashRound(
+                                                        round: widget.round.round + 1,
+                                                        participantsInRound: [eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]]
+                                                    )
+                                                );
+                                                eventController.setParticipantMeshulashPosition(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index], eventController.currentEvent.value.meshulashRounds[widget.round.round+1].participantsInRound.length);
+                                              }
+                                              else {
+                                                eventController.currentEvent.value.meshulashRounds[widget.round.round+1].participantsInRound
+                                                    .add(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
+                                                eventController.setParticipantMeshulashPosition(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index], eventController.currentEvent.value.meshulashRounds[widget.round.round+1].participantsInRound.length);
+                                              }
+                                              eventController.currentEvent.value.meshulashRounds[widget.round.round] = widget.round;
+                                              widget.round.participantsInRound.remove(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
+                                              eventController.update();
+                                              eventController.currentEvent.value.saveToFirestore();
+                                              //setState(() {
+                                              //});
+                                              eventController.loading.value = false;
+                                            }
+                                          },
+                                          onLongPress: () async {
+                                            var res = await showDialog<List<String>>(
+                                                context: context,
+                                                builder: (BuildContext context) =>
+                                                CommentsDialog(
+                                                    commentsList: eventController.gradesData.listOfCommentsMeshulash,
+                                                  selectedComments: (eventController.getParticipant(participantNumber).meshulashInstructorComments),
+                                                  title: participantNumber.toString(),
+                                                ));
+                                            if (res!=null) {
+                                              if (res.contains(ParticipantStatus.Droped.name)) {
+                                                eventController.loading.value =
+                                                true;
+                                                eventController.dropParticipant(
+                                                    widget.round.participantsInRound[index]);
+                                                widget.round.participantsInRound
+                                                    .removeAt(index);
+                                                eventController.loading.value=false;
+                                              } else {
+                                                eventController.addMeshulashComments(res,eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
+                                              }
+                                            }
+                                          },
+                                          child: Text(
+                                              participantNumber.toString(),
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                          ),
                                       ),
-                                      onPressed: () {
-                                        if (eventController.meshulashEditModeOn.value) {
-                                          eventController.loading.value = true;
-                                          if (eventController.currentEvent.value.meshulashRounds.length == widget.round.round+1) {
-                                            eventController.currentEvent.value.meshulashRounds.add(
-                                                MeshulashRound(
-                                                    round: widget.round.round + 1,
-                                                    participantsInRound: [eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]]
-                                                )
-                                            );
-                                            eventController.setParticipantMeshulashPosition(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index], eventController.currentEvent.value.meshulashRounds[widget.round.round+1].participantsInRound.length);
-                                          }
-                                          else {
-                                            eventController.currentEvent.value.meshulashRounds[widget.round.round+1].participantsInRound
-                                                .add(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
-                                            eventController.setParticipantMeshulashPosition(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index], eventController.currentEvent.value.meshulashRounds[widget.round.round+1].participantsInRound.length);
-                                          }
-                                          eventController.currentEvent.value.meshulashRounds[widget.round.round] = widget.round;
-                                          widget.round.participantsInRound.remove(eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
-                                          eventController.update();
-                                          eventController.currentEvent.value.saveToFirestore();
-                                          //setState(() {
-                                          //});
-                                          eventController.loading.value = false;
-                                        }
-                                      },
-                                      onLongPress: () async {
-                                        var participantNumber = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index];
-                                        var res = await showDialog<List<String>>(
-                                            context: context,
-                                            builder: (BuildContext context) =>
-                                            CommentsDialog(
-                                                commentsList: eventController.gradesData.listOfCommentsMeshulash,
-                                              selectedComments: (eventController.getParticipant(participantNumber).meshulashInstructorComments),
-                                              title: participantNumber.toString(),
-                                            ));
-                                        if (res!=null) {
-                                          if (res.contains(ParticipantStatus.Droped.name)) {
-                                            eventController.loading.value =
-                                            true;
-                                            eventController.dropParticipant(
-                                                widget.round.participantsInRound[index]);
-                                            widget.round.participantsInRound
-                                                .removeAt(index);
-                                            eventController.loading.value=false;
-                                          } else {
-                                            eventController.addMeshulashComments(res,eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
-                                          }
-                                        }
-                                      },
-                                      child: Text(
-                                          eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index].toString(),
-                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: getTabletScaledFontSize(context, eventController.userFontSize.value)),
+                                      // Position badge
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: Container(
+                                          padding: EdgeInsets.all(tablet ? 6 : 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Text(
+                                            position.toString(),
+                                            style: TextStyle(
+                                              fontSize: tablet ? scaledFontSize * 0.7 : scaledFontSize * 0.6,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
                                       ),
+                                    ],
                                   ),
                                 ),
                               );

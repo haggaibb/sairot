@@ -3,14 +3,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sairot/models/bur.dart';
-import 'package:sairot/models/meshulash_round.dart';
 import 'package:sairot/models/participant.dart';
 import 'package:sairot/models/qualified_recruit.dart';
 import 'package:sairot/models/system_settings.dart';
 import 'models/types.dart';
 import 'models/alonka_sprint.dart';
 import 'models/event.dart';
-import 'models/sakim_round.dart';
 import 'models/grade_settings.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -18,6 +16,7 @@ import 'models/instructor.dart';
 import 'models/system.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'theme_controller.dart';
 import 'utils/logger.dart';
@@ -587,86 +586,221 @@ class EventController extends GetxController {
     return true;
   }
 
+  /// Get absolute position of a participant in meshulash exercise
+  /// Returns position based on round and order of arrival within round
+  /// Position 1 = best (first in highest round), higher numbers = worse
+  int _getMeshulashAbsolutePosition(int participantNumber) {
+    // Find which round participant is in
+    int currentRound = -1;
+    int indexInRound = -1;
+    
+    for (int i = 0; i < currentEvent.value.meshulashRounds.length; i++) {
+      final round = currentEvent.value.meshulashRounds[i];
+      final index = round.participantsInRound.indexOf(participantNumber);
+      if (index != -1) {
+        currentRound = round.round;
+        indexInRound = index;
+        break;
+      }
+    }
+    
+    if (currentRound == -1) return 0; // Not found
+    
+    // Count participants in higher rounds
+    int participantsAhead = 0;
+    for (var round in currentEvent.value.meshulashRounds) {
+      if (round.round > currentRound) {
+        participantsAhead += round.participantsInRound.length;
+      }
+    }
+    
+    return participantsAhead + indexInRound + 1;
+  }
+
+  /// Get total number of active participants in all meshulash rounds
+  int _getTotalMeshulashParticipants() {
+    int total = 0;
+    for (var round in currentEvent.value.meshulashRounds) {
+      total += round.participantsInRound.length;
+    }
+    return total;
+  }
+
   double getMeshulashGrade(int number) {
     if (currentEvent.value.meshulashRounds.isEmpty) return 0;
-
-    int maxRound = currentEvent.value.meshulashRounds.length - 1;
-
-    // Find the first occupied round (ignoring empty ones)
-    int minRound = currentEvent.value.meshulashRounds.indexWhere(
-            (MeshulashRound round) => round.participantsInRound.isNotEmpty);
-
-    // Find the participant's position
-    int participantPosition = currentEvent.value.meshulashRounds.indexWhere(
-            (MeshulashRound round) => round.participantsInRound.contains(number));
-
-    // Ensure valid position
-    if (participantPosition == -1 || minRound == -1 || maxRound == minRound) {
-      return 1 * gradesData.systemGradeFactor; // Default to lowest score if invalid
+    
+    final absolutePosition = _getMeshulashAbsolutePosition(number);
+    if (absolutePosition == 0) {
+      return 1 * gradesData.systemGradeFactor; // Not found
     }
-
-    // Normalize the grade between 10 (maxRound) and 1 (minRound)
-    double meshulashGrade = 1 + ((participantPosition - minRound) / (maxRound - minRound)) * (10 - 1);
-
+    
+    final totalParticipants = _getTotalMeshulashParticipants();
+    if (totalParticipants <= 1) {
+      return 10 * gradesData.systemGradeFactor; // Single participant gets max
+    }
+    
+    // Normalize: position 1 = 10, last position = 1
+    // Formula: 1 + ((total - position) / (total - 1)) * (10 - 1)
+    double meshulashGrade = 1 + ((totalParticipants - absolutePosition) / (totalParticipants - 1)) * (10 - 1);
+    
     return meshulashGrade * gradesData.systemGradeFactor;
+  }
+
+  /// Calculate arrival bonus based on position
+  /// Position 1 = 1.0, position 2 = 0.8, position 3 = 0.64, etc.
+  /// Formula: 1.0 * (0.8)^(position - 1)
+  double _getArrivalBonus(int position) {
+    // position is 1-based (first = 1, second = 2, etc.)
+    return 1.0 * pow(0.8, position - 1);
+  }
+
+  /// Get maximum possible credit for Alonka exercise
+  /// Assumes picking up stretcher (ALONKA_CREDIT) and arriving first in every sprint
+  double _getMaxAlonkaCredit() {
+    if (currentEvent.value.alonkaSprints.isEmpty) return 0;
+    // Max credit per sprint = ALONKA_CREDIT (1.0) + first place bonus (1.0) = 2.0
+    return 2.0 * currentEvent.value.alonkaSprints.length;
   }
 
   double getAlonkaGrade(int number) {
     if (currentEvent.value.alonkaSprints.isEmpty) return 0;
     double credits = 0;
-    for (AlonkaSprint sprint in currentEvent.value.alonkaSprints) {
-      if (sprint.alonkaCredits.contains(number)) {
-        credits = credits + gradesData.ALONKA_CREDIT;
-      } else if (sprint.gerikanCredits.contains(number)) {
-        credits = credits + gradesData.GERIKAN_CREDIT;
-      } else if (sprint.runCredits.contains(number)) {
-        credits = credits + gradesData.RUNNER_CREDIT;
-      } else if (sprint.participationCredits.contains(number)) {
-        credits = credits + gradesData.PARTICIPATION_CREDIT;
-      }
+    for (int i = 0; i < currentEvent.value.alonkaSprints.length; i++) {
+      credits = credits + getAlonkaSprintCredit(number, i);
     }
-    double alonkaGrade =
-        ((credits / currentEvent.value.alonkaSprints.length) * 10) *
-            gradesData.systemGradeFactor;
+    
+    // Max possible credit per sprint = ALONKA_CREDIT (1.0) + first place bonus (1.0) = 2.0
+    double maxPossibleCredit = _getMaxAlonkaCredit();
+    if (maxPossibleCredit == 0) return 0;
+    
+    // Normalize: (actual credits / max possible credits) * 10 * systemGradeFactor
+    // This ensures grades are between 0 and 10 (before systemGradeFactor)
+    double alonkaGrade = ((credits / maxPossibleCredit) * 10) * gradesData.systemGradeFactor;
     return alonkaGrade;
   }
 
-  double getAlonkaSprintCredit(int number, int sprintNumber) {
-    double credits = 0;
+  /// Get base credit only (without arrival bonus) for a participant in a specific sprint
+  /// Used for chart display to show element credit separately from position
+  double getAlonkaSprintBaseCredit(int number, int sprintNumber) {
     AlonkaSprint sprint = currentEvent.value.alonkaSprints[sprintNumber];
+    
+    // Check each element type and return base credit only
     if (sprint.alonkaCredits.contains(number)) {
-      credits = credits + gradesData.ALONKA_CREDIT;
+      return gradesData.ALONKA_CREDIT;
     } else if (sprint.gerikanCredits.contains(number)) {
-      credits = credits + gradesData.GERIKAN_CREDIT;
+      return gradesData.GERIKAN_CREDIT;
     } else if (sprint.runCredits.contains(number)) {
-      credits = credits + gradesData.RUNNER_CREDIT;
+      return gradesData.RUNNER_CREDIT;
     } else if (sprint.participationCredits.contains(number)) {
-      credits = credits + gradesData.PARTICIPATION_CREDIT;
+      return gradesData.PARTICIPATION_CREDIT;
     }
-    return credits;
+    
+    return 0; // Not found
+  }
+
+  /// Get the absolute position (order of arrival) for a participant in a specific sprint
+  /// This calculates position across ALL elements, not just within the element type
+  /// Returns 0 if participant not found, otherwise returns 1-based absolute position
+  int getAlonkaSprintPosition(int number, int sprintNumber) {
+    AlonkaSprint sprint = currentEvent.value.alonkaSprints[sprintNumber];
+    
+    // Combine all element lists in order to get absolute order of arrival
+    // Order: alonkaCredits (highest priority), then gerikanCredits, then runCredits, then participationCredits
+    List<int> allParticipantsInOrder = [];
+    allParticipantsInOrder.addAll(sprint.alonkaCredits);
+    allParticipantsInOrder.addAll(sprint.gerikanCredits);
+    allParticipantsInOrder.addAll(sprint.runCredits);
+    allParticipantsInOrder.addAll(sprint.participationCredits);
+    
+    // Find participant's position in the combined list
+    int absolutePosition = allParticipantsInOrder.indexOf(number);
+    
+    // Return 1-based position, or 0 if not found
+    return absolutePosition >= 0 ? absolutePosition + 1 : 0;
+  }
+
+  double getAlonkaSprintCredit(int number, int sprintNumber) {
+    AlonkaSprint sprint = currentEvent.value.alonkaSprints[sprintNumber];
+    double baseCredit = 0;
+    
+    // Determine base credit based on element type
+    if (sprint.alonkaCredits.contains(number)) {
+      baseCredit = gradesData.ALONKA_CREDIT;
+    } else if (sprint.gerikanCredits.contains(number)) {
+      baseCredit = gradesData.GERIKAN_CREDIT;
+    } else if (sprint.runCredits.contains(number)) {
+      baseCredit = gradesData.RUNNER_CREDIT;
+    } else if (sprint.participationCredits.contains(number)) {
+      baseCredit = gradesData.PARTICIPATION_CREDIT;
+    } else {
+      return 0; // Not found
+    }
+    
+    // Get absolute position (across all elements) for arrival bonus
+    int absolutePosition = getAlonkaSprintPosition(number, sprintNumber);
+    if (absolutePosition == 0) return 0;
+    
+    double arrivalBonus = _getArrivalBonus(absolutePosition);
+    return baseCredit + arrivalBonus;
+  }
+
+  /// Get absolute position of a participant in sakim exercise
+  /// Returns position based on round and order of arrival within round
+  /// Position 1 = best (first in highest round), higher numbers = worse
+  int _getSakimAbsolutePosition(int participantNumber) {
+    // Find which round participant is in
+    int currentRound = -1;
+    int indexInRound = -1;
+    
+    for (int i = 0; i < currentEvent.value.sakimRounds.length; i++) {
+      final round = currentEvent.value.sakimRounds[i];
+      final index = round.participantsInRound.indexOf(participantNumber);
+      if (index != -1) {
+        currentRound = round.round;
+        indexInRound = index;
+        break;
+      }
+    }
+    
+    if (currentRound == -1) return 0; // Not found
+    
+    // Count participants in higher rounds
+    int participantsAhead = 0;
+    for (var round in currentEvent.value.sakimRounds) {
+      if (round.round > currentRound) {
+        participantsAhead += round.participantsInRound.length;
+      }
+    }
+    
+    return participantsAhead + indexInRound + 1;
+  }
+
+  /// Get total number of active participants in all sakim rounds
+  int _getTotalSakimParticipants() {
+    int total = 0;
+    for (var round in currentEvent.value.sakimRounds) {
+      total += round.participantsInRound.length;
+    }
+    return total;
   }
 
   double getSakimGrade(int number) {
     if (currentEvent.value.sakimRounds.isEmpty) return 0;
-
-    int maxRound = currentEvent.value.sakimRounds.length - 1;
-
-    // Find the first occupied round (ignoring empty ones)
-    int minRound = currentEvent.value.sakimRounds.indexWhere(
-            (SakimRound round) => round.participantsInRound.isNotEmpty);
-
-    // Find the participant's position
-    int participantPosition = currentEvent.value.sakimRounds.indexWhere(
-            (SakimRound round) => round.participantsInRound.contains(number));
-
-    // Ensure valid position
-    if (participantPosition == -1 || minRound == -1 || maxRound == minRound) {
-      return 1 * gradesData.systemGradeFactor; // Default to lowest score if invalid
+    
+    final absolutePosition = _getSakimAbsolutePosition(number);
+    if (absolutePosition == 0) {
+      return 1 * gradesData.systemGradeFactor; // Not found
     }
-
-    // Normalize the grade between 10 (maxRound) and 1 (minRound)
-    double sakimGrade = 1 + ((participantPosition - minRound) / (maxRound - minRound)) * (10 - 1);
-
+    
+    final totalParticipants = _getTotalSakimParticipants();
+    if (totalParticipants <= 1) {
+      return 10 * gradesData.systemGradeFactor; // Single participant gets max
+    }
+    
+    // Normalize: position 1 = 10, last position = 1
+    // Formula: 1 + ((total - position) / (total - 1)) * (10 - 1)
+    double sakimGrade = 1 + ((totalParticipants - absolutePosition) / (totalParticipants - 1)) * (10 - 1);
+    
     return sakimGrade * gradesData.systemGradeFactor;
   }
 

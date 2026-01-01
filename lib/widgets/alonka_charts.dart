@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:sairot/models/participant.dart';
+import 'package:sairot/models/types.dart';
 import '../event_controller.dart';
 import 'package:sairot/models/alonka_sprint.dart';
 
@@ -22,8 +23,8 @@ class AlonkaCharts extends StatelessWidget {
     final List<int> rounds = eventController.currentEvent.value.alonkaSprints
         .map((AlonkaSprint sprint) => sprint.round)
         .toList();
-    final List<double> participantsSprintCredit =
-    rounds.map((round) => eventController.getAlonkaSprintCredit(number, round)).toList();
+    
+    
     Participant p = eventController.getParticipant(number);
 
     return Scaffold(
@@ -49,95 +50,182 @@ class AlonkaCharts extends StatelessWidget {
             SizedBox(height: 50),
             /// 📊 Charts Stack (Toggles Between Pie Chart & Line Chart)
             Expanded(
-              child: Obx(() => Stack(
-                children: [
-                  if (!toggleController.showPieChart.value)
-                    LineChart(
-                      LineChartData(
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: rounds.asMap().entries.map((entry) {
-                              int index = entry.key;
-                              int round = entry.value;
-                              return FlSpot(round.toDouble() + 1, participantsSprintCredit[index].toDouble());
-                            }).toList(),
-                            isCurved: false,
-                            color: Colors.red,
-                            barWidth: 3,
-                            belowBarData: BarAreaData(show: false),
-                            dotData: FlDotData(show: true),
-                          ),
-                        ],
-                        lineTouchData: LineTouchData(
-                          enabled: true,
-                          touchTooltipData: LineTouchTooltipData(
-                            tooltipPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-                            tooltipMargin: 16,
-                            fitInsideHorizontally: true,
-                            fitInsideVertically: true,
-                            getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                              return touchedSpots.map((touchedSpot) {
-                                String creditStr = touchedSpot.y.toStringAsFixed(2) == '1.00'
-                                    ? 'אלונקה'
-                                    : touchedSpot.y.toStringAsFixed(2) == '0.50'
-                                    ? 'גריקן'
-                                    : 'רץ';
-                                return LineTooltipItem(
-                                  ' ${creditStr} ',
-                                  TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    backgroundColor: Colors.white,
+              child: Obx(() {
+                if (!toggleController.showPieChart.value) {
+                  // Calculate positions for each sprint
+                  final List<int> positions = rounds.map((round) => eventController.getAlonkaSprintPosition(number, round)).toList();
+                  final List<double> baseCredits = rounds.map((round) => eventController.getAlonkaSprintBaseCredit(number, round)).toList();
+                  
+                  // Get total number of active participants in the exercise for Y-axis range
+                  final totalParticipants = eventController.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active).length;
+                  final maxY = totalParticipants > 0 ? totalParticipants.toDouble() : 10.0;
+                  
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final yAxisWidth = 50.0;
+                      final bottomAxisHeight = 30.0;
+                      final chartWidth = constraints.maxWidth - yAxisWidth;
+                      final chartHeight = constraints.maxHeight - bottomAxisHeight;
+                      
+                      return Stack(
+                        children: [
+                          LineChart(
+                            LineChartData(
+                              lineBarsData: [
+                                // Line showing order of arrival (position) - inverted so position 1 is at top
+                                LineChartBarData(
+                                  spots: rounds.asMap().entries.map((entry) {
+                                    int index = entry.key;
+                                    int round = entry.value;
+                                    int position = positions[index];
+                                    // Only include points where participant has a position
+                                    // Invert Y: position 1 should be at top (maxY), higher positions at bottom
+                                    if (position > 0) {
+                                      return FlSpot(round.toDouble() + 1, maxY - position.toDouble() + 1);
+                                    }
+                                    return null;
+                                  }).where((spot) => spot != null).cast<FlSpot>().toList(),
+                                  isCurved: false,
+                                  color: Colors.red,
+                                  barWidth: 3,
+                                  belowBarData: BarAreaData(show: false),
+                                  dotData: FlDotData(show: true),
+                                ),
+                              ],
+                              lineTouchData: LineTouchData(enabled: false), // Disable tooltips since we show labels
+                              titlesData: FlTitlesData(
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 50,
+                                    interval: 1,
+                                    getTitlesWidget: (value, meta) {
+                                      // Show position numbers on Y-axis (inverted: top = 1, bottom = maxY)
+                                      if (value % 1 == 0 && value >= 1 && value <= maxY) {
+                                        // Invert the display: value at top (maxY) shows 1, value at bottom (1) shows maxY
+                                        final invertedPosition = (maxY - value.toInt() + 1).toInt();
+                                        return Text(
+                                          invertedPosition.toString(),
+                                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    },
                                   ),
-                                );
-                              }).toList();
-                            },
-                          ),
-                        ),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 60,
-                              interval: 0.1,
-                              getTitlesWidget: (value, meta) {
-                                int roundedValue = (value * 10).round();
-                                switch (roundedValue) {
-                                  case 10:
-                                    return const Text('אלונקה', style: TextStyle(fontSize: 12));
-                                  case 5:
-                                    return const Text('גריקן', style: TextStyle(fontSize: 12));
-                                  case 2:
-                                    return const Text('רץ', style: TextStyle(fontSize: 12));
-                                  default:
-                                    return const SizedBox.shrink();
-                                }
-                              },
+                                ),
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    interval: 1,
+                                    getTitlesWidget: (value, meta) {
+                                      // Show only interval numbers
+                                      if (value % 1 == 0 && value >= 1 && value <= rounds.length) {
+                                        return Text(
+                                          value.toInt().toString(),
+                                          style: const TextStyle(color: Colors.white),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    },
+                                    reservedSize: 30,
+                                  ),
+                                ),
+                                topTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                                rightTitles: AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false),
+                                ),
+                              ),
+                              gridData: FlGridData(show: true),
+                              borderData: FlBorderData(show: false),
+                              minX: 1,
+                              maxX: rounds.length.toDouble(),
+                              minY: 1,
+                              maxY: maxY,
                             ),
                           ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) => Text(value.toInt().toString()),
-                              reservedSize: 30,
-                            ),
-                          ),
-                        ),
-                        gridData: FlGridData(show: true),
-                        borderData: FlBorderData(show: false),
-                        minX: 1,
-                        maxX: rounds.length.toDouble(),
-                        minY: 0.0,
-                        maxY: 1.0,
-                      ),
-                    ),
-
-                  /// 🎯 Pie Chart - Shown When Toggle is ON
-                  if (toggleController.showPieChart.value)
-                    SprintCreditPieChart(participantsSprintCredit: participantsSprintCredit),
-                ],
-              )),
+                          // Labels showing element icon and position at each point
+                          ...rounds.asMap().entries.map((entry) {
+                            int index = entry.key;
+                            int round = entry.value;
+                            int position = positions[index];
+                            double baseCredit = baseCredits[index];
+                            
+                            if (position == 0) return const SizedBox.shrink();
+                            
+                            // Determine element icon
+                            String iconPath;
+                            if (baseCredit >= eventController.gradesData.ALONKA_CREDIT - 0.05) {
+                              iconPath = 'images/alonka.png';
+                            } else if (baseCredit >= eventController.gradesData.GERIKAN_CREDIT - 0.05) {
+                              iconPath = 'images/gerikan.png';
+                            } else if (baseCredit >= eventController.gradesData.RUNNER_CREDIT - 0.05) {
+                              iconPath = 'images/run.png';
+                            } else {
+                              return const SizedBox.shrink(); // Skip participation
+                            }
+                            
+                            // Calculate position for label
+                            // X: map round+1 to chart width (minX=1, maxX=rounds.length)
+                            final xRatio = rounds.length > 1 ? (round + 1 - 1) / (rounds.length - 1) : 0;
+                            final xPos = yAxisWidth + xRatio * chartWidth;
+                            
+                            // Y: map position to chart height (inverted: position 1 at top)
+                            // Since we invert in the chart (maxY - position + 1), we need to invert here too
+                            final invertedY = maxY - position + 1;
+                            final yRatio = maxY > 1 ? (invertedY - 1) / (maxY - 1) : 0;
+                            final pointY = (1 - yRatio) * chartHeight;
+                            
+                            // Position label above or below point based on position
+                            // If position is in top 20% (positions 1-2 typically), show label below
+                            // Otherwise show label above
+                            final isTopPosition = position <= (maxY * 0.2).ceil();
+                            final labelOffset = isTopPosition ? 25 : -30; // Below if top, above if not
+                            final yPos = pointY + labelOffset;
+                            
+                            return Positioned(
+                              left: xPos - 20,
+                              top: yPos,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.7),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Image.asset(
+                                      iconPath,
+                                      width: 16,
+                                      height: 16,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$position',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      );
+                    },
+                  );
+                } else {
+                  return SprintCreditPieChart(
+                    participantsSprintCredit: rounds.map((round) => eventController.getAlonkaSprintBaseCredit(number, round)).toList()
+                  );
+                }
+              }),
             ),
             const SizedBox(height: 20),
             /// 📃 Instructor Comments Section

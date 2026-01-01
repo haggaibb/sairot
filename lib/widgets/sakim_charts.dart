@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:sairot/models/participant.dart';
 import 'package:sairot/models/types.dart';
 import '../event_controller.dart';
-import 'package:sairot/models/sakim_round.dart';
 
 
 class SakimCharts extends StatelessWidget {
@@ -20,11 +19,55 @@ class SakimCharts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final eventController = Get.put(EventController());
-    final List<int> rounds = eventController.currentEvent.value.sakimRounds.map((SakimRound round) => round.round).toList();
-    final List<int> participantCounts = eventController.currentEvent.value.sakimRounds.map((SakimRound round) => round.participantsInRound.length).toList();
+    // Filter out round 0 - only show rounds starting from 1
+    final allRounds = eventController.currentEvent.value.sakimRounds;
+    final List<int> rounds = allRounds.where((r) => r.round > 0).map((r) => r.round).toList();
+    final List<int> participantCounts = allRounds.where((r) => r.round > 0).map((r) => r.participantsInRound.length).toList();
     Participant p = eventController.getParticipant(number);
-    final List<int> participantPositions = p.sakimPositions;
-    int currentRound = participantPositions.length;
+    
+    // Get positions for each filtered round
+    // For each round, find if participant is in that round and calculate absolute position
+    final filteredRoundsList = allRounds.where((r) => r.round > 0).toList();
+    final List<int> participantPositions = filteredRoundsList.asMap().entries.map((entry) {
+      int filteredIndex = entry.key;
+      final round = entry.value;
+      
+      // Check if participant is currently in this round
+      if (round.participantsInRound.contains(number)) {
+        // Calculate absolute position: count participants in higher rounds + index in current round
+        int participantsAhead = 0;
+        for (var r in allRounds) {
+          if (r.round > round.round) {
+            participantsAhead += r.participantsInRound.length;
+          }
+        }
+        final indexInRound = round.participantsInRound.indexOf(number);
+        return participantsAhead + indexInRound + 1; // 1-based absolute position
+      }
+      
+      // If not in this round, check stored positions as fallback
+      final allParticipantPositions = p.sakimPositions;
+      if (filteredIndex < allParticipantPositions.length) {
+        final storedPosition = allParticipantPositions[filteredIndex];
+        if (storedPosition > 0) {
+          return storedPosition;
+        }
+      }
+      
+      return 0; // No position found
+    }).toList();
+    
+    // Find which round the participant is currently in
+    int currentRound = -1;
+    for (var round in allRounds) {
+      if (round.round > 0 && round.participantsInRound.contains(number)) {
+        currentRound = round.round;
+        break;
+      }
+    }
+    // If not found, default to 0 (will show no green bar)
+    if (currentRound == -1) currentRound = 0;
+    
     int numberOfParticipants =  eventController.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active).length;
 //int worstPosition = participantPositions.reduce((a, b) => a > b ? a : b);
     return Scaffold(
@@ -42,15 +85,14 @@ class SakimCharts extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom :20.0,right: 0),
                     child: BarChart(
                       BarChartData(
-                        barGroups: rounds.asMap().entries
-                            .where((entry) => entry.key > 0 && entry.key < participantCounts.length)
-                            .map((entry) {
+                        alignment: BarChartAlignment.spaceAround,
+                        barGroups: rounds.asMap().entries.map((entry) {
                           int index = entry.key;
                           int round = entry.value;
                           bool isCurrentRound = round == currentRound;
                           double value = participantCounts[index].toDouble();
                           return BarChartGroupData(
-                            x: round,
+                            x: round, // Rounds are already >= 1 after filtering
                             barRods: [
                               BarChartRodData(
                                 toY: value,
@@ -58,7 +100,7 @@ class SakimCharts extends StatelessWidget {
                                 width: 20,
                               ),
                             ],
-                            showingTooltipIndicators: [0],
+                            // Don't show tooltips
                           );
                         }).toList(),
                         titlesData: FlTitlesData(
@@ -72,33 +114,14 @@ class SakimCharts extends StatelessWidget {
                             sideTitles: SideTitles(showTitles: false),
                           ),
                           bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
+                            sideTitles: SideTitles(showTitles: false), // Hide BarChart X-axis, LineChart will show it
                           ),
                         ),
                         gridData: FlGridData(show: false),
                         borderData: FlBorderData(show: false),
+                        // Disable tooltips - don't show participant count
                         barTouchData: BarTouchData(
                           enabled: false, // Disable touch interactions
-                          touchTooltipData: BarTouchTooltipData(
-                            tooltipPadding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-                            tooltipMargin: 0,
-                            fitInsideHorizontally: true,
-                            fitInsideVertically: true,
-                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                              return rod.toY.toInt()!=0
-                                  ? BarTooltipItem(
-                                '${rod.toY.toInt()}', // Display the value
-                                TextStyle(
-                                  color: Colors.black,
-                                  fontSize: eventController.userFontSize.value,
-                                  fontWeight: FontWeight.bold,
-                                  backgroundColor: Colors.white,
-                                ),
-                              )
-                                  : null
-                              ;
-                            },
-                          ),
                         ),
                       ),
                     ),
@@ -109,20 +132,21 @@ class SakimCharts extends StatelessWidget {
                     LineChartData(
                       minY: 1,  // Ensure Y-axis starts from 1
                       maxY: numberOfParticipants.toDouble(),
-                      maxX: rounds.length.toDouble() - 1,
+                      minX: rounds.isNotEmpty ? rounds.first.toDouble() : 1, // Start from first round
+                      maxX: rounds.isNotEmpty ? (rounds.last.toDouble() + 0.5) : 1, // Add 0.5 to ensure last point is fully visible
                       lineBarsData: [
                         LineChartBarData(
-                          spots: rounds
-                              .asMap()
-                              .entries
-                              .where((entry) =>
-                          entry.key > 0 &&
-                              entry.key < rounds.length - 1 &&
-                              entry.key < participantPositions.length)
+                          spots: rounds.asMap().entries
+                              .where((entry) {
+                            int index = entry.key;
+                            // Include all rounds where participant has a valid position (not 0)
+                            return index < participantPositions.length && participantPositions[index] > 0;
+                          })
                               .map((entry) {
                             int index = entry.key;
                             int round = entry.value;
                             double position = participantPositions[index].toDouble();
+                            // Rounds are already >= 1 after filtering, use round directly
                             return FlSpot(round.toDouble(), numberOfParticipants.toDouble() - position);
                           }).toList(),
                           isCurved: false,  // Ensure straight lines
@@ -176,7 +200,21 @@ class SakimCharts extends StatelessWidget {
                           sideTitles: SideTitles(showTitles: false),
                         ),
                         bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: true),
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: 1, // Show label only at integer intervals
+                            getTitlesWidget: (value, meta) {
+                              // Show only interval numbers (only for integer values)
+                              if (value % 1 == 0 && value >= 1 && value <= rounds.length) {
+                                return Text(
+                                  value.toInt().toString(),
+                                  style: const TextStyle(color: Colors.white),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                            reservedSize: 30,
+                          ),
                         ),
                       ),
                       gridData: FlGridData(
