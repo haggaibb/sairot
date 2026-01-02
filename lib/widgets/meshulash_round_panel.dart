@@ -81,6 +81,7 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                     }
                                   },
                                   child: Stack(
+                                    clipBehavior: Clip.none, // Allow badge to extend beyond chip boundaries
                                     children: [
                                       ElevatedButton(
                                           style: ElevatedButton.styleFrom(
@@ -141,22 +142,36 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                           ),
                                       ),
-                                      // Position badge
+                                      // Position badge - notification style in upper right corner
                                       Positioned(
-                                        top: 4,
-                                        right: 4,
+                                        top: tablet ? -14.68 : -12.26, // 5px lower than previous
+                                        right: tablet ? -11.68 : -9.26, // 3px to the left
                                         child: Container(
-                                          padding: EdgeInsets.all(tablet ? 6 : 4),
+                                          width: tablet ? 28 : 24, // Fixed width for consistent size
+                                          height: tablet ? 28 : 24, // Fixed height for consistent size
                                           decoration: BoxDecoration(
                                             color: Colors.red,
                                             shape: BoxShape.circle,
-                                          ),
-                                          child: Text(
-                                            position.toString(),
-                                            style: TextStyle(
-                                              fontSize: tablet ? scaledFontSize * 0.7 : scaledFontSize * 0.6,
-                                              fontWeight: FontWeight.bold,
+                                            border: Border.all(
                                               color: Colors.white,
+                                              width: tablet ? 1.9 : 2.16, // 5% smaller on tablet (2.0 * 0.95), 10% smaller on mobile (2.4 * 0.9)
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.3),
+                                                blurRadius: 4,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              position.toString(),
+                                              style: TextStyle(
+                                                fontSize: tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648, // 5% smaller on tablet (0.56 * 0.95), 10% smaller on mobile (0.72 * 0.9)
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
                                             ),
                                           ),
                                         ),

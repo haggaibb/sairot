@@ -69,6 +69,19 @@ class SakimGridView extends StatelessWidget {
             currentRound = 0;
           }
 
+          // Calculate absolute position to determine if participant is in first place
+          int participantsAhead = 0;
+          for (var round in _.currentEvent.value.sakimRounds) {
+            if (round.round > currentRound) {
+              participantsAhead += round.participantsInRound.length;
+            }
+          }
+          int indexInRound = currentRound >= 0 && currentRound < _.currentEvent.value.sakimRounds.length
+              ? _.currentEvent.value.sakimRounds[currentRound].participantsInRound.indexOf(participantNumber)
+              : -1;
+          final absolutePosition = indexInRound >= 0 ? participantsAhead + indexInRound + 1 : 0;
+          final isFirstPlace = absolutePosition == 1;
+
           return Padding(
             padding: const EdgeInsets.all(2.0),
             child: GestureDetector(
@@ -83,6 +96,7 @@ class SakimGridView extends StatelessWidget {
                 }
               },
               child: Stack(
+                clipBehavior: Clip.hardEdge, // Keep badge within chip boundaries
                 children: [
                   SizedBox.expand(
                     child: ElevatedButton(
@@ -142,22 +156,37 @@ class SakimGridView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Round indicator badge
+                  // Position badge - within chip border, consistent size
+                  // First place gets green badge that's 20% larger
                   Positioned(
-                    top: 4,
-                    right: 4,
+                    top: tablet ? 4 : 3,
+                    right: tablet ? 4 : 3,
                     child: Container(
-                      padding: EdgeInsets.all(8),
+                      width: tablet ? (isFirstPlace ? 33.6 : 28) : (isFirstPlace ? 28.8 : 24), // 20% larger if first place
+                      height: tablet ? (isFirstPlace ? 33.6 : 28) : (isFirstPlace ? 28.8 : 24), // 20% larger if first place
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: isFirstPlace ? Colors.green : Colors.red, // Green for first place
                         shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        currentRound.toString(),
-                        style: TextStyle(
-                          fontSize: scaledFontSize * 1.0,
-                          fontWeight: FontWeight.bold,
+                        border: Border.all(
                           color: Colors.white,
+                          width: tablet ? 1.9 : 2.16,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          currentRound.toString(),
+                          style: TextStyle(
+                            fontSize: tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),

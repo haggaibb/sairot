@@ -723,20 +723,26 @@ class EventController extends GetxController {
     AlonkaSprint sprint = currentEvent.value.alonkaSprints[sprintNumber];
     double baseCredit = 0;
     
-    // Determine base credit based on element type
+    // Check if participant was automatically added to participationCredits
+    // (i.e., instructor finished interval without inputting their order)
+    if (sprint.participationCredits.contains(number)) {
+      // Only give base participation credit, no arrival bonus
+      return gradesData.PARTICIPATION_CREDIT;
+    }
+    
+    // Determine base credit based on element type for explicitly input participants
     if (sprint.alonkaCredits.contains(number)) {
       baseCredit = gradesData.ALONKA_CREDIT;
     } else if (sprint.gerikanCredits.contains(number)) {
       baseCredit = gradesData.GERIKAN_CREDIT;
     } else if (sprint.runCredits.contains(number)) {
       baseCredit = gradesData.RUNNER_CREDIT;
-    } else if (sprint.participationCredits.contains(number)) {
-      baseCredit = gradesData.PARTICIPATION_CREDIT;
     } else {
       return 0; // Not found
     }
     
     // Get absolute position (across all elements) for arrival bonus
+    // Only calculate for participants explicitly input by instructor
     int absolutePosition = getAlonkaSprintPosition(number, sprintNumber);
     if (absolutePosition == 0) return 0;
     
