@@ -16,9 +16,11 @@ class BurCharts extends StatelessWidget {
     int participantIndex = eventController.currentEvent.value.participants.indexWhere((participant) => participant.number== number);
     return Scaffold(
       //appBar: AppBar(title: Text("Participant Progress Chart")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+      body: SafeArea(
+        minimum: EdgeInsets.zero, // No minimum padding
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: 16.0), // No horizontal padding for maximum width
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
@@ -71,8 +73,9 @@ class BurCharts extends StatelessWidget {
                 }).toList(),
               ),
             )
-                 : SizedBox.shrink(),
+                 : SizedBox.shrink(            ),
           ],
+        ),
         ),
       ),
     );

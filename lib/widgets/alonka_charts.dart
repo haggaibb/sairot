@@ -5,6 +5,7 @@ import 'package:sairot/models/participant.dart';
 import 'package:sairot/models/types.dart';
 import '../event_controller.dart';
 import 'package:sairot/models/alonka_sprint.dart';
+import '../utils/tablet_utils.dart';
 
 class ChartToggleController extends GetxController {
   var showPieChart = false.obs; // Toggles between Line and Pie Chart
@@ -28,26 +29,28 @@ class AlonkaCharts extends StatelessWidget {
     Participant p = eventController.getParticipant(number);
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+      body: SafeArea(
+        minimum: EdgeInsets.zero, // No minimum padding
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2.0), // No horizontal padding for maximum width
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             /// 🔘 Toggle Switch
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('קווי'),
+                Text('קווי', style: TextStyle(fontSize: 12)), // Smaller text
                 Obx(() => Switch(
                   value: toggleController.showPieChart.value,
                   onChanged: (value) {
                     toggleController.showPieChart.value = value;
                   },
                 )),
-                Text('עוגה'),
+                Text('עוגה', style: TextStyle(fontSize: 12)), // Smaller text
               ],
             ),
-            SizedBox(height: 50),
+            SizedBox(height: 2), // Minimal spacing to maximize chart height
             /// 📊 Charts Stack (Toggles Between Pie Chart & Line Chart)
             Expanded(
               child: Obx(() {
@@ -62,15 +65,20 @@ class AlonkaCharts extends StatelessWidget {
                   
                   return LayoutBuilder(
                     builder: (context, constraints) {
-                      final yAxisWidth = 50.0;
-                      final bottomAxisHeight = 30.0;
-                      final chartWidth = constraints.maxWidth - yAxisWidth;
+                      bool tablet = isTablet(context);
+                      final yAxisWidth = tablet ? 50.0 : 55.0; // Original values
+                      final rightPadding = tablet ? 25.0 : 35.0; // Space for labels on the right to prevent clipping
+                      final bottomAxisHeight = 15.0; // Minimized to maximize chart height
+                      final chartWidth = constraints.maxWidth - yAxisWidth - rightPadding;
                       final chartHeight = constraints.maxHeight - bottomAxisHeight;
                       
                       return Stack(
                         children: [
-                          LineChart(
-                            LineChartData(
+                          // Constrain LineChart to leave space for right-side labels
+                          Padding(
+                            padding: EdgeInsets.only(right: rightPadding),
+                            child: LineChart(
+                              LineChartData(
                               lineBarsData: [
                                 // Line showing order of arrival (position) - inverted so position 1 is at top
                                 LineChartBarData(
@@ -97,16 +105,24 @@ class AlonkaCharts extends StatelessWidget {
                                 leftTitles: AxisTitles(
                                   sideTitles: SideTitles(
                                     showTitles: true,
-                                    reservedSize: 50,
-                                    interval: 1,
+                                    reservedSize: tablet ? 50.0 : 55.0, // Original values
+                                    interval: tablet ? 1 : (maxY > 15 ? 3 : maxY > 10 ? 2 : 1), // Better spacing for clarity
                                     getTitlesWidget: (value, meta) {
                                       // Show position numbers on Y-axis (inverted: top = 1, bottom = maxY)
                                       if (value % 1 == 0 && value >= 1 && value <= maxY) {
                                         // Invert the display: value at top (maxY) shows 1, value at bottom (1) shows maxY
                                         final invertedPosition = (maxY - value.toInt() + 1).toInt();
-                                        return Text(
-                                          invertedPosition.toString(),
-                                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                                        return Padding(
+                                          padding: EdgeInsets.only(right: tablet ? 4.0 : 8.0),
+                                          child: Text(
+                                            invertedPosition.toString(),
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: tablet ? 14 : 12, // Increased from 12/10 for better clarity
+                                              fontWeight: FontWeight.w500, // Slightly bolder for better visibility
+                                            ),
+                                            textAlign: TextAlign.right,
+                                          ),
                                         );
                                       }
                                       return const SizedBox.shrink();
@@ -144,6 +160,7 @@ class AlonkaCharts extends StatelessWidget {
                               minY: 1,
                               maxY: maxY,
                             ),
+                            ),
                           ),
                           // Labels showing element icon and position at each point
                           ...rounds.asMap().entries.map((entry) {
@@ -168,6 +185,7 @@ class AlonkaCharts extends StatelessWidget {
                             
                             // Calculate position for label
                             // X: map round+1 to chart width (minX=1, maxX=rounds.length)
+                            // chartWidth already accounts for rightPadding
                             final xRatio = rounds.length > 1 ? (round + 1 - 1) / (rounds.length - 1) : 0;
                             final xPos = yAxisWidth + xRatio * chartWidth;
                             
@@ -184,8 +202,16 @@ class AlonkaCharts extends StatelessWidget {
                             final labelOffset = isTopPosition ? 25 : -30; // Below if top, above if not
                             final yPos = pointY + labelOffset;
                             
+                            // Calculate label position with bounds checking to prevent right clipping
+                            // Label is approximately 40px wide (icon 16px + spacing 4px + text ~20px)
+                            final labelWidth = 40.0;
+                            final labelLeft = xPos - labelWidth / 2; // Center label on point
+                            // Ensure label doesn't go beyond right edge (account for rightPadding)
+                            final maxLeft = constraints.maxWidth - labelWidth - 4.0; // 4px margin from edge
+                            final finalLeft = (labelLeft > maxLeft ? maxLeft : (labelLeft < 0 ? 0.0 : labelLeft)).toDouble();
+                            
                             return Positioned(
-                              left: xPos - 20,
+                              left: finalLeft,
                               top: yPos,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -227,7 +253,7 @@ class AlonkaCharts extends StatelessWidget {
                 }
               }),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 4), // Minimal spacing to maximize chart height
             /// 📃 Instructor Comments Section
             p.alonkaInstructorComments.isNotEmpty
                 ? const Text(
@@ -249,6 +275,7 @@ class AlonkaCharts extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

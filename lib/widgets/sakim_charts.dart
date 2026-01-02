@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:sairot/models/participant.dart';
 import 'package:sairot/models/types.dart';
 import '../event_controller.dart';
+import '../utils/tablet_utils.dart';
 
 
 class SakimCharts extends StatelessWidget {
@@ -69,71 +70,82 @@ class SakimCharts extends StatelessWidget {
     if (currentRound == -1) currentRound = 0;
     
     int numberOfParticipants =  eventController.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active).length;
+    bool tablet = isTablet(context);
+    // Adjust reserved size for Y-axis based on device type - need more space on mobile
+    final leftAxisReservedSize = tablet ? 40.0 : 65.0;
+    
 //int worstPosition = participantPositions.reduce((a, b) => a > b ? a : b);
     return Scaffold(
       //appBar: AppBar(title: Text("Participant Progress Chart")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+      body: SafeArea(
+        minimum: EdgeInsets.zero, // No minimum padding
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: tablet ? 16.0 : 8.0), // No horizontal padding for maximum width
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Stack(
-                children: [
-                  /// Bar Chart - Total Participants in Each Round
-                  Padding(
-                    padding: const EdgeInsets.only(bottom :20.0,right: 0),
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        barGroups: rounds.asMap().entries.map((entry) {
-                          int index = entry.key;
-                          int round = entry.value;
-                          bool isCurrentRound = round == currentRound;
-                          double value = participantCounts[index].toDouble();
-                          return BarChartGroupData(
-                            x: round, // Rounds are already >= 1 after filtering
-                            barRods: [
-                              BarChartRodData(
-                                toY: value,
-                                color: isCurrentRound ? Colors.green : Colors.black,
-                                width: 20,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Stack(
+                    children: [
+                      /// Bar Chart - Total Participants in Each Round
+                      Positioned(
+                        left: leftAxisReservedSize,
+                        right: 0,
+                        top: 0,
+                        bottom: 20.0, // Space for bottom labels
+                        child: BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceAround,
+                            barGroups: rounds.asMap().entries.map((entry) {
+                              int index = entry.key;
+                              int round = entry.value;
+                              bool isCurrentRound = round == currentRound;
+                              double value = participantCounts[index].toDouble();
+                              return BarChartGroupData(
+                                x: round, // Rounds are already >= 1 after filtering
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: value,
+                                    color: isCurrentRound ? Colors.green : Colors.black,
+                                    width: tablet ? 20 : 15, // Narrower bars on mobile
+                                  ),
+                                ],
+                                // Don't show tooltips
+                              );
+                            }).toList(),
+                            titlesData: FlTitlesData(
+                              rightTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
                               ),
-                            ],
-                            // Don't show tooltips
-                          );
-                        }).toList(),
-                        titlesData: FlTitlesData(
-                          rightTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              topTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false), // Hide BarChart X-axis, LineChart will show it
+                              ),
+                            ),
+                            gridData: FlGridData(show: false),
+                            borderData: FlBorderData(show: false),
+                            // Disable tooltips - don't show participant count
+                            barTouchData: BarTouchData(
+                              enabled: false, // Disable touch interactions
+                            ),
                           ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          topTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(showTitles: false), // Hide BarChart X-axis, LineChart will show it
-                          ),
-                        ),
-                        gridData: FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
-                        // Disable tooltips - don't show participant count
-                        barTouchData: BarTouchData(
-                          enabled: false, // Disable touch interactions
                         ),
                       ),
-                    ),
-                  ),
 
-                  ///Line Chart - Participant Position (Inverted Y-Axis)
-                  LineChart(
-                    LineChartData(
-                      minY: 1,  // Ensure Y-axis starts from 1
-                      maxY: numberOfParticipants.toDouble(),
-                      minX: rounds.isNotEmpty ? rounds.first.toDouble() : 1, // Start from first round
-                      maxX: rounds.isNotEmpty ? (rounds.last.toDouble() + 0.5) : 1, // Add 0.5 to ensure last point is fully visible
+                      ///Line Chart - Participant Position (Inverted Y-Axis)
+                      LineChart(
+                        LineChartData(
+                          minY: 1,  // Ensure Y-axis starts from 1
+                          maxY: numberOfParticipants.toDouble(),
+                          minX: rounds.isNotEmpty ? rounds.first.toDouble() : 1, // Start from first round
+                          maxX: rounds.isNotEmpty ? (rounds.last.toDouble() + 0.5) : 1, // Add 0.5 to ensure last point is fully visible
                       lineBarsData: [
                         LineChartBarData(
                           spots: rounds.asMap().entries
@@ -182,15 +194,22 @@ class SakimCharts extends StatelessWidget {
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 40,
+                            reservedSize: leftAxisReservedSize,
+                            interval: tablet ? 1 : (numberOfParticipants > 10 ? 2 : 1), // Larger interval on mobile if many participants
                             getTitlesWidget: (value, meta) {
                               // Skip 0 and only show integers greater than 0
                               if (value > 0 && value % 1 == 0 && value <= numberOfParticipants.toDouble()) {
-                                return Text('${(numberOfParticipants - value).toInt()}', style: TextStyle(fontSize: 12));
+                                return Padding(
+                                  padding: EdgeInsets.only(right: tablet ? 4.0 : 12.0),
+                                  child: Text(
+                                    '${(numberOfParticipants - value).toInt()}',
+                                    style: TextStyle(fontSize: tablet ? 12 : 10),
+                                    textAlign: TextAlign.right,
+                                  ),
+                                );
                               }
                               return SizedBox.shrink();
                             },
-                            interval: 1,  // Ensure Y-axis ticks at every integer
                           ),
                         ),
                         rightTitles: AxisTitles(
@@ -221,7 +240,7 @@ class SakimCharts extends StatelessWidget {
                         show: true,
                         drawHorizontalLine: true,
                         drawVerticalLine: true,
-                        horizontalInterval: 1,  // Ensure grid lines match Y-axis ticks
+                        horizontalInterval: tablet ? 1 : (numberOfParticipants > 10 ? 2 : 1), // Match Y-axis interval
                         verticalInterval: 1,
                         getDrawingHorizontalLine: (value) => FlLine(
                           color: Colors.grey.withValues(alpha: 0.3),
@@ -237,7 +256,10 @@ class SakimCharts extends StatelessWidget {
                         border: Border.all(color: Colors.black26),
                       ),
                     ),
-                  ),             ],
+                  ),
+                    ],
+                  );
+                },
               ),
             ),
             const SizedBox(height: 20),
@@ -260,6 +282,7 @@ class SakimCharts extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

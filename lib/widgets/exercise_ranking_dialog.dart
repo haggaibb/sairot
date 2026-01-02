@@ -78,12 +78,15 @@ class ExerciseRankingDialog extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: () {
                     Navigator.of(context).pop(); // Close ranking dialog
-                    showDialog(
-                      context: context,
-                      builder: (context) => ExerciseGraphDialog(
-                        participantNumber: participantNumber,
-                        exerciseName: exerciseName,
-                        exerciseNameHebrew: exerciseNameHebrew,
+                    // Use Navigator.push with fullScreenDialog to avoid Dialog width constraints
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        fullscreenDialog: true,
+                        builder: (context) => ExerciseGraphDialog(
+                          participantNumber: participantNumber,
+                          exerciseName: exerciseName,
+                          exerciseNameHebrew: exerciseNameHebrew,
+                        ),
                       ),
                     );
                   },
