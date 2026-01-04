@@ -39,7 +39,6 @@ dependencies:
   get: ^4.6.6
   hive_flutter: ^1.1.0
   hive_generator: ^2.0.1
-  pluto_grid: ^8.0.0
   fl_chart: ^0.70.2
   intl: ^0.19.0
   cloud_firestore: ^5.6.2
@@ -98,17 +97,12 @@ flutter:
   assets:
     - images/bur.png
     - images/alonka.png
-    - images/sprints.png
     - images/sakim.png
     - images/meeshulash.png
-    - images/no-image.png
     - images/wings-logo.png
     - images/gerikan.png
     - images/run.png
-    - images/wings-logo-dark.png
     - images/logo_1024.png
-    - images/splash_background.png
-    - images/no_logo.png
     - images/wheels.png
 
   # An image asset can refer to one or more resolution-specific "variants", see

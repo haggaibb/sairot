@@ -12,7 +12,6 @@ import '../services/platform_service.dart';
 import '../utils/tablet_utils.dart';
 import '../git_version.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-// import '../widgets/sonar.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

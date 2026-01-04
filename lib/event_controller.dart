@@ -1179,21 +1179,6 @@ class EventController extends GetxController {
     }
   }
 
-  /// Update qualified recruit final classification
-  /// @deprecated Final classification should only be done in sairot_admin app, not in sairot app
-  /// This method is kept for backward compatibility but should not be used
-  @Deprecated('Final classification should only be done in sairot_admin app')
-  Future<bool> updateQualifiedRecruitClassification({
-    required String eventName,
-    required String date,
-    required int participantNumber,
-    required FinalClassification classification,
-    String? classifiedBy,
-  }) async {
-    print('⚠️ WARNING: updateQualifiedRecruitClassification is deprecated. Final classification should only be done in sairot_admin app.');
-    return false;
-  }
-
   /// Get qualified recruit document from Firestore
   /// Reads from unified structure with participantData nested field
   Future<QualifiedRecruit?> getQualifiedRecruit({
@@ -1220,25 +1205,6 @@ class EventController extends GetxController {
       print('❌ Error getting qualified recruit: $e');
       return null;
     }
-  }
-
-  /// Show final classification dialog and update qualified recruit
-  /// @deprecated Final classification should only be done in sairot_admin app, not in sairot app
-  /// This method is kept for backward compatibility but should not be used
-  @Deprecated('Final classification should only be done in sairot_admin app')
-  Future<void> showFinalClassificationDialogAndUpdate({
-    required BuildContext context,
-    required String eventName,
-    required String date,
-    required int participantNumber,
-  }) async {
-    print('⚠️ WARNING: showFinalClassificationDialogAndUpdate is deprecated. Final classification should only be done in sairot_admin app.');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('סיווג סופי יכול להיעשות רק באפליקציית המנהל'),
-        backgroundColor: Colors.orange,
-      ),
-    );
   }
 
   /// log in
