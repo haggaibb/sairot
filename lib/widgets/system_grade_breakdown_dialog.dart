@@ -71,77 +71,10 @@ class SystemGradeBreakdownDialog extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Flexible(
-                child: SingleChildScrollView(
-                  child: Table(
-                    border: TableBorder.all(color: Colors.grey[300]!),
-                    children: [
-                      // Header row
-                      TableRow(
-                        decoration: BoxDecoration(color: Colors.grey[800]),
-                        children: [
-                          _buildTableCell('תרגיל', isTabletDevice, isHeader: true),
-                          _buildTableCell('ציון', isTabletDevice, isHeader: true),
-                          _buildTableCell('דירוג', isTabletDevice, isHeader: true),
-                        ],
-                      ),
-                      // Meshulash row
-                      TableRow(
-                        children: [
-                          _buildTableCell('משולש', isTabletDevice),
-                          _buildTableCell(
-                            participant.meshulashGrade.toStringAsFixed(2),
-                            isTabletDevice,
-                          ),
-                          _buildTableCell(
-                            '${allRanks['meshulash']!['rank']}/${allRanks['meshulash']!['total']}',
-                            isTabletDevice,
-                          ),
-                        ],
-                      ),
-                      // Alonka row
-                      TableRow(
-                        children: [
-                          _buildTableCell('אלונקה', isTabletDevice),
-                          _buildTableCell(
-                            participant.alonkaGrade.toStringAsFixed(2),
-                            isTabletDevice,
-                          ),
-                          _buildTableCell(
-                            '${allRanks['alonka']!['rank']}/${allRanks['alonka']!['total']}',
-                            isTabletDevice,
-                          ),
-                        ],
-                      ),
-                      // Bur row
-                      TableRow(
-                        children: [
-                          _buildTableCell('בור', isTabletDevice),
-                          _buildTableCell(
-                            participant.burGrade.toStringAsFixed(2),
-                            isTabletDevice,
-                          ),
-                          _buildTableCell(
-                            '${allRanks['bur']!['rank']}/${allRanks['bur']!['total']}',
-                            isTabletDevice,
-                          ),
-                        ],
-                      ),
-                      // Sakim row
-                      TableRow(
-                        children: [
-                          _buildTableCell('שקים', isTabletDevice),
-                          _buildTableCell(
-                            participant.sakimGrade.toStringAsFixed(2),
-                            isTabletDevice,
-                          ),
-                          _buildTableCell(
-                            '${allRanks['sakim']!['rank']}/${allRanks['sakim']!['total']}',
-                            isTabletDevice,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                child: _buildFrozenColumnTable(
+                  participant,
+                  allRanks,
+                  isTabletDevice,
                 ),
               ),
               const SizedBox(height: 15),
@@ -156,9 +89,12 @@ class SystemGradeBreakdownDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildTableCell(String text, bool isTablet, {bool isHeader = false}) {
-    return Padding(
+  Widget _buildTableCell(String text, bool isTablet, {bool isHeader = false, Color? backgroundColor}) {
+    return Container(
       padding: const EdgeInsets.all(8.0),
+      decoration: backgroundColor != null
+          ? BoxDecoration(color: backgroundColor)
+          : null,
       child: Text(
         text,
         textAlign: TextAlign.center,
@@ -168,6 +104,127 @@ class SystemGradeBreakdownDialog extends StatelessWidget {
           color: Colors.white,
         ),
       ),
+    );
+  }
+
+  Widget _buildFrozenColumnTable(
+    participant,
+    allRanks,
+    bool isTablet,
+  ) {
+    final firstColumnWidth = isTablet ? 120.0 : 100.0;
+    final cellHeight = 48.0;
+    final rows = [
+      {'exercise': 'משולש', 'grade': participant.meshulashGrade.toStringAsFixed(2), 'rank': '${allRanks['meshulash']!['rank']}/${allRanks['meshulash']!['total']}'},
+      {'exercise': 'אלונקה', 'grade': participant.alonkaGrade.toStringAsFixed(2), 'rank': '${allRanks['alonka']!['rank']}/${allRanks['alonka']!['total']}'},
+      {'exercise': 'בור', 'grade': participant.burGrade.toStringAsFixed(2), 'rank': '${allRanks['bur']!['rank']}/${allRanks['bur']!['total']}'},
+      {'exercise': 'שקים', 'grade': participant.sakimGrade.toStringAsFixed(2), 'rank': '${allRanks['sakim']!['rank']}/${allRanks['sakim']!['total']}'},
+    ];
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Frozen first column
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              width: firstColumnWidth,
+              height: cellHeight,
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                border: Border(
+                  right: BorderSide(color: Colors.grey[300]!, width: 1),
+                  bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+                ),
+              ),
+              child: _buildTableCell('תרגיל', isTablet, isHeader: true),
+            ),
+            // Data rows
+            ...rows.map((row) => Container(
+              width: firstColumnWidth,
+              height: cellHeight,
+              decoration: BoxDecoration(
+                border: Border(
+                  right: BorderSide(color: Colors.grey[300]!, width: 1),
+                  bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+                ),
+              ),
+              child: _buildTableCell(row['exercise']!, isTablet),
+            )),
+          ],
+        ),
+        // Scrollable columns
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header row
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: isTablet ? 120.0 : 100.0,
+                      height: cellHeight,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        border: Border(
+                          right: BorderSide(color: Colors.grey[300]!, width: 1),
+                          bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+                        ),
+                      ),
+                      child: _buildTableCell('ציון', isTablet, isHeader: true),
+                    ),
+                    Container(
+                      width: isTablet ? 120.0 : 100.0,
+                      height: cellHeight,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[800],
+                        border: Border(
+                          right: BorderSide(color: Colors.grey[300]!, width: 1),
+                          bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+                        ),
+                      ),
+                      child: _buildTableCell('דירוג', isTablet, isHeader: true),
+                    ),
+                  ],
+                ),
+                // Data rows
+                ...rows.map((row) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: isTablet ? 120.0 : 100.0,
+                      height: cellHeight,
+                      decoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(color: Colors.grey[300]!, width: 1),
+                          bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+                        ),
+                      ),
+                      child: _buildTableCell(row['grade']!, isTablet),
+                    ),
+                    Container(
+                      width: isTablet ? 120.0 : 100.0,
+                      height: cellHeight,
+                      decoration: BoxDecoration(
+                        border: Border(
+                          right: BorderSide(color: Colors.grey[300]!, width: 1),
+                          bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+                        ),
+                      ),
+                      child: _buildTableCell(row['rank']!, isTablet),
+                    ),
+                  ],
+                )),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -48,7 +48,7 @@ class PerformancePage extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           centerTitle: true,
-          title: const Text('ניתוח ביצועים'),
+          title: Text('ניתוח ביצועים - משתתף $number'),
         ),
         body: SingleChildScrollView(
           child: Center(

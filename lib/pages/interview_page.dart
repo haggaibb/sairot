@@ -4,7 +4,7 @@ import 'package:sairot/models/participant.dart';
 import '../models/types.dart';
 import '../event_controller.dart';
 import 'package:get/get.dart';
-import '../widgets/comments_dialog.dart';
+import 'interview_detail_page.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
 import '../services/exercise_context_service.dart';
@@ -175,41 +175,20 @@ class _InterviewPageState extends State<InterviewPage> with EventValidationMixin
                                               .currentEvent
                                               .value
                                               .finalized) return;
-                                          var res = await showDialog<List<String>>(
-                                              context: context,
-                                              builder: (BuildContext context) =>
-                                                  CommentsDialog(
-                                                      commentsList: eventController.gradesData.listOfCommentsInterview,
-                                                      selectedComments: eventController
-                                                        .currentEvent
-                                                        .value
-                                                        .activeParticipants[index].interviewInstructorComments,
-                                                    title: eventController
-                                                        .currentEvent
-                                                        .value
-                                                        .activeParticipants[index]
-                                                        .number.toString(),
-                                                  ));
-                                          if (res!=null) {
-                                            if (res.contains(ParticipantStatus.Droped.name)) {
-                                              eventController.loading.value =
-                                              true;
-                                              eventController.dropParticipant(
-                                                  eventController
-                                                      .currentEvent
-                                                      .value
-                                                      .activeParticipants[index]
-                                                      .number);
-                                              eventController.currentEvent.value.activeParticipants
-                                                  .removeAt(index);
-                                              eventController.loading.value=false;
-                                            } else {
-                                              eventController.addInterviewComments(res,eventController
-                                                  .currentEvent
-                                                  .value
-                                                  .activeParticipants[index]
-                                                  .number);                                          }
-                                          }
+                                          
+                                          final participant = eventController
+                                              .currentEvent
+                                              .value
+                                              .activeParticipants[index];
+                                          
+                                          await Get.to(() => InterviewDetailPage(
+                                            participantNumber: participant.number,
+                                            commentsList: eventController.gradesData.listOfCommentsInterview,
+                                            selectedComments: participant.interviewInstructorComments,
+                                          ));
+                                          
+                                          // Refresh the UI after returning from detail page
+                                          setState(() {});
                                         },
                                         child: Text(eventController
                                             .currentEvent

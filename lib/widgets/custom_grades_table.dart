@@ -197,7 +197,29 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
     );
   }
 
-  Widget _buildHeaderCell(String title, SortColumn column, double width) {
+  bool _hasComments(Participant participant) {
+    // Check only alonka, meshulash, and sakim comments
+    return participant.alonkaInstructorComments.isNotEmpty ||
+        participant.meshulashInstructorComments.isNotEmpty ||
+        participant.sakimInstructorComments.isNotEmpty;
+  }
+
+  Widget _buildCommentIndicator(Participant participant) {
+    if (!_hasComments(participant)) {
+      return const SizedBox.shrink();
+    }
+    
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Icon(
+        Icons.comment,
+        size: 16,
+        color: Colors.blue,
+      ),
+    );
+  }
+
+  Widget _buildHeaderCell(String title, SortColumn column, double width, {bool isFrozen = false}) {
     return GestureDetector(
       onTap: () => _handleSort(column),
       child: Container(
@@ -256,6 +278,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
         onDoubleTap: onDoubleTap,
         child: Container(
           width: width,
+          height: 48, // Fixed height to match header and align rows
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
           decoration: BoxDecoration(
             color: backgroundColor ?? Colors.white,
@@ -293,35 +316,78 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
           },
           child: Container(
             color: Colors.white,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SingleChildScrollView(
-                child: Column(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              textDirection: TextDirection.rtl,
+              children: [
+                // Frozen first column (מספר - recruit number)
+                Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Header row
-                    Row(
+                    // Header
+                    _buildHeaderCell('מספר', SortColumn.number, numberWidth, isFrozen: true),
+                    // Data rows
+                    ...sortedParticipants.map((participant) {
+                      final rowColor = _getRowColor(participant);
+                      return GestureDetector(
+                        onTap: () {
+                          FocusScope.of(context).unfocus();
+                          setState(() {
+                            _selectedParticipantNumber = participant.number;
+                          });
+                        },
+                        child: _buildCell(
+                          width: numberWidth,
+                          backgroundColor: rowColor,
+                          onDoubleTap: () {
+                            Get.toNamed('/performance_page/${participant.number}');
+                          },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildCommentIndicator(participant),
+                              Text(
+                                participant.number.toString(),
+                                style: const TextStyle(color: Colors.black),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
+                // Scrollable columns
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                      _buildHeaderCell('מספר', SortColumn.number, numberWidth),
-                      _buildHeaderCell(
-                        widget.isTablet ? 'ציון סופי' : 'סופי',
-                        SortColumn.finalGrade,
-                        finalGradeWidth,
-                      ),
-                      _buildHeaderCell(
-                        widget.isTablet ? 'ציון מערכת' : 'מערכת',
-                        SortColumn.systemGrade,
-                        systemGradeWidth,
-                      ),
-                      _buildHeaderCell('משולש', SortColumn.meshulash, exerciseWidth),
-                      _buildHeaderCell('אלונקה', SortColumn.alonka, exerciseWidth),
-                      _buildHeaderCell('בור', SortColumn.bur, burWidth),
-                      _buildHeaderCell('שקים', SortColumn.sakim, sakimWidth),
-                    ],
-                  ),
-            // Data rows
-            ...sortedParticipants.map((participant) {
+                        // Header row
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildHeaderCell(
+                              widget.isTablet ? 'ציון סופי' : 'סופי',
+                              SortColumn.finalGrade,
+                              finalGradeWidth,
+                            ),
+                            _buildHeaderCell(
+                              widget.isTablet ? 'ציון מערכת' : 'מערכת',
+                              SortColumn.systemGrade,
+                              systemGradeWidth,
+                            ),
+                            _buildHeaderCell('משולש', SortColumn.meshulash, exerciseWidth),
+                            _buildHeaderCell('אלונקה', SortColumn.alonka, exerciseWidth),
+                            _buildHeaderCell('בור', SortColumn.bur, burWidth),
+                            _buildHeaderCell('שקים', SortColumn.sakim, sakimWidth),
+                          ],
+                        ),
+                        // Data rows
+                        ...sortedParticipants.map((participant) {
               final rowColor = _getRowColor(participant);
               // Ensure controller exists
               if (!_gradeControllers.containsKey(participant.number)) {
@@ -346,18 +412,6 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Number cell
-                    _buildCell(
-                      width: numberWidth,
-                      backgroundColor: rowColor,
-                      onDoubleTap: () {
-                        Get.toNamed('/performance_page/${participant.number}');
-                      },
-                      child: Text(
-                        participant.number.toString(),
-                        style: const TextStyle(color: Colors.black),
-                      ),
-                    ),
                   // Final grade cell (editable)
                   GestureDetector(
                     // This GestureDetector will catch taps on the container area
@@ -541,9 +595,11 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                 ),
               );
             }).toList(),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         );
