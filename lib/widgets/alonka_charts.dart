@@ -400,15 +400,7 @@ class AlonkaMatrixView extends StatelessWidget {
                 TableCell(
                   child: Padding(
                     padding: EdgeInsets.all(isTablet ? 12 : 8),
-                    child: Text(
-                      'משתתף',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: isTablet ? 16 : 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    child: SizedBox.shrink(), // Empty first cell
                   ),
                 ),
                 ...sprints.map((sprint) {
@@ -416,7 +408,7 @@ class AlonkaMatrixView extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.all(isTablet ? 12 : 8),
                       child: Text(
-                        sprint.round.toString(),
+                        (sprint.round + 1).toString(), // Add +1 to round number
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
