@@ -9,6 +9,7 @@ import '../utils/tablet_utils.dart';
 
 class ChartToggleController extends GetxController {
   var showPieChart = false.obs; // Toggles between Line and Pie Chart
+  var showMatrix = false.obs; // Toggles between Chart and Matrix view
 }
 
 class AlonkaCharts extends StatelessWidget {
@@ -36,24 +37,50 @@ class AlonkaCharts extends StatelessWidget {
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// 🔘 Toggle Switch
+            /// 🔘 Toggle Controls Row
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('קווי', style: TextStyle(fontSize: 12)), // Smaller text
-                Obx(() => Switch(
-                  value: toggleController.showPieChart.value,
-                  onChanged: (value) {
-                    toggleController.showPieChart.value = value;
+                // Matrix icon button (upper left)
+                Obx(() => IconButton(
+                  icon: Icon(
+                    toggleController.showMatrix.value ? Icons.bar_chart : Icons.grid_on,
+                    color: Colors.white,
+                  ),
+                  onPressed: () {
+                    toggleController.showMatrix.value = !toggleController.showMatrix.value;
                   },
+                  tooltip: toggleController.showMatrix.value ? 'הצג גרף' : 'הצג מטריצה',
                 )),
-                Text('עוגה', style: TextStyle(fontSize: 12)), // Smaller text
+                // Chart type toggle (center)
+                Obx(() => !toggleController.showMatrix.value
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('קווי', style: TextStyle(fontSize: 12)),
+                          Switch(
+                            value: toggleController.showPieChart.value,
+                            onChanged: (value) {
+                              toggleController.showPieChart.value = value;
+                            },
+                          ),
+                          Text('עוגה', style: TextStyle(fontSize: 12)),
+                        ],
+                      )
+                    : SizedBox.shrink()),
+                // Spacer to balance the row
+                SizedBox(width: 48),
               ],
             ),
             SizedBox(height: 2), // Minimal spacing to maximize chart height
-            /// 📊 Charts Stack (Toggles Between Pie Chart & Line Chart)
+            /// 📊 Charts/Matrix Stack (Toggles Between Views)
             Expanded(
               child: Obx(() {
+                // Show matrix view
+                if (toggleController.showMatrix.value) {
+                  return AlonkaMatrixView(number: number);
+                }
+                // Show chart view
                 if (!toggleController.showPieChart.value) {
                   // Calculate positions for each sprint
                   final List<int> positions = rounds.map((round) => eventController.getAlonkaSprintPosition(number, round)).toList();
@@ -282,6 +309,189 @@ class AlonkaCharts extends StatelessWidget {
   }
 }
 
+/// Matrix view showing all recruits' credit types for each round
+class AlonkaMatrixView extends StatelessWidget {
+  final int number; // Current recruit number (highlighted)
+
+  const AlonkaMatrixView({super.key, required this.number});
+
+  Color _getCreditColor(AlonkaSprint sprint, int participantNumber) {
+    if (sprint.alonkaCredits.contains(participantNumber)) {
+      return Colors.red; // Alonka credit - red
+    } else if (sprint.gerikanCredits.contains(participantNumber)) {
+      return Colors.green; // Gerikan credit - green
+    } else if (sprint.runCredits.contains(participantNumber)) {
+      return Colors.black; // Runner credit - black
+    } else if (sprint.participationCredits.contains(participantNumber)) {
+      return Colors.white; // Participation credit - white
+    }
+    return Colors.grey; // No credit
+  }
+
+  String _getCreditLabel(AlonkaSprint sprint, int participantNumber) {
+    if (sprint.alonkaCredits.contains(participantNumber)) {
+      return 'א';
+    } else if (sprint.gerikanCredits.contains(participantNumber)) {
+      return 'ג';
+    }
+    // No text for runner, participation, or no credit
+    return '';
+  }
+
+  bool _hasValidCredits(AlonkaSprint sprint) {
+    // A round is valid only if it has Alonka or Gerikan credits
+    // Participation credits alone don't make a valid round
+    return sprint.alonkaCredits.isNotEmpty || sprint.gerikanCredits.isNotEmpty;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final eventController = Get.put(EventController());
+    final allSprints = eventController.currentEvent.value.alonkaSprints;
+    
+    // Filter out the last round if it has no valid credits (probably opened by mistake)
+    // A round is valid only if it has Alonka or Gerikan credits (not just participation)
+    List<AlonkaSprint> sprints = [];
+    if (allSprints.isNotEmpty) {
+      // Check if last round has valid credits (Alonka or Gerikan)
+      final lastSprint = allSprints.last;
+      if (_hasValidCredits(lastSprint)) {
+        // Last round has valid credits, include all rounds
+        sprints = allSprints;
+      } else {
+        // Last round is empty or only has participation credits, exclude it
+        sprints = allSprints.sublist(0, allSprints.length - 1);
+      }
+    }
+    
+    final participants = eventController.currentEvent.value
+        .getParticipantsByStatus(ParticipantStatus.Active)
+        ..sort((a, b) => b.alonkaGrade.compareTo(a.alonkaGrade)); // Sort by grade descending (best on top)
+    bool isTablet = MediaQuery.of(context).size.width > 600;
+
+    if (sprints.isEmpty || participants.isEmpty) {
+      return Center(
+        child: Text(
+          'אין נתונים',
+          style: TextStyle(color: Colors.white, fontSize: isTablet ? 18 : 16),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: Table(
+          border: TableBorder.all(color: Colors.white70, width: 1),
+          columnWidths: {
+            0: FixedColumnWidth(isTablet ? 80 : 70), // Recruit number column
+            ...Map.fromIterable(
+              List.generate(sprints.length, (index) => index + 1),
+              key: (i) => i,
+              value: (i) => FixedColumnWidth(isTablet ? 60 : 50), // Round columns
+            ),
+          },
+          children: [
+            // Header row
+            TableRow(
+              decoration: BoxDecoration(color: Colors.grey[800]),
+              children: [
+                TableCell(
+                  child: Padding(
+                    padding: EdgeInsets.all(isTablet ? 12 : 8),
+                    child: Text(
+                      'משתתף',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: isTablet ? 16 : 14,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                ...sprints.map((sprint) {
+                  return TableCell(
+                    child: Padding(
+                      padding: EdgeInsets.all(isTablet ? 12 : 8),
+                      child: Text(
+                        sprint.round.toString(),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: isTablet ? 16 : 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ],
+            ),
+            // Data rows - one per recruit
+            ...participants.map((participant) {
+              bool isCurrentRecruit = participant.number == number;
+              return TableRow(
+                decoration: isCurrentRecruit
+                    ? BoxDecoration(color: Colors.blue.withValues(alpha: 0.2))
+                    : null,
+                children: [
+                  // Recruit number cell
+                  TableCell(
+                    child: Container(
+                      padding: EdgeInsets.all(isTablet ? 12 : 8),
+                      color: Colors.grey[900],
+                      child: Text(
+                        participant.number.toString(),
+                        style: TextStyle(
+                          color: isCurrentRecruit ? Colors.yellow : Colors.white,
+                          fontSize: isTablet ? 16 : 14,
+                          fontWeight: isCurrentRecruit ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                  // Round cells - one per sprint
+                  ...sprints.map((sprint) {
+                    Color cellColor = _getCreditColor(sprint, participant.number);
+                    String label = _getCreditLabel(sprint, participant.number);
+                    
+                    return TableCell(
+                      verticalAlignment: TableCellVerticalAlignment.fill,
+                      child: Container(
+                        constraints: BoxConstraints.expand(),
+                        padding: EdgeInsets.zero,
+                        margin: EdgeInsets.zero,
+                        color: cellColor,
+                        child: label.isNotEmpty
+                            ? Center(
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    color: cellColor == Colors.white || cellColor == Colors.black
+                                        ? Colors.black
+                                        : Colors.white,
+                                    fontSize: isTablet ? 16 : 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
+                            : SizedBox.shrink(),
+                      ),
+                    );
+                  }).toList(),
+                ],
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class SprintCreditPieChart extends StatelessWidget {
   final List<double> participantsSprintCredit;
