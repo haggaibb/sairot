@@ -195,6 +195,7 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                         child: Column(
                           children: [
                             SakimGridView(),
+                            SizedBox(height: tablet ? 60.0 : 40.0), // Increased gap between grid and button
                             if (eventController.currentEvent.value.sakimEndTime == null)
                               Padding(
                                 padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),

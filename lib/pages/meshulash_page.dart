@@ -190,6 +190,7 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                         child: Column(
                           children: [
                             MeshulashGridView(),
+                            SizedBox(height: tablet ? 60.0 : 40.0), // Increased gap between grid and button
                             if (eventController.currentEvent.value.meshulashEndTime == null)
                               Padding(
                                 padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),

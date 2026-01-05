@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../event_controller.dart';
 import '../models/participant.dart';
+import '../models/types.dart';
 import 'exercise_ranking_dialog.dart';
 import 'system_grade_breakdown_dialog.dart';
 
@@ -102,8 +103,10 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
   }
 
   List<Participant> _getSortedParticipants() {
+    // Filter out rejected (dropped) participants
     final participants = List<Participant>.from(
-      widget.eventController.currentEvent.value.participants,
+      widget.eventController.currentEvent.value.participants
+          .where((p) => p.status == ParticipantStatus.Active),
     );
 
     if (_sortColumn == null || _sortDirection == SortDirection.none) {
@@ -322,13 +325,15 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
               textDirection: TextDirection.rtl,
               children: [
                 // Frozen first column (מספר - recruit number)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Header
-                    _buildHeaderCell('מספר', SortColumn.number, numberWidth, isFrozen: true),
-                    // Data rows
-                    ...sortedParticipants.map((participant) {
+                SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header
+                      _buildHeaderCell('מספר', SortColumn.number, numberWidth, isFrozen: true),
+                      // Data rows
+                      ...sortedParticipants.map((participant) {
                       final rowColor = _getRowColor(participant);
                       return GestureDetector(
                         onTap: () {
@@ -358,36 +363,39 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                       );
                     }).toList(),
                   ],
+                    ),
                 ),
                 // Scrollable columns
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Header row
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildHeaderCell(
-                              widget.isTablet ? 'ציון סופי' : 'סופי',
-                              SortColumn.finalGrade,
-                              finalGradeWidth,
-                            ),
-                            _buildHeaderCell(
-                              widget.isTablet ? 'ציון מערכת' : 'מערכת',
-                              SortColumn.systemGrade,
-                              systemGradeWidth,
-                            ),
-                            _buildHeaderCell('משולש', SortColumn.meshulash, exerciseWidth),
-                            _buildHeaderCell('אלונקה', SortColumn.alonka, exerciseWidth),
-                            _buildHeaderCell('בור', SortColumn.bur, burWidth),
-                            _buildHeaderCell('שקים', SortColumn.sakim, sakimWidth),
-                          ],
-                        ),
-                        // Data rows
-                        ...sortedParticipants.map((participant) {
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Header row
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildHeaderCell(
+                                widget.isTablet ? 'ציון סופי' : 'סופי',
+                                SortColumn.finalGrade,
+                                finalGradeWidth,
+                              ),
+                              _buildHeaderCell(
+                                widget.isTablet ? 'ציון מערכת' : 'מערכת',
+                                SortColumn.systemGrade,
+                                systemGradeWidth,
+                              ),
+                              _buildHeaderCell('משולש', SortColumn.meshulash, exerciseWidth),
+                              _buildHeaderCell('אלונקה', SortColumn.alonka, exerciseWidth),
+                              _buildHeaderCell('בור', SortColumn.bur, burWidth),
+                              _buildHeaderCell('שקים', SortColumn.sakim, sakimWidth),
+                            ],
+                          ),
+                          // Data rows
+                          ...sortedParticipants.map((participant) {
               final rowColor = _getRowColor(participant);
               // Ensure controller exists
               if (!_gradeControllers.containsKey(participant.number)) {
@@ -596,6 +604,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
               );
             }).toList(),
                       ],
+                    ),
                     ),
                   ),
                 ),
