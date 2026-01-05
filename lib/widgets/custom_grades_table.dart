@@ -319,15 +319,15 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
           },
           child: Container(
             color: Colors.white,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              textDirection: TextDirection.rtl,
-              children: [
-                // Frozen first column (מספר - recruit number)
-                SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: Column(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                textDirection: TextDirection.rtl,
+                children: [
+                  // Frozen first column (מספר - recruit number)
+                  Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Header
@@ -363,15 +363,12 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                       );
                     }).toList(),
                   ],
-                    ),
                 ),
                 // Scrollable columns
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: Column(
+                    child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           // Header row
@@ -605,10 +602,10 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
             }).toList(),
                       ],
                     ),
-                    ),
                   ),
                 ),
               ],
+            ),
             ),
           ),
         );
