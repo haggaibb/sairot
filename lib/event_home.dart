@@ -11,6 +11,7 @@ import 'utils/tablet_utils.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'services/user_preferences_service.dart';
 import 'widgets/floating_ptt_button.dart';
+import 'widgets/wifi_settings_button.dart';
 import 'mixins/event_validation_mixin.dart';
 
 class EventHome extends StatefulWidget {
@@ -212,6 +213,17 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                               },
                             );
                             if (res) {
+                              // Check connectivity before finalization
+                              if (!eventController.isConnected.value) {
+                                showCustomMessageAlert(
+                                  context,
+                                  "תקלה",
+                                  "אינטרנט נדרש לסיום ושמירת האירוע",
+                                  Icons.wifi_off,
+                                );
+                                return;
+                              }
+                              
                               eventController.loading.value = true;
                               
                               // Debug: Log instructorGrade values before finalization
@@ -412,7 +424,8 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                     ),
                   );
                 },
-              )
+              ),
+              WifiSettingsButton(),
             ],
           ),
           body: Stack(

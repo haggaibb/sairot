@@ -7,6 +7,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 import 'event_controller.dart';
+import 'services/sync_queue_service.dart';
+import 'models/event.dart';
 
 class ConnectivityController extends GetxController {
   var isConnected = false.obs; // Tracks internet connectivity
@@ -61,7 +63,14 @@ class ConnectivityController extends GetxController {
 
       if (response.statusCode == 200) {
         print("✅ Internet connection OK.");
+        final wasConnected = isConnected.value;
         isConnected.value = true;
+        
+        // If we just gained connection, process sync queue
+        if (!wasConnected) {
+          print("🔄 Connection restored, processing sync queue...");
+          processSyncQueue();
+        }
       } else {
         print("⚠️ No real internet access.");
         isConnected.value = false;
@@ -69,6 +78,82 @@ class ConnectivityController extends GetxController {
     } catch (e) {
       print("❌ Internet check failed: $e");
       isConnected.value = false;
+    }
+  }
+
+  /// Process sync queue when internet becomes available
+  Future<void> processSyncQueue() async {
+    if (!isConnected.value) {
+      print("⚠️ Cannot process sync queue: no internet connection");
+      return;
+    }
+
+    try {
+      await SyncQueueService.instance.initialize();
+      final pendingOperations = await SyncQueueService.instance.getPendingOperations();
+      
+      if (pendingOperations.isEmpty) {
+        print("✅ Sync queue is empty");
+        return;
+      }
+
+      print("🔄 Processing ${pendingOperations.length} pending operations...");
+
+      for (var operation in pendingOperations) {
+        try {
+          final key = '${operation.timestamp.millisecondsSinceEpoch}_${operation.operationType}';
+          
+          switch (operation.operationType) {
+            case 'saveEvent':
+              final event = Event.fromJson(operation.data);
+              final success = await event.saveToFirestore();
+              if (success) {
+                await SyncQueueService.instance.removeOperation(key);
+                print("✅ Synced event: ${event.eventName} - ${event.date}");
+              } else {
+                await SyncQueueService.instance.incrementRetryCount(operation);
+                print("⚠️ Failed to sync event, will retry: ${event.eventName} - ${event.date}");
+              }
+              break;
+
+            case 'createEvent':
+              final event = Event.fromJson(operation.data);
+              final success = await event.createFirestoreEvent();
+              if (success) {
+                await SyncQueueService.instance.removeOperation(key);
+                print("✅ Synced event creation: ${event.eventName} - ${event.date}");
+              } else {
+                await SyncQueueService.instance.incrementRetryCount(operation);
+                print("⚠️ Failed to sync event creation, will retry: ${event.eventName} - ${event.date}");
+              }
+              break;
+
+            case 'updateQualifiedRecruits':
+              // This is handled in finalizeEventAndUpdateQualifiedRecruits
+              // Queue it separately if needed, or handle in finalization
+              print("⚠️ Qualified recruits update should be handled during finalization");
+              await SyncQueueService.instance.removeOperation(key);
+              break;
+
+            case 'registerDevice':
+              // Device registration is non-critical, can skip if queued
+              print("ℹ️ Skipping queued device registration (non-critical)");
+              await SyncQueueService.instance.removeOperation(key);
+              break;
+
+            default:
+              print("⚠️ Unknown operation type: ${operation.operationType}");
+              await SyncQueueService.instance.removeOperation(key);
+          }
+        } catch (e) {
+          print("❌ Error processing operation ${operation.operationType}: $e");
+          await SyncQueueService.instance.incrementRetryCount(operation);
+        }
+      }
+
+      print("✅ Sync queue processing completed");
+    } catch (e) {
+      print("❌ Error processing sync queue: $e");
     }
   }
 

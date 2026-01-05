@@ -73,10 +73,13 @@ class _CommentsDialogState extends State<CommentsDialog> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            /// **Custom Comment Input**
+            /// **Custom Comment Input (Multi-line)**
             TextField(
               controller: customCommentCtrl,
-              textInputAction: TextInputAction.done,
+              maxLines: null,
+              minLines: 3,
+              textInputAction: TextInputAction.newline,
+              keyboardType: TextInputType.multiline,
               decoration: InputDecoration(
                 hintText: 'הוסף הערה חדשה...',
                 filled: true,
@@ -127,6 +130,18 @@ class _CommentsDialogState extends State<CommentsDialog> {
         actions: <Widget>[
           TextButton(
             onPressed: () {
+              // Auto-add comment from input field if not empty
+              String textInField = customCommentCtrl.text.trim();
+              if (textInField.isNotEmpty &&
+                  !predefinedComments.contains(textInField) &&
+                  !customComments.contains(textInField)) {
+                setState(() {
+                  customComments.add(textInField);
+                  instructorComments.add(textInField);
+                });
+                customCommentCtrl.clear();
+              }
+              
               // ✅ Ensure custom comments are included when saving
               List<String> finalSelectedComments = List.from(instructorComments);
 

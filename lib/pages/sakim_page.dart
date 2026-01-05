@@ -13,6 +13,7 @@ import '../utils/tablet_utils.dart';
 import '../services/exercise_context_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
+import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
 
 class SakimPage extends StatefulWidget {
@@ -174,7 +175,8 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                     ),
                   );
                 },
-              )
+              ),
+              WifiSettingsButton(),
             ],
           ),
           body: GetX<EventController>(builder: (_) {

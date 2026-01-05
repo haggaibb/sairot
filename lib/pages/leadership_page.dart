@@ -10,6 +10,7 @@ import '../utils/tablet_utils.dart';
 import '../services/exercise_context_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
+import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
 
 
@@ -133,7 +134,8 @@ class _LeadershipPageState extends State<LeadershipPage> with EventValidationMix
                         ),
                       );
                     },
-                  )
+                  ),
+                  WifiSettingsButton(),
                 ],
               ),
               body: Obx(() => eventController.loading.value

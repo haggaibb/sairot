@@ -9,6 +9,7 @@ import '../widgets/sakim_charts.dart';
 import '../widgets/interview_chart.dart';
 import '../widgets/leadership_chart.dart';
 import '../utils/tablet_utils.dart';
+import '../widgets/wifi_settings_button.dart';
 
 final eventController = Get.put(EventController());
 
@@ -84,6 +85,19 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
 
   void _saveComments() {
     if (eventController.currentEvent.value.finalized) return;
+    
+    // Auto-add comment from input field if not empty
+    String textInField = customCommentCtrl.text.trim();
+    if (textInField.isNotEmpty &&
+        !predefinedComments.contains(textInField) &&
+        !customComments.contains(textInField)) {
+      setState(() {
+        customComments.add(textInField);
+        instructorComments.add(textInField);
+      });
+      customCommentCtrl.clear();
+    }
+    
     List<String> finalSelectedComments = List.from(instructorComments);
     eventController.addInterviewComments(
         finalSelectedComments, widget.participantNumber);
@@ -131,10 +145,13 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
             ),
           ),
           SizedBox(height: 12),
-          // Custom Comment Input
+          // Custom Comment Input (Multi-line)
           Obx(() => TextField(
             controller: customCommentCtrl,
-            textInputAction: TextInputAction.done,
+            maxLines: null,
+            minLines: 3,
+            textInputAction: TextInputAction.newline,
+            keyboardType: TextInputType.multiline,
             enabled: !eventController.currentEvent.value.finalized,
             decoration: InputDecoration(
               hintText: 'הוסף הערה חדשה...',
@@ -512,6 +529,9 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
         appBar: AppBar(
           centerTitle: true,
           title: Text('ראיון אישי - משתתף ${widget.participantNumber}'),
+          actions: [
+            WifiSettingsButton(),
+          ],
         ),
         body: Column(
           children: [

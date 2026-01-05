@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
 import '../widgets/custom_grades_table.dart';
+import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
 
 class GradesPage extends StatefulWidget {
@@ -80,7 +81,8 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
                       ),
                     );
                   },
-                )
+                ),
+                WifiSettingsButton(),
               ],
             ),
             body: Container(

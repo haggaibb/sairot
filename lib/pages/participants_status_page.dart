@@ -4,6 +4,7 @@ import 'package:sairot/models/types.dart';
 import '../event_controller.dart';
 import '../models/participant.dart';
 import '../utils/tablet_utils.dart';
+import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
 
 class ParticipantsStatusPage extends StatefulWidget {
@@ -46,6 +47,9 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> with Ev
         appBar: AppBar(
           centerTitle: true,
           title: const Text('סטטוס חניכים'),
+          actions: [
+            WifiSettingsButton(),
+          ],
         ),
         body: SingleChildScrollView(
           child: Center(

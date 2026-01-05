@@ -6,6 +6,9 @@ import 'participant.dart';
 import 'sakim_round.dart';
 import 'bur.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import '../services/local_storage_service.dart';
+import '../services/sync_queue_service.dart';
 
 class Event {
   Event({
@@ -140,10 +143,30 @@ class Event {
           : null;
   }
 
-  /// Save Event instance to Firestore
+  /// Save Event instance to local Hive storage
+  Future<bool> saveToLocal() async {
+    try {
+      lastUpdate = DateTime.now();
+      final success = await LocalStorageService.instance.saveEventLocally(this);
+      if (success) {
+        print('✅ Event saved locally: $eventName - $date');
+      }
+      return success;
+    } catch (e) {
+      print("❌ Error saving Event locally: $eventName - $date: $e");
+      return false;
+    }
+  }
+
+  /// Save Event instance to Firestore (always saves locally first)
+  /// Note: This method should be called through EventController.saveEventWithOfflineSupport()
+  /// for proper offline support, but can be called directly if needed
   Future<bool> saveToFirestore() async {
     try {
       lastUpdate = DateTime.now();
+      
+      // Always save locally first (immediate, works offline)
+      await saveToLocal();
       
       // Debug: Verify instructorGrade values are present before saving
       if (finalized) {
@@ -188,63 +211,130 @@ class Event {
         }
       }
       
-      await FirebaseFirestore.instance
-          .collection('Results')
-          .doc(instructorId)
-          .collection('events')
-          .doc(eventName)
-          .collection('days')
-          .doc(date)
-          .set(eventJson);
+      // Add timeout to prevent hanging when offline
+      try {
+        await FirebaseFirestore.instance
+            .collection('Results')
+            .doc(instructorId)
+            .collection('events')
+            .doc(eventName)
+            .collection('days')
+            .doc(date)
+            .set(eventJson)
+            .timeout(
+              Duration(seconds: 10),
+              onTimeout: () {
+                print('⚠️ Firestore save timed out after 10 seconds');
+                throw TimeoutException('Firestore save operation timed out');
+              },
+            );
+      } on TimeoutException {
+        print('⚠️ Firestore save timed out - will queue for sync');
+        rethrow;
+      }
       
       print('✅ Event saved successfully: $eventName - $date (finalized: $finalized)');
       return true;
     } catch (e) {
       print("❌ Error saving Event to Firestore: $eventName - $date: $e");
+      // Queue for retry when online (local save already succeeded)
+      try {
+        await SyncQueueService.instance.queueFirestoreOperation('saveEvent', toJson());
+        print('📴 Event queued for sync when online');
+      } catch (queueError) {
+        print('⚠️ Failed to queue event for sync: $queueError');
+      }
       return false;
     }
   }
 
-  /// Save Event instance to Firestore
+  /// Save Event instance to Firestore (always saves locally first)
   Future<bool> createFirestoreEvent() async {
     try {
-      await FirebaseFirestore.instance
-          .collection('Results')
-          .doc(instructorId)
-          .collection('events')
-          .doc(eventName)
-          .collection('days')
-          .doc(date)
-          .set(toJson());
-      await FirebaseFirestore.instance.collection('Results')
-          .doc(instructorId)
-          .set({'exists': true}, SetOptions(merge: true));
-      await FirebaseFirestore.instance.collection('Results')
-          .doc(instructorId)
-          .collection('events')
-          .doc(eventName)
-          .set({'exists': true}, SetOptions(merge: true));
+      // Always save locally first
+      await saveToLocal();
+      
+      // Add timeouts to prevent hanging when offline
+      try {
+        await FirebaseFirestore.instance
+            .collection('Results')
+            .doc(instructorId)
+            .collection('events')
+            .doc(eventName)
+            .collection('days')
+            .doc(date)
+            .set(toJson())
+            .timeout(
+              Duration(seconds: 10),
+              onTimeout: () {
+                print('⚠️ Firestore create timed out after 10 seconds');
+                throw TimeoutException('Firestore create operation timed out');
+              },
+            );
+      } on TimeoutException {
+        print('⚠️ Firestore create timed out - will queue for sync');
+        rethrow;
+      }
+      
+      // These operations are less critical, use shorter timeout and don't fail if they timeout
+      try {
+        await FirebaseFirestore.instance.collection('Results')
+            .doc(instructorId)
+            .set({'exists': true}, SetOptions(merge: true))
+            .timeout(Duration(seconds: 5));
+      } catch (e) {
+        print('⚠️ Failed to update Results doc (non-critical): $e');
+      }
+      
+      try {
+        await FirebaseFirestore.instance.collection('Results')
+            .doc(instructorId)
+            .collection('events')
+            .doc(eventName)
+            .set({'exists': true}, SetOptions(merge: true))
+            .timeout(Duration(seconds: 5));
+      } catch (e) {
+        print('⚠️ Failed to update events doc (non-critical): $e');
+      }
 
-      await FirebaseFirestore.instance
-          .collection('AdminIndex')
-          .doc(eventName)
-          .collection('days')
-          .doc(date)
-          .set({
-        "instructors": FieldValue.arrayUnion([instructorId]),
-        "groups": FieldValue.arrayUnion([groupNumber.toString()]),
-        "groupsAndInstructors": FieldValue.arrayUnion([{
-          'groupNumber': groupNumber.toString(),
-          'instructorId': instructorId.toString()
-        }])
-      }, SetOptions(merge: true));
-      await FirebaseFirestore.instance.collection('AdminIndex')
-          .doc(eventName)
-          .set({'exists': true}, SetOptions(merge: true));
+      try {
+        await FirebaseFirestore.instance
+            .collection('AdminIndex')
+            .doc(eventName)
+            .collection('days')
+            .doc(date)
+            .set({
+          "instructors": FieldValue.arrayUnion([instructorId]),
+          "groups": FieldValue.arrayUnion([groupNumber.toString()]),
+          "groupsAndInstructors": FieldValue.arrayUnion([{
+            'groupNumber': groupNumber.toString(),
+            'instructorId': instructorId.toString()
+          }])
+        }, SetOptions(merge: true))
+            .timeout(Duration(seconds: 5));
+      } catch (e) {
+        print('⚠️ Failed to update AdminIndex (non-critical): $e');
+      }
+      
+      try {
+        await FirebaseFirestore.instance.collection('AdminIndex')
+            .doc(eventName)
+            .set({'exists': true}, SetOptions(merge: true))
+            .timeout(Duration(seconds: 5));
+      } catch (e) {
+        print('⚠️ Failed to update AdminIndex doc (non-critical): $e');
+      }
       print("✅ Event created successfully: $eventName - $date");
       return true;
     } catch (e) {
       print("❌ Error creating Event to Firestore: $e");
+      // Queue for retry when online (local save already succeeded)
+      try {
+        await SyncQueueService.instance.queueFirestoreOperation('createEvent', toJson());
+        print('📴 Event creation queued for sync when online');
+      } catch (queueError) {
+        print('⚠️ Failed to queue event creation for sync: $queueError');
+      }
       return false;
     }
   }

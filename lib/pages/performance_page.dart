@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sairot/models/participant.dart';
+import 'package:sairot/models/types.dart';
 import '../event_controller.dart';
 import 'package:get/get.dart';
 import '../widgets/meshulash_charts.dart';
@@ -8,18 +9,87 @@ import '../widgets/bur_charts.dart';
 import '../widgets/sakim_charts.dart';
 import '../widgets/interview_chart.dart';
 import '../widgets/leadership_chart.dart';
+import '../widgets/wifi_settings_button.dart';
 
 final eventController = Get.put(EventController());
 
-class PerformancePage extends StatelessWidget {
+class PerformancePage extends StatefulWidget {
   const PerformancePage({super.key});
 
+  @override
+  State<PerformancePage> createState() => _PerformancePageState();
+}
+
+class _PerformancePageState extends State<PerformancePage> {
   Future<String> GenAIReport(Participant p) async {
     var data = await p.fetchAndGenerateSummary(p.number.toString());
     if (data.isNotEmpty) {
       return data;
     } else {
       return "No Data";
+    }
+  }
+
+  void _navigateToParticipant(int participantNumber) {
+    Get.offNamed('/performance_page/$participantNumber');
+  }
+
+  /// Get sorted list of active participants
+  List<Participant> _getSortedActiveParticipants() {
+    List<Participant> activeParticipants = eventController.currentEvent.value
+        .getParticipantsByStatus(ParticipantStatus.Active);
+    activeParticipants.sort((a, b) => a.number.compareTo(b.number));
+    return activeParticipants;
+  }
+
+  /// Get next participant number (returns null if at end)
+  int? _getNextParticipantNumber(int currentNumber) {
+    List<Participant> activeParticipants = _getSortedActiveParticipants();
+    if (activeParticipants.isEmpty) return null;
+    
+    int currentIndex = activeParticipants.indexWhere((p) => p.number == currentNumber);
+    if (currentIndex == -1 || currentIndex >= activeParticipants.length - 1) return null;
+    
+    return activeParticipants[currentIndex + 1].number;
+  }
+
+  /// Get previous participant number (returns null if at start)
+  int? _getPreviousParticipantNumber(int currentNumber) {
+    List<Participant> activeParticipants = _getSortedActiveParticipants();
+    if (activeParticipants.isEmpty) return null;
+    
+    int currentIndex = activeParticipants.indexWhere((p) => p.number == currentNumber);
+    if (currentIndex == -1 || currentIndex <= 0) return null;
+    
+    return activeParticipants[currentIndex - 1].number;
+  }
+
+  void _handleSwipe(DragEndDetails details) {
+    int currentNumber = int.parse(Get.parameters['number'] ?? '0');
+    
+    // Get all active participants sorted by number
+    List<Participant> activeParticipants = _getSortedActiveParticipants();
+    if (activeParticipants.isEmpty) return;
+    
+    // Find current participant index
+    int currentIndex = activeParticipants.indexWhere((p) => p.number == currentNumber);
+    if (currentIndex == -1) return;
+    
+    // Determine swipe direction (negative velocity = swipe left = next, positive = swipe right = previous)
+    double velocity = details.velocity.pixelsPerSecond.dx;
+    
+    if (velocity < -500) {
+      // Swipe left - next participant
+      int? nextNumber = _getNextParticipantNumber(currentNumber);
+      if (nextNumber != null) {
+        _navigateToParticipant(nextNumber);
+      }
+    } else if (velocity > 500) {
+      // Swipe right - previous participant
+      int? prevNumber = _getPreviousParticipantNumber(currentNumber);
+      if (prevNumber != null) {
+        _navigateToParticipant(prevNumber);
+      }
     }
   }
 
@@ -48,9 +118,48 @@ class PerformancePage extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           centerTitle: true,
-          title: Text('ניתוח ביצועים - משתתף $number'),
+          title: Builder(
+            builder: (context) {
+              int? prevNumber = _getPreviousParticipantNumber(number);
+              int? nextNumber = _getNextParticipantNumber(number);
+              
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Previous arrow (left side in RTL)
+                  prevNumber != null
+                      ? IconButton(
+                          icon: Icon(Icons.arrow_back_ios, size: 20),
+                          onPressed: () => _navigateToParticipant(prevNumber),
+                          tooltip: 'משתתף קודם',
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
+                        )
+                      : SizedBox(width: 24), // Spacer when no previous
+                  SizedBox(width: 8),
+                  Text('ניתוח ביצועים - משתתף $number'),
+                  SizedBox(width: 8),
+                  // Next arrow (right side in RTL)
+                  nextNumber != null
+                      ? IconButton(
+                          icon: Icon(Icons.arrow_forward_ios, size: 20),
+                          onPressed: () => _navigateToParticipant(nextNumber),
+                          tooltip: 'משתתף הבא',
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
+                        )
+                      : SizedBox(width: 24), // Spacer when no next
+                ],
+              );
+            },
+          ),
+          actions: [
+            WifiSettingsButton(),
+          ],
         ),
-        body: SingleChildScrollView(
+        body: GestureDetector(
+          onHorizontalDragEnd: _handleSwipe,
+          child: SingleChildScrollView(
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -243,6 +352,7 @@ class PerformancePage extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

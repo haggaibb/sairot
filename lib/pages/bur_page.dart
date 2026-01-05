@@ -13,6 +13,7 @@ import '../utils/tablet_utils.dart';
 import '../services/exercise_context_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
+import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
 
 class BurPage extends StatefulWidget {
@@ -134,7 +135,8 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                         ),
                       );
                     },
-                  )
+                  ),
+                  WifiSettingsButton(),
                 ],
               ),
               body: GetX<EventController>(builder: (_) {
@@ -186,19 +188,19 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                         .value
                                                         .activeParticipants[index]
                                                         .number);
+                                            // Check if participant has a bur grade entry
+                                            bool hasBurGrade = burIndex != -1 && 
+                                                burIndex < eventController.currentEvent.value.burGrades.length;
+                                            double burGrade = hasBurGrade 
+                                                ? eventController.currentEvent.value.burGrades[burIndex].burGrade 
+                                                : 0.0;
                                             return Padding(
                                               padding: EdgeInsets.all(7.5),
                                               child: ElevatedButton(
                                                   style: ElevatedButton.styleFrom(
                                                       foregroundColor: Colors.black,
                                                       backgroundColor:
-                                                          eventController
-                                                                      .currentEvent
-                                                                      .value
-                                                                      .burGrades[
-                                                                          burIndex]
-                                                                      .burGrade !=
-                                                                  0
+                                                          burGrade != 0
                                                               ? Colors.green
                                                               : Theme.of(context).colorScheme.primary,),
                                                   onPressed: () async {
@@ -206,6 +208,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                         .currentEvent
                                                         .value
                                                         .finalized) return;
+                                                    if (!hasBurGrade) return; // Don't navigate if no bur grade entry
                                                     Navigator.push(
                                                       context,
                                                       MaterialPageRoute(
@@ -336,19 +339,19 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                       .value
                                                       .activeParticipants[index]
                                                       .number);
+                                          // Check if participant has a bur grade entry
+                                          bool hasBurGrade = burIndex != -1 && 
+                                              burIndex < eventController.currentEvent.value.burGrades.length;
+                                          double burGrade = hasBurGrade 
+                                              ? eventController.currentEvent.value.burGrades[burIndex].burGrade 
+                                              : 0.0;
                                           return Padding(
                                             padding: EdgeInsets.all(7.5),
                                             child: ElevatedButton(
                                                 style: ElevatedButton.styleFrom(
                                                     foregroundColor: Colors.black,
                                                     backgroundColor:
-                                                        eventController
-                                                                    .currentEvent
-                                                                    .value
-                                                                    .burGrades[
-                                                                        burIndex]
-                                                                    .burGrade !=
-                                                                0
+                                                        burGrade != 0
                                                             ? Colors.green
                                                             : Theme.of(context).colorScheme.primary,),
                                                 onPressed: () async {
@@ -356,6 +359,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                       .currentEvent
                                                       .value
                                                       .finalized) return;
+                                                  if (!hasBurGrade) return; // Don't navigate if no bur grade entry
                                                   Navigator.push(
                                                     context,
                                                     MaterialPageRoute(
@@ -492,19 +496,19 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                         .value
                                                         .activeParticipants[index]
                                                         .number);
+                                            // Check if participant has a bur grade entry
+                                            bool hasBurGrade = burIndex != -1 && 
+                                                burIndex < eventController.currentEvent.value.burGrades.length;
+                                            double burGrade = hasBurGrade 
+                                                ? eventController.currentEvent.value.burGrades[burIndex].burGrade 
+                                                : 0.0;
                                             return Padding(
                                               padding: const EdgeInsets.all(5.0),
                                               child: ElevatedButton(
                                                   style: ElevatedButton.styleFrom(
                                                       foregroundColor: Colors.black,
                                                       backgroundColor:
-                                                          eventController
-                                                                      .currentEvent
-                                                                      .value
-                                                                      .burGrades[
-                                                                          burIndex]
-                                                                      .burGrade !=
-                                                                  0
+                                                          burGrade != 0
                                                               ? Colors.green
                                                               : Theme.of(context).colorScheme.primary,),
                                                   onPressed: () async {
@@ -512,6 +516,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                         .currentEvent
                                                         .value
                                                         .finalized) return;
+                                                    if (!hasBurGrade) return; // Don't navigate if no bur grade entry
                                                     Navigator.push(
                                                       context,
                                                       MaterialPageRoute(

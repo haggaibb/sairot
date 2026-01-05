@@ -10,6 +10,7 @@ import 'package:firebase_vertexai/firebase_vertexai.dart';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
+import '../widgets/wifi_settings_button.dart';
 
 
 class EventSettingsPage extends StatefulWidget {
@@ -55,37 +56,80 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
 
   // 📤 Convert image to Base64 and send to Vertex AI
   Future<void> _sendToVertexAI(Uint8List imageBytes) async {
-  // Provide a text prompt to include with the image
+    // Check connectivity before attempting OCR
+    if (!eventController.isConnected.value) {
+      eventController.loading.value = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "אינטרנט נדרש לסריקת תמונה",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 16
+              ),
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Provide a text prompt to include with the image
     eventController.loading.value = true;
     final prompt = TextPart("extract the data into json");
-  // Prepare images for input
+    // Prepare images for input
     final imagePart = InlineDataPart('image/jpeg', imageBytes);
 
-// To generate text output, call generateContent with the text and image
-    final response = await model.generateContent(
-      generationConfig: GenerationConfig(
-        responseMimeType: "application/json",
-      ),
-        [Content.multi([prompt,imagePart],
-        )
-    ]);
+    // To generate text output, call generateContent with the text and image
     try {
-      // ✅ Now decode JSON properly
-      var jsonData = jsonDecode(response.text??'');
-      groupNumber.text = jsonData[0]['מספר קבוצה'].toString();
-      participants = [];
-      for (var element in jsonData) {
-        participants.add(Participant(
-            number: int.parse(element['מספר רץ']),
-            name: element['תעודת זהות']
-        ));
+      final response = await model.generateContent(
+        generationConfig: GenerationConfig(
+          responseMimeType: "application/json",
+        ),
+        [Content.multi([prompt, imagePart])]
+      );
+      
+      try {
+        // ✅ Now decode JSON properly
+        var jsonData = jsonDecode(response.text ?? '');
+        groupNumber.text = jsonData[0]['מספר קבוצה'].toString();
+        participants = [];
+        for (var element in jsonData) {
+          participants.add(Participant(
+              number: int.parse(element['מספר רץ']),
+              name: element['תעודת זהות']
+          ));
+        }
+        //print("✅ Decoded JSON: $jsonData");
+      } catch (e) {
+        print("❌ JSON Decoding Error: $e");
       }
-      //print("✅ Decoded JSON: $jsonData");
+      processResponse(response.text ?? '');
     } catch (e) {
-      print("❌ JSON Decoding Error: $e");
+      print("❌ Error calling Vertex AI: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "שגיאה בסריקת התמונה. אנא נסה שוב.",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 16
+              ),
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      eventController.loading.value = false;
     }
-    processResponse(response.text??'');
-    eventController.loading.value = false;
   }
   //
   void processResponse(String response) {
@@ -171,7 +215,8 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                   ),
                 );
               },
-            )
+            ),
+            WifiSettingsButton(),
           ],
         ),
         body: Directionality(
@@ -439,7 +484,8 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                               }
                               else {
                                 eventController.currentEvent.value = thisEvent;
-                                await eventController.currentEvent.value.saveToFirestore();
+                                // Use offline-aware save method
+                                await eventController.saveEventWithOfflineSupport(thisEvent);
                               }
                               eventController.loading.value = false;
                               Get.back();

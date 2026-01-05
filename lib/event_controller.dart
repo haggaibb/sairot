@@ -21,6 +21,9 @@ import 'package:flutter/material.dart';
 import 'theme_controller.dart';
 import 'utils/logger.dart';
 import 'services/platform_service.dart';
+import 'services/local_storage_service.dart';
+import 'services/sync_queue_service.dart';
+import 'connectivity_controller.dart';
 
 
 class EventController extends GetxController {
@@ -79,26 +82,81 @@ class EventController extends GetxController {
       // Web: Hive uses IndexedDB automatically, no path needed
       if (!Hive.isAdapterRegistered(102)) Hive.registerAdapter(SystemAdapter());
       if (!Hive.isAdapterRegistered(200)) Hive.registerAdapter(AccessibilityAdapter());
+      // Instructor adapter (103) is generated in instructor.g.dart (part of instructor.dart)
+      // It should be accessible, but if registration fails, LocalStorageService will handle it
+      try {
+        if (!Hive.isAdapterRegistered(103)) {
+          // Try to register - this will work if instructor.g.dart is properly generated
+          Hive.registerAdapter(InstructorAdapter());
+        }
+      } catch (e) {
+        print('⚠️ Could not register Instructor adapter: $e');
+        print('⚠️ Make sure to run: flutter pub run build_runner build');
+      }
       await Hive.initFlutter(); // No path needed on web
     } else {
       // Mobile: Get the documents directory for Hive file storage
       var dir = await getApplicationDocumentsDirectory();
       if (!Hive.isAdapterRegistered(102)) Hive.registerAdapter(SystemAdapter());
       if (!Hive.isAdapterRegistered(200)) Hive.registerAdapter(AccessibilityAdapter());
+      // Instructor adapter (103) is generated in instructor.g.dart (part of instructor.dart)
+      // It should be accessible, but if registration fails, LocalStorageService will handle it
+      try {
+        if (!Hive.isAdapterRegistered(103)) {
+          // Try to register - this will work if instructor.g.dart is properly generated
+          Hive.registerAdapter(InstructorAdapter());
+        }
+      } catch (e) {
+        print('⚠️ Could not register Instructor adapter: $e');
+        print('⚠️ Make sure to run: flutter pub run build_runner build');
+      }
       await Hive.initFlutter(dir.path);
     }
+    
+    // Initialize local storage and sync services
+    await LocalStorageService.instance.initialize();
+    await SyncQueueService.instance.initialize();
+    
+    // Load from local storage first (fast, works offline)
     await initSystemHiveBox();
     await gradesUpdate();
-    await getSystemSettings();
-    await getCurrentEventName();
-    await getUpdatedInstructorsList();
-    await checkForLocalLogin();
-    if (loggedIn.value) {
-      await getUnfinalizedEvents();
-      await fetchInstructorEvents();
+    
+    // Check connectivity (await to ensure it completes before proceeding)
+    // This is important for first-time login which requires internet
+    try {
+      await connectionEnabled();
+      print('🔍 Connectivity check completed. isConnected: ${isConnected.value}');
+    } catch (e) {
+      print('⚠️ Connectivity check error (non-critical): $e');
     }
+    
+    await getSystemSettings(); // Loads from cache first, syncs if online
+    await getCurrentEventName(); // Loads from cache first, syncs if online
+    await getUpdatedInstructorsList(); // Loads from cache first, syncs if online
+    await checkForLocalLogin(); // Works offline with cached instructors
+    
+    if (loggedIn.value) {
+      // Load events from local storage first (fast, works offline)
+      await getUnfinalizedEvents(); // Loads from local first, syncs if online
+      await fetchInstructorEvents(); // Loads from local first, syncs if online
+    }
+    
     super.onInit();
     loading.value = false;
+    
+    // Background sync: Process sync queue if online (non-blocking)
+    // This runs after UI is loaded, so it doesn't block the splash screen
+    if (isConnected.value) {
+      // Use a microtask to run after the current frame
+      Future.microtask(() async {
+        try {
+          final connectivityController = Get.find<ConnectivityController>();
+          await connectivityController.processSyncQueue();
+        } catch (e) {
+          print('⚠️ Background sync error (non-critical): $e');
+        }
+      });
+    }
   }
 
   /// 🚀 Automatically stops the timer when the controller is destroyed
@@ -145,26 +203,68 @@ class EventController extends GetxController {
     Get.offAllNamed('/front_door');
   }
 
-  /// get the system settings from firebase
+  /// get the system settings from firebase (with local cache fallback)
   getSystemSettings() async {
+    bool hasCachedSettings = false;
     try {
-      DocumentSnapshot docSnapshot =
-      await firestore.collection('System').doc('app_system_settings').get();
-      if (docSnapshot.exists) {
-        systemSettings =
-            SystemSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
-        setUserAccessibility(system.value.accessibility);
-        // print(
-        //     'Updated System Settings.');
-        return true;
+      // First, try to load from local cache (System Hive box)
+      if (systemBox != null && systemBox!.containsKey('systemSettings')) {
+        try {
+          final cachedSettingsJson = systemBox!.get('systemSettings') as Map<String, dynamic>?;
+          if (cachedSettingsJson != null) {
+            systemSettings = SystemSettings.fromJson(cachedSettingsJson);
+            setUserAccessibility(system.value.accessibility);
+            hasCachedSettings = true;
+            print('✅ Loaded system settings from local cache');
+          }
+        } catch (e) {
+          print('⚠️ Error loading cached system settings: $e');
+        }
+      }
+
+      // If online, try to fetch from Firestore and update cache
+      if (isConnected.value) {
+        try {
+          DocumentSnapshot docSnapshot =
+              await firestore.collection('System').doc('app_system_settings').get();
+          if (docSnapshot.exists) {
+            systemSettings =
+                SystemSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
+            setUserAccessibility(system.value.accessibility);
+            
+            // Update local cache
+            if (systemBox != null) {
+              await systemBox!.put('systemSettings', systemSettings.toJson());
+              print('✅ Updated system settings cache from Firestore');
+            }
+            return true;
+          } else {
+            if (!hasCachedSettings) {
+              systemSettings = SystemSettings();
+            }
+            print('⚠️ Document does not exist in Firestore');
+            // Keep using cached settings if available
+            return hasCachedSettings;
+          }
+        } catch (e) {
+          print('⚠️ Error fetching system settings from Firestore: $e');
+          // Keep using cached settings if available
+          return hasCachedSettings;
+        }
       } else {
-        systemSettings = SystemSettings();
-        print('Document does not exist');
-        return null;
+        // Offline: use cached settings
+        if (hasCachedSettings) {
+          print('📴 Using cached system settings (offline mode)');
+          return true;
+        } else {
+          systemSettings = SystemSettings();
+          print('⚠️ No cached system settings available, using defaults');
+          return false;
+        }
       }
     } catch (e) {
       systemSettings = SystemSettings();
-      print('❌ System Settings Error fetching document: $e');
+      print('❌ System Settings Error: $e');
       return null;
     }
   }
@@ -174,84 +274,129 @@ class EventController extends GetxController {
     return instructorList.firstWhereOrNull((i) => i.id == id);
   }
   
-  /// 🔎 Get a List of Unfinalized Events for an Instructor in a Specific Event
+  /// 🔎 Get a List of Unfinalized Events for an Instructor in a Specific Event (works offline)
   getUnfinalizedEvents() async {
     AppLogger.debug(" ➡️ get Unfinalized Events.");
     try {
       unfinalizedLoading.value=true;
       unfinalizedEvents.clear();
-      QuerySnapshot unfinalizedSnapshot = await firestore.collection('Results')
-          .doc(currentInstructor.id)
-          .collection('events')
-          .doc(currentEventName)
-          .collection('days')
-          .where('finalized', isEqualTo: false)
-          .get();
-      if (unfinalizedSnapshot.docs.isNotEmpty) {
-        for (var doc in unfinalizedSnapshot.docs) {
-          Map<String, dynamic> docData = doc.data() as Map<String, dynamic>;
-          unfinalizedEvents.add(Event.fromJson(docData));
+      
+      // First, load from local storage
+      final localEvents = await LocalStorageService.instance.getLocalUnfinalizedEvents();
+      // Filter by current instructor and event name
+      final filteredLocalEvents = localEvents.where((e) => 
+        e.instructorId == currentInstructor.id && 
+        e.eventName == currentEventName
+      ).toList();
+      
+      if (filteredLocalEvents.isNotEmpty) {
+        unfinalizedEvents.addAll(filteredLocalEvents);
+        print('✅ Loaded ${filteredLocalEvents.length} unfinalized events from local storage');
+      }
+      
+      // If online, sync with Firestore and update local cache
+      if (isConnected.value) {
+        try {
+          QuerySnapshot unfinalizedSnapshot = await firestore.collection('Results')
+              .doc(currentInstructor.id)
+              .collection('events')
+              .doc(currentEventName)
+              .collection('days')
+              .where('finalized', isEqualTo: false)
+              .get();
+          
+          if (unfinalizedSnapshot.docs.isNotEmpty) {
+            unfinalizedEvents.clear(); // Clear local events, use Firestore data
+            for (var doc in unfinalizedSnapshot.docs) {
+              Map<String, dynamic> docData = doc.data() as Map<String, dynamic>;
+              final event = Event.fromJson(docData);
+              unfinalizedEvents.add(event);
+              
+              // Save to local storage
+              await LocalStorageService.instance.saveEventLocally(event);
+            }
+            print('✅ Synced ${unfinalizedEvents.length} unfinalized events from Firestore');
+          }
+        } catch (e) {
+          print("⚠️ Error fetching unfinalized events from Firestore: $e");
+          // Keep using local events if Firestore fetch fails
         }
+      } else {
+        print('📴 Using local unfinalized events (offline mode)');
       }
     } catch (e) {
       unfinalizedLoading.value=false;
-      print("❌ Error fetching unfinalized events: $e");
+      print("❌ Error in getUnfinalizedEvents: $e");
     }
     unfinalizedLoading.value=false;
     return unfinalizedEvents;
   }
 
-  /// 📂 Fetch Main Event list from firebase Where Current Instructor Has Data for dropdown
+  /// 📂 Fetch Main Event list from firebase Where Current Instructor Has Data for dropdown (works offline)
   Future<void> fetchInstructorEvents() async {
     pastEventsLoading.value=true;
     try {
-      QuerySnapshot eventsSnapshot = await firestore.collection('Results').doc(currentInstructor.id).collection('events').get();
-      if (eventsSnapshot.docs.isNotEmpty) {
-        events.value = eventsSnapshot.docs.map((doc) => doc.id).toList();
-        final monthMap = {
-          'January': 1,
-          'February': 2,
-          'March': 3,
-          'April': 4,
-          'May': 5,
-          'June': 6,
-          'July': 7,
-          'August': 8,
-          'September': 9,
-          'October': 10,
-          'November': 11,
-          'December': 12,
-        };
-        events.sort((a, b) {
-          final aParts = a.split(' ');
-          final bParts = b.split(' ');
+      // First, load from local cache
+      final localEventList = await LocalStorageService.instance.getLocalEventList();
+      if (localEventList.isNotEmpty) {
+        events.value = localEventList;
+        print('✅ Loaded ${localEventList.length} events from local cache');
+      }
+      
+      // If online, sync with Firestore and update cache
+      if (isConnected.value) {
+        try {
+          QuerySnapshot eventsSnapshot = await firestore.collection('Results').doc(currentInstructor.id).collection('events').get();
+          if (eventsSnapshot.docs.isNotEmpty) {
+            events.value = eventsSnapshot.docs.map((doc) => doc.id).toList();
+            final monthMap = {
+              'January': 1,
+              'February': 2,
+              'March': 3,
+              'April': 4,
+              'May': 5,
+              'June': 6,
+              'July': 7,
+              'August': 8,
+              'September': 9,
+              'October': 10,
+              'November': 11,
+              'December': 12,
+            };
+            events.sort((a, b) {
+              final aParts = a.split(' ');
+              final bParts = b.split(' ');
 
-          final aMonth = monthMap[aParts[0]] ?? 0;
-          final aYear = int.tryParse(aParts[1]) ?? 0;
+              final aMonth = monthMap[aParts[0]] ?? 0;
+              final aYear = int.tryParse(aParts[1]) ?? 0;
 
-          final bMonth = monthMap[bParts[0]] ?? 0;
-          final bYear = int.tryParse(bParts[1]) ?? 0;
+              final bMonth = monthMap[bParts[0]] ?? 0;
+              final bYear = int.tryParse(bParts[1]) ?? 0;
 
-          // Sort by year, then by month
-          if (aYear != bYear) {
-            return aYear.compareTo(bYear);
+              // Sort by year, then by month
+              if (aYear != bYear) {
+                return aYear.compareTo(bYear);
+              } else {
+                return aMonth.compareTo(bMonth);
+              }
+            });
+            print('✅ Synced ${events.length} events from Firestore');
           } else {
-            return aMonth.compareTo(bMonth);
+            print('⚠️ No Main Events Found in Firestore');
+            // Keep using local events if available
           }
-        });
-        // for (QueryDocumentSnapshot element in eventsSnapshot.docs) {
-        //   var data = element.data() as Map<String, dynamic>;
-        //   pastEvents.add(Event.fromJson(data));
-        // }
+        } catch (e) {
+          print('⚠️ Error fetching events from Firestore: $e');
+          // Keep using local events if Firestore fetch fails
+        }
       } else {
-        print('No Main Events Found');
+        print('📴 Using local event list (offline mode)');
       }
     } catch (e) {
-      print('Error fetching events: $e');
+      print('❌ Error in fetchInstructorEvents: $e');
     }
-      //events.assignAll(instructorEvents.toList());
-      pastEventsLoading.value=false;
-      AppLogger.debug("📂 Found events: ${events.toList()}");
+    pastEventsLoading.value=false;
+    AppLogger.debug("📂 Found events: ${events.toList()}");
   }
 
   /// 📅 Fetch Available Days for Selected Event
@@ -276,34 +421,110 @@ class EventController extends GetxController {
     pastEventsLoading.value = false;
   }
 
-  /// 📥 Load Selected Event for the Instructor from firestore
+  /// 📥 Load Selected Event for the Instructor from firestore (works offline)
   Future<void> loadInstructorEvent(String eventName, String day) async {
     pastEventsLoading.value = true;
     try {
-      DocumentSnapshot eventSnapshot = await firestore.collection('Results')
-          .doc(currentInstructor.id)
-          .collection('events')
-          .doc(eventName)
-          .collection('days')
-          .doc(day)
-          .get();
-      if (eventSnapshot.exists && eventSnapshot.data() != null) {
-        Map<String, dynamic> eventData = eventSnapshot.data() as Map<String, dynamic>;
-        currentEvent.value = Event.fromJson(eventData); // ✅ Convert Firestore data to Event object
+      // First, try to load from local storage
+      final localEvent = await LocalStorageService.instance.loadEventLocally(eventName, day);
+      if (localEvent != null) {
+        currentEvent.value = localEvent;
+        print('✅ Loaded event from local storage: $eventName - $day');
+      }
+      
+      // If online, try to sync with Firestore and update local cache
+      if (isConnected.value) {
+        try {
+          DocumentSnapshot eventSnapshot = await firestore.collection('Results')
+              .doc(currentInstructor.id)
+              .collection('events')
+              .doc(eventName)
+              .collection('days')
+              .doc(day)
+              .get();
+          if (eventSnapshot.exists && eventSnapshot.data() != null) {
+            Map<String, dynamic> eventData = eventSnapshot.data() as Map<String, dynamic>;
+            currentEvent.value = Event.fromJson(eventData);
+            
+            // Update local cache
+            await LocalStorageService.instance.saveEventLocally(currentEvent.value);
+            print('✅ Synced event from Firestore: $eventName - $day');
+          } else if (localEvent == null) {
+            print('⚠️ Event not found in Firestore and not in local storage: $eventName - $day');
+          }
+        } catch (e) {
+          print("⚠️ Error loading event from Firestore: $e");
+          // Keep using local event if available
+          if (localEvent == null) {
+            print("❌ No local event available and Firestore fetch failed");
+          }
+        }
+      } else {
+        if (localEvent == null) {
+          print('📴 Event not found in local storage (offline mode): $eventName - $day');
+        }
       }
     } catch (e) {
       pastEventsLoading.value = false;
-      print("❌ Error loading event: $e");
+      print("❌ Error in loadInstructorEvent: $e");
     } finally {
       pastEventsLoading.value = false;
     }
   }
 
   getCurrentEventName() async {
-    DocumentSnapshot<Map<String, dynamic>> doc =
-    await firestore.collection('System').doc('config').get();
-    Map<String, dynamic>? docData = doc.data(); // Ensuring correct casting
-    currentEventName = docData?['current_event'] ?? 'NA';
+    try {
+      // First, try to load from local cache (System Hive box)
+      if (systemBox != null && systemBox!.containsKey('currentEventName')) {
+        final cachedEventName = systemBox!.get('currentEventName') as String?;
+        if (cachedEventName != null && cachedEventName.isNotEmpty && cachedEventName != 'NA') {
+          currentEventName = cachedEventName;
+          print('✅ Loaded current event name from local cache: $currentEventName');
+        }
+      }
+
+      // If online, try to fetch from Firestore and update cache
+      if (isConnected.value) {
+        try {
+          DocumentSnapshot<Map<String, dynamic>> doc =
+              await firestore.collection('System').doc('config').get();
+          Map<String, dynamic>? docData = doc.data();
+          final firestoreEventName = docData?['current_event'] ?? 'NA';
+          
+          if (firestoreEventName != 'NA' && firestoreEventName.isNotEmpty) {
+            currentEventName = firestoreEventName;
+            
+            // Update local cache
+            if (systemBox != null) {
+              await systemBox!.put('currentEventName', currentEventName);
+              print('✅ Updated current event name cache from Firestore: $currentEventName');
+            }
+          } else if (currentEventName.isEmpty || currentEventName == 'NA') {
+            // If Firestore doesn't have it and we don't have cache, use default
+            currentEventName = 'NA';
+          }
+        } catch (e) {
+          print('⚠️ Error fetching current event name from Firestore: $e');
+          // Keep using cached value if available
+          if (currentEventName.isEmpty || currentEventName == 'NA') {
+            currentEventName = 'NA';
+          }
+        }
+      } else {
+        // Offline: use cached event name
+        if (currentEventName.isEmpty || currentEventName == 'NA') {
+          currentEventName = 'NA';
+          print('📴 No cached event name available (offline mode)');
+        } else {
+          print('📴 Using cached event name (offline mode): $currentEventName');
+        }
+      }
+    } catch (e) {
+      print('❌ Error in getCurrentEventName: $e');
+      if (currentEventName.isEmpty) {
+        currentEventName = 'NA';
+      }
+    }
   }
 
   getCurrentEventDays() async {
@@ -317,13 +538,96 @@ class EventController extends GetxController {
       return _eventDays;
   }
 
+  /// Helper method to save event with offline support
+  /// Always saves locally first, then syncs to Firestore if online (non-blocking)
+  Future<bool> saveEventWithOfflineSupport(Event event, {bool isCreate = false}) async {
+    try {
+      // Always save locally first (immediate)
+      final localSuccess = await event.saveToLocal();
+      if (!localSuccess) {
+        print('⚠️ Failed to save event locally');
+        return false;
+      }
+      
+      print('✅ Event saved locally successfully');
+      
+      // Try Firestore save in background (non-blocking) - don't wait for it
+      // This prevents the UI from hanging when offline
+      _saveToFirestoreInBackground(event, isCreate: isCreate);
+      
+      // Return immediately after local save succeeds
+      return true;
+    } catch (e) {
+      print('❌ Error in saveEventWithOfflineSupport: $e');
+      return false;
+    }
+  }
+
+  /// Save to Firestore in background (non-blocking)
+  /// This method runs asynchronously and doesn't block the UI
+  void _saveToFirestoreInBackground(Event event, {bool isCreate = false}) async {
+    try {
+      // Check connectivity before attempting Firestore save
+      if (!isConnected.value) {
+        // Offline: queue for sync when internet becomes available
+        await SyncQueueService.instance.queueFirestoreOperation(
+          isCreate ? 'createEvent' : 'saveEvent', 
+          event.toJson()
+        );
+        print('📴 Event saved locally, queued for sync when online');
+        return;
+      }
+      
+      // Online: try to save to Firestore (with timeout)
+      try {
+        if (isCreate) {
+          final firestoreSuccess = await event.createFirestoreEvent();
+          if (firestoreSuccess) {
+            print('✅ Event created and saved to Firestore');
+          } else {
+            // Queue for retry
+            await SyncQueueService.instance.queueFirestoreOperation('createEvent', event.toJson());
+            print('⚠️ Firestore create failed, queued for retry');
+          }
+        } else {
+          final firestoreSuccess = await event.saveToFirestore();
+          if (firestoreSuccess) {
+            print('✅ Event saved to Firestore');
+          } else {
+            // Queue for retry
+            await SyncQueueService.instance.queueFirestoreOperation('saveEvent', event.toJson());
+            print('⚠️ Firestore save failed, queued for retry');
+          }
+        }
+      } catch (e) {
+        print('⚠️ Error saving to Firestore: $e, queuing for retry');
+        // Queue for retry
+        await SyncQueueService.instance.queueFirestoreOperation(
+          isCreate ? 'createEvent' : 'saveEvent', 
+          event.toJson()
+        );
+      }
+    } catch (e) {
+      print('❌ Error in _saveToFirestoreInBackground: $e');
+      // Even if background save fails, queue it for later
+      try {
+        await SyncQueueService.instance.queueFirestoreOperation(
+          isCreate ? 'createEvent' : 'saveEvent', 
+          event.toJson()
+        );
+      } catch (queueError) {
+        print('⚠️ Failed to queue operation: $queueError');
+      }
+    }
+  }
+
   createNewEvent(Event event) async {
     loading.value = true;
     for (var participant in event.participants) {
       participant.status = ParticipantStatus.Active;
     }
     currentEvent.value = event;
-    await currentEvent.value.createFirestoreEvent();
+    await saveEventWithOfflineSupport(event, isCreate: true);
     loading.value = false;
   }
 
@@ -814,6 +1118,7 @@ class EventController extends GetxController {
     if (currentEvent.value.burGrades.isEmpty) return 0;
     int participantBurIndex =
     currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == number);
+    if (participantBurIndex == -1) return 0; // Participant not found in burGrades
     return currentEvent.value.burGrades[participantBurIndex].burGrade;
   }
 
@@ -975,35 +1280,69 @@ class EventController extends GetxController {
 
   /// Cloud
   Future<void> connectionEnabled() async {
-    var connectivityResult = await Connectivity().checkConnectivity();
-    // ✅ Check if there is no Wi-Fi or mobile data
-    if (connectivityResult == ConnectivityResult.none) {
-      print("⚠️ No network available.");
-      isConnected.value = false;
-      return;
-    }
-
-    // ✅ Check actual internet access using an HTTP request
     try {
-      final response =
-      await http.get(Uri.parse("https://www.google.com")).timeout(
-        Duration(seconds: 3), // Timeout to avoid long waiting
-        onTimeout: () {
-          print("⚠️ Internet request timed out.");
-          return http.Response('', 500); // Simulate no response
-        },
-      );
+      print("🔍 Starting connectivity check...");
+      var connectivityResult = await Connectivity().checkConnectivity();
+      print("🔍 Connectivity result: $connectivityResult");
+      
+      // ✅ Check if there is no Wi-Fi or mobile data
+      if (connectivityResult == ConnectivityResult.none) {
+        print("⚠️ No network available (connectivityResult == none).");
+        isConnected.value = false;
+        return;
+      }
 
-      if (response.statusCode == 200) {
-        print("✅ Internet connection OK.");
+      // ✅ Check actual internet access using an HTTP request
+      // Try multiple times for emulator/slow connections
+      bool httpCheckPassed = false;
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        try {
+          print("🔍 Attempting HTTP request to google.com (attempt $attempt/2)...");
+          final response = await http.get(Uri.parse("https://www.google.com")).timeout(
+            Duration(seconds: 10), // Increased timeout for emulator/slow connections
+            onTimeout: () {
+              print("⚠️ Internet request timed out after 10 seconds (attempt $attempt).");
+              return http.Response('', 500); // Simulate no response
+            },
+          );
+
+          print("🔍 HTTP response status code: ${response.statusCode}");
+          if (response.statusCode == 200) {
+            print("✅ Internet connection OK.");
+            isConnected.value = true;
+            httpCheckPassed = true;
+            break;
+          } else {
+            print("⚠️ HTTP check returned status code: ${response.statusCode}");
+          }
+        } catch (e) {
+          print("⚠️ HTTP check attempt $attempt failed: $e");
+          if (attempt < 2) {
+            print("🔄 Retrying in 1 second...");
+            await Future.delayed(Duration(seconds: 1));
+          }
+        }
+      }
+      
+      // If HTTP check failed but we have network connectivity, still allow Firestore operations
+      // (Firestore might work even if HTTP check fails)
+      if (!httpCheckPassed) {
+        print("⚠️ HTTP check failed, but network connectivity exists.");
+        print("⚠️ Will attempt Firestore operations anyway (they might still work).");
+        // Set to true to allow Firestore operations - if they fail, they'll fail gracefully
+        isConnected.value = true;
+      }
+    } catch (e, stackTrace) {
+      print("❌ Connectivity check error: $e");
+      print("❌ Stack trace: $stackTrace");
+      // If we have any network connectivity, still try Firestore
+      var connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult != ConnectivityResult.none) {
+        print("⚠️ Setting isConnected to true despite HTTP check failure (network exists).");
         isConnected.value = true;
       } else {
-        print("⚠️ No real internet access.");
         isConnected.value = false;
       }
-    } catch (e) {
-      print("❌ Internet check failed: $e");
-      isConnected.value = false;
     }
   }
 
@@ -1207,17 +1546,37 @@ class EventController extends GetxController {
     }
   }
 
-  /// log in
+  /// log in (works offline with cached instructors)
   login(String id) async {
     loading.value = true;
+    
+    // First check local instructor cache
     var i = getInstructor(id);
+    
+    // If not found locally, try loading from local storage
+    if (i == null) {
+      final localInstructor = LocalStorageService.instance.getInstructorLocally(id);
+      if (localInstructor != null) {
+        // Add to instructorList if not already there
+        if (!instructorList.any((inst) => inst.id == id)) {
+          instructorList.add(localInstructor);
+        }
+        i = localInstructor;
+      }
+    }
+    
     if (i != null) {
       system.value.loggedIn = id;
       system.value.save();
       currentInstructor = i;
       
-      // Register device to Firestore after successful login
-      await registerDevice();
+      // Register device to Firestore after successful login (non-blocking, background)
+      // Don't block login if this fails
+      if (isConnected.value) {
+        registerDevice().catchError((e) {
+          print('⚠️ Device registration failed (non-critical): $e');
+        });
+      }
       
       loading.value = false;
       return true;
@@ -1229,24 +1588,59 @@ class EventController extends GetxController {
 
   getUpdatedInstructorsList() async {
     try {
-      QuerySnapshot querySnapshot =
-      await firestore.collection('Instructors').get();
-      if (querySnapshot.docs.isNotEmpty) {
-        // Convert each document into a Map and store in a List
-        // List<Map<String, dynamic>> instructors = querySnapshot.docs.map((doc) {
-        //   return doc.data() as Map<String, dynamic>;
-        // }).toList();
-        instructorList = querySnapshot.docs.map((doc) {
-          return Instructor.fromJson(
-              doc.id, doc.data() as Map<String, dynamic>);
-        }).toList();
-        return instructorList;
+      // First, try to load from local cache
+      final localInstructors = await LocalStorageService.instance.loadInstructorsLocally();
+      if (localInstructors.isNotEmpty) {
+        instructorList = localInstructors;
+        print('✅ Loaded ${instructorList.length} instructors from local cache');
+      }
+
+      // If online, try to fetch from Firestore and update cache
+      if (isConnected.value) {
+        try {
+          QuerySnapshot querySnapshot =
+              await firestore.collection('Instructors').get();
+          if (querySnapshot.docs.isNotEmpty) {
+            instructorList = querySnapshot.docs.map((doc) {
+              return Instructor.fromJson(
+                  doc.id, doc.data() as Map<String, dynamic>);
+            }).toList();
+            
+            // Update local cache
+            await LocalStorageService.instance.saveInstructorsLocally(instructorList);
+            print('✅ Updated instructors cache with ${instructorList.length} instructors from Firestore');
+            return instructorList;
+          } else {
+            print('⚠️ No instructors found in Firestore');
+            // Return cached instructors if available
+            return localInstructors.isNotEmpty ? instructorList : null;
+          }
+        } catch (e) {
+          print('⚠️ Error fetching instructors from Firestore: $e');
+          // Return cached instructors if available
+          if (localInstructors.isNotEmpty) {
+            return instructorList;
+          }
+          return null;
+        }
       } else {
-        print('Document does not exist');
-        return null;
+        // Offline: use cached instructors
+        if (localInstructors.isNotEmpty) {
+          print('📴 Using cached instructors (offline mode)');
+          return instructorList;
+        } else {
+          print('❌ No cached instructors available and offline');
+          return null;
+        }
       }
     } catch (e) {
-      print('Error fetching document: $e');
+      print('❌ Error in getUpdatedInstructorsList: $e');
+      // Try to return cached instructors as fallback
+      final localInstructors = await LocalStorageService.instance.loadInstructorsLocally();
+      if (localInstructors.isNotEmpty) {
+        instructorList = localInstructors;
+        return instructorList;
+      }
       return null;
     }
   }
@@ -1258,11 +1652,30 @@ class EventController extends GetxController {
         //print('logged in');
         loggedIn.value = true;
         toggleTheme(system.value.isDarkMode);
-        currentInstructor = getInstructor(system.value.loggedIn)?? currentInstructor;
         
-        // Register device if instructor is logged in
-        if (currentInstructor.id.isNotEmpty) {
-          await registerDevice();
+        // Try to get instructor from local cache first
+        var instructor = getInstructor(system.value.loggedIn);
+        
+        // If not in instructorList, try loading from local storage
+        if (instructor == null) {
+          final localInstructor = LocalStorageService.instance.getInstructorLocally(system.value.loggedIn);
+          if (localInstructor != null) {
+            // Add to instructorList if not already there
+            if (!instructorList.any((inst) => inst.id == system.value.loggedIn)) {
+              instructorList.add(localInstructor);
+            }
+            instructor = localInstructor;
+          }
+        }
+        
+        currentInstructor = instructor ?? currentInstructor;
+        
+        // Register device if instructor is logged in (non-blocking, background)
+        // Don't block login if this fails or if offline
+        if (currentInstructor.id.isNotEmpty && isConnected.value) {
+          registerDevice().catchError((e) {
+            print('⚠️ Device registration failed (non-critical): $e');
+          });
         }
         
         return true;
@@ -1271,6 +1684,7 @@ class EventController extends GetxController {
         return false;
       }
     }
+    return false;
   }
 
   void toggleTheme(bool isDark) {

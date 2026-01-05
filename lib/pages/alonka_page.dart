@@ -12,6 +12,7 @@ import '../utils/tablet_utils.dart';
 import '../services/exercise_context_service.dart';
 import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
+import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
 
 class AlonkaPage extends StatefulWidget {
@@ -177,6 +178,7 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
                   );
                 },
               ),
+              WifiSettingsButton(),
             ],
             leading: IconButton(
               icon: Icon(Icons.arrow_back), // 🔄 Custom back arrow
