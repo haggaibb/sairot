@@ -1292,7 +1292,16 @@ class EventController extends GetxController {
         return;
       }
 
-      // ✅ Check actual internet access using an HTTP request
+      // On web, skip HTTP check to avoid CORS errors
+      // The connectivity_plus check is sufficient for web
+      if (kIsWeb) {
+        print("🌐 Web platform detected - skipping HTTP check (CORS restrictions).");
+        print("✅ Internet connection assumed OK based on connectivity check.");
+        isConnected.value = true;
+        return;
+      }
+
+      // ✅ Check actual internet access using an HTTP request (mobile/desktop only)
       // Try multiple times for emulator/slow connections
       bool httpCheckPassed = false;
       for (int attempt = 1; attempt <= 2; attempt++) {

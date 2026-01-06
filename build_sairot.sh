@@ -42,12 +42,15 @@ elif [ "$BUILD_TYPE" = "aab" ]; then
   ORIGINAL_OUTPUT="build/app/outputs/bundle/release/app-release.aab"
   echo "📦 AAB available at: $ORIGINAL_OUTPUT"
 elif [ "$BUILD_TYPE" = "web" ]; then
+  # Flutter 3.10+ automatically selects the renderer (HTML by default)
+  # The --web-renderer flag was removed in newer Flutter versions
   flutter build web --release
   WEB_OUTPUT_DIR="build/web"
   # ✅ Build output is in build/web as expected by firebase.json
   echo "📦 Web build output: $WEB_OUTPUT_DIR/"
   echo "✅ Web build available in: $WEB_OUTPUT_DIR/"
   echo "   Firebase hosting expects build in: $WEB_OUTPUT_DIR/"
+  echo "   Renderer is automatically selected by Flutter"
 else
   echo "❌ Invalid build type: $BUILD_TYPE"
   echo "   Supported types: apk, aab, web"

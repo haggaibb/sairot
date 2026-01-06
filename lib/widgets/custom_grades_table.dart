@@ -323,7 +323,6 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
               scrollDirection: Axis.vertical,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
                 textDirection: TextDirection.rtl,
                 children: [
                   // Frozen first column (מספר - recruit number)

@@ -50,7 +50,23 @@ class ConnectivityController extends GetxController {
       return;
     }
 
-    // ✅ Check actual internet access using an HTTP request
+    // On web, skip HTTP check to avoid CORS errors
+    // The connectivity_plus check is sufficient for web
+    if (kIsWeb) {
+      print("🌐 Web platform detected - skipping HTTP check (CORS restrictions).");
+      print("✅ Internet connection assumed OK based on connectivity check.");
+      final wasConnected = isConnected.value;
+      isConnected.value = true;
+      
+      // If we just gained connection, process sync queue
+      if (!wasConnected) {
+        print("🔄 Connection restored, processing sync queue...");
+        processSyncQueue();
+      }
+      return;
+    }
+
+    // ✅ Check actual internet access using an HTTP request (mobile/desktop only)
     try {
       final response =
       await http.get(Uri.parse("https://www.google.com")).timeout(
