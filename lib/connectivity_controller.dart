@@ -17,7 +17,8 @@ class ConnectivityController extends GetxController {
   Timer? checkInternetTimer;
 
   final FirebaseStorage _storage = FirebaseStorage.instance;
-  final eventController = Get.put(EventController());
+  // Use Get.find() to avoid circular dependency - EventController should already be initialized
+  EventController get eventController => Get.find<EventController>();
 
   startConnectionCheckInterval(){
     print("⏲️ Start Connection Interval check...");

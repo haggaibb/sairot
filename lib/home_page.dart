@@ -38,6 +38,12 @@ class _HomeState extends State<Home> {
       return;
     }
 
+    // Save to cache before loading
+    await eventController.saveSelectedEventAndDay(
+      eventController.selectedEvent.value,
+      eventController.selectedDay.value,
+    );
+
     await eventController.loadInstructorEvent(
       eventController.selectedEvent.value!,
       eventController.selectedDay.value!,
@@ -521,6 +527,8 @@ class _HomeState extends State<Home> {
                               onChanged: (String? newValue) async {
                                 eventController.selectedEvent.value = newValue;
                                 eventController.selectedDay.value = null;
+                                // Save to cache
+                                await eventController.saveSelectedEventAndDay(newValue, null);
                                 if (newValue != null) {
                                   await eventController.fetchEventDays(newValue);
                                 }
@@ -584,8 +592,13 @@ class _HomeState extends State<Home> {
                                     color: Theme.of(context).colorScheme.primary),
                               ),
                               value: eventController.selectedDay.value,
-                              onChanged: (String? newValue) {
+                              onChanged: (String? newValue) async {
                                 eventController.selectedDay.value = newValue;
+                                // Save to cache
+                                await eventController.saveSelectedEventAndDay(
+                                  eventController.selectedEvent.value,
+                                  newValue,
+                                );
                               },
                               items: days
                                   .map((day) => DropdownMenuItem(

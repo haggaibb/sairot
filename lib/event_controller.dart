@@ -139,6 +139,9 @@ class EventController extends GetxController {
       // Load events from local storage first (fast, works offline)
       await getUnfinalizedEvents(); // Loads from local first, syncs if online
       await fetchInstructorEvents(); // Loads from local first, syncs if online
+      
+      // Restore selected event and day from cache, then load the event
+      await restoreSelectedEventAndDay();
     }
     
     super.onInit();
@@ -150,7 +153,10 @@ class EventController extends GetxController {
       // Use a microtask to run after the current frame
       Future.microtask(() async {
         try {
-          final connectivityController = Get.find<ConnectivityController>();
+          // Ensure ConnectivityController is initialized and sync its connection status
+          final connectivityController = Get.put(ConnectivityController());
+          // Sync the connection status from EventController to ConnectivityController
+          connectivityController.isConnected.value = isConnected.value;
           await connectivityController.processSyncQueue();
         } catch (e) {
           print('⚠️ Background sync error (non-critical): $e');
@@ -190,9 +196,26 @@ class EventController extends GetxController {
 
   /// Hive
   initSystemHiveBox() async {
-    systemBox = await Hive.openBox<System>('system');
+    // Use untyped box to allow storing different types (System, Map, String, etc.)
+    // Check if box is already open to avoid "box already open" error
+    if (systemBox == null || !systemBox!.isOpen) {
+      systemBox = await Hive.openBox('system');
+    }
     if (systemBox.length > 0) {
-      system.value = systemBox.get('login') as System;
+      final loginData = systemBox.get('login');
+      // Handle web's stricter typing - ensure it's a System
+      if (loginData is System) {
+        system.value = loginData;
+      } else if (loginData != null) {
+        // Try to cast it - on web Hive might return it in a different wrapper
+        try {
+          system.value = loginData as System;
+        } catch (e) {
+          print('⚠️ Error loading login data from cache: $e');
+          // If casting fails, create a new System object
+          system.value = System();
+        }
+      }
     } else {
       await systemBox.put('login', system.value);
       return false;
@@ -210,7 +233,34 @@ class EventController extends GetxController {
       // First, try to load from local cache (System Hive box)
       if (systemBox != null && systemBox!.containsKey('systemSettings')) {
         try {
-          final cachedSettingsJson = systemBox!.get('systemSettings') as Map<String, dynamic>?;
+          final cachedSettingsData = systemBox!.get('systemSettings');
+          // Handle web's stricter typing - convert to Map if needed
+          // Hive on web may return LinkedMap<dynamic, dynamic> instead of Map<String, dynamic>
+          Map<String, dynamic>? cachedSettingsJson;
+          if (cachedSettingsData != null) {
+            try {
+              // Convert any Map type (including LinkedMap) to Map<String, dynamic>
+              // First convert to a regular Map, then to Map<String, dynamic>
+              final tempMap = <String, dynamic>{};
+              if (cachedSettingsData is Map) {
+                cachedSettingsData.forEach((key, value) {
+                  tempMap[key.toString()] = value;
+                });
+                cachedSettingsJson = tempMap;
+              } else {
+                // If it's not a Map, try to cast it
+                final asMap = cachedSettingsData as Map;
+                asMap.forEach((key, value) {
+                  tempMap[key.toString()] = value;
+                });
+                cachedSettingsJson = tempMap;
+              }
+            } catch (e) {
+              print('⚠️ Could not convert cached settings data: $e');
+              cachedSettingsJson = null;
+            }
+          }
+          
           if (cachedSettingsJson != null) {
             systemSettings = SystemSettings.fromJson(cachedSettingsJson);
             setUserAccessibility(system.value.accessibility);
@@ -228,8 +278,16 @@ class EventController extends GetxController {
           DocumentSnapshot docSnapshot =
               await firestore.collection('System').doc('app_system_settings').get();
           if (docSnapshot.exists) {
-            systemSettings =
-                SystemSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
+            // Handle web's IdentityMap type - convert to regular Map
+            final data = docSnapshot.data();
+            Map<String, dynamic> settingsMap;
+            if (data is Map) {
+              settingsMap = Map<String, dynamic>.from(data);
+            } else {
+              settingsMap = Map<String, dynamic>.from(data as Map);
+            }
+            
+            systemSettings = SystemSettings.fromJson(settingsMap);
             setUserAccessibility(system.value.accessibility);
             
             // Update local cache
@@ -476,10 +534,23 @@ class EventController extends GetxController {
     try {
       // First, try to load from local cache (System Hive box)
       if (systemBox != null && systemBox!.containsKey('currentEventName')) {
-        final cachedEventName = systemBox!.get('currentEventName') as String?;
-        if (cachedEventName != null && cachedEventName.isNotEmpty && cachedEventName != 'NA') {
-          currentEventName = cachedEventName;
-          print('✅ Loaded current event name from local cache: $currentEventName');
+        try {
+          final cachedEventNameData = systemBox!.get('currentEventName');
+          // Handle web's stricter typing - ensure it's a String
+          String? cachedEventName;
+          if (cachedEventNameData is String) {
+            cachedEventName = cachedEventNameData;
+          } else if (cachedEventNameData != null) {
+            // Try to convert to String if it's a different type
+            cachedEventName = cachedEventNameData.toString();
+          }
+          
+          if (cachedEventName != null && cachedEventName.isNotEmpty && cachedEventName != 'NA') {
+            currentEventName = cachedEventName;
+            print('✅ Loaded current event name from local cache: $currentEventName');
+          }
+        } catch (e) {
+          print('⚠️ Error loading cached event name: $e');
         }
       }
 
@@ -536,6 +607,78 @@ class EventController extends GetxController {
         _eventDays.add(element.id);
       });
       return _eventDays;
+  }
+
+  /// Save selected event and day to cache
+  Future<void> saveSelectedEventAndDay(String? event, String? day) async {
+    try {
+      if (systemBox != null) {
+        if (event != null) {
+          await systemBox!.put('selectedEvent', event);
+        }
+        if (day != null) {
+          await systemBox!.put('selectedDay', day);
+        }
+        print('✅ Saved selected event and day to cache: $event / $day');
+      }
+    } catch (e) {
+      print('⚠️ Error saving selected event and day: $e');
+    }
+  }
+
+  /// Restore selected event and day from cache, then load the event
+  Future<void> restoreSelectedEventAndDay() async {
+    try {
+      if (systemBox != null) {
+        // Restore selected event
+        if (systemBox!.containsKey('selectedEvent')) {
+          try {
+            final cachedEventData = systemBox!.get('selectedEvent');
+            String? cachedEvent;
+            if (cachedEventData is String) {
+              cachedEvent = cachedEventData;
+            } else if (cachedEventData != null) {
+              cachedEvent = cachedEventData.toString();
+            }
+            
+            if (cachedEvent != null && cachedEvent.isNotEmpty) {
+              selectedEvent.value = cachedEvent;
+              print('✅ Restored selected event from cache: $cachedEvent');
+            }
+          } catch (e) {
+            print('⚠️ Error restoring selected event: $e');
+          }
+        }
+
+        // Restore selected day
+        if (systemBox!.containsKey('selectedDay')) {
+          try {
+            final cachedDayData = systemBox!.get('selectedDay');
+            String? cachedDay;
+            if (cachedDayData is String) {
+              cachedDay = cachedDayData;
+            } else if (cachedDayData != null) {
+              cachedDay = cachedDayData.toString();
+            }
+            
+            if (cachedDay != null && cachedDay.isNotEmpty) {
+              selectedDay.value = cachedDay;
+              print('✅ Restored selected day from cache: $cachedDay');
+            }
+          } catch (e) {
+            print('⚠️ Error restoring selected day: $e');
+          }
+        }
+
+        // If both event and day are available, load the event
+        if (selectedEvent.value != null && selectedDay.value != null) {
+          print('🔄 Auto-loading event: ${selectedEvent.value} / ${selectedDay.value}');
+          await loadInstructorEvent(selectedEvent.value!, selectedDay.value!);
+        }
+      }
+    } catch (e) {
+      print('❌ Error in restoreSelectedEventAndDay: $e');
+    }
   }
 
   /// Helper method to save event with offline support
@@ -1655,7 +1798,10 @@ class EventController extends GetxController {
   }
 
   checkForLocalLogin() async {
-    systemBox = await Hive.openBox<System>('system');
+    // Use existing systemBox if already open, otherwise open it
+    if (systemBox == null || !systemBox!.isOpen) {
+      systemBox = await Hive.openBox('system');
+    }
     if (systemBox.length > 0) {
       if (system.value.loggedIn != '') {
         //print('logged in');
