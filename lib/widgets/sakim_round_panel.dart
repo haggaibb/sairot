@@ -75,8 +75,28 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                             child: GestureDetector(
                               onDoubleTap: () {
                                 eventController.loading.value = true;
-                                eventController.currentEvent.value.sakimRounds[widget.round.round-1].participantsInRound.add(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
-                                widget.round.participantsInRound.remove(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
+                                final participantNumber = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index];
+                                
+                                // Get the stored original index
+                                final originalIndex = eventController.getLastSakimIndex(participantNumber);
+                                
+                                // Remove the last position from the array
+                                eventController.removeLastSakimPosition(participantNumber);
+                                
+                                // Remove participant from current round
+                                widget.round.participantsInRound.remove(participantNumber);
+                                
+                                // Insert participant at original index in previous round (or add to end if no index stored)
+                                final previousRound = eventController.currentEvent.value.sakimRounds[widget.round.round-1];
+                                if (originalIndex != null && originalIndex >= 0 && originalIndex <= previousRound.participantsInRound.length) {
+                                  previousRound.participantsInRound.insert(originalIndex, participantNumber);
+                                } else {
+                                  previousRound.participantsInRound.add(participantNumber);
+                                }
+                                
+                                // Clear the stored index
+                                eventController.setLastSakimIndex(participantNumber, null);
+                                
                                 eventController.update();
                                 eventController.currentEvent.value.saveToFirestore();
                                 eventController.loading.value = false;
@@ -92,22 +112,27 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                       onPressed: () {
                                         if (eventController.sakimEditModeOn.value) {
                                           eventController.loading.value = true;
+                                          final participantNumber = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index];
+                                          
+                                          // Store the current index before moving forward (for undo)
+                                          eventController.setLastSakimIndex(participantNumber, index);
+                                          
                                           if (eventController.currentEvent.value.sakimRounds.length == widget.round.round+1) {
                                             eventController.currentEvent.value.sakimRounds.add(
                                                 SakimRound(
                                                     round: widget.round.round + 1,
-                                                    participantsInRound: [eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]]
+                                                    participantsInRound: [participantNumber]
                                                 )
                                             );
-                                            eventController.setParticipantSakimPosition(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index], eventController.currentEvent.value.sakimRounds[widget.round.round+1].participantsInRound.length);
+                                            eventController.setParticipantSakimPosition(participantNumber, eventController.currentEvent.value.sakimRounds[widget.round.round+1].participantsInRound.length);
                                           } else {
                                             eventController.currentEvent.value.sakimRounds[widget.round.round+1].participantsInRound
-                                                .add(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
-                                            eventController.setParticipantSakimPosition(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index], eventController.currentEvent.value.sakimRounds[widget.round.round+1].participantsInRound.length);
+                                                .add(participantNumber);
+                                            eventController.setParticipantSakimPosition(participantNumber, eventController.currentEvent.value.sakimRounds[widget.round.round+1].participantsInRound.length);
                                           }
                                           eventController.currentEvent.value.sakimRounds[widget.round.round] = widget.round;
                                           //setState(() {
-                                          widget.round.participantsInRound.remove(eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
+                                          widget.round.participantsInRound.remove(participantNumber);
                                           //});
                                           eventController.loading.value = false;
                                           eventController.currentEvent.value.saveToFirestore();
@@ -142,40 +167,41 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                       ),
                                   ),
-                                  // Position badge - notification style in upper right corner
-                                  Positioned(
-                                    top: tablet ? -14.68 : -12.26, // 5px lower than previous
-                                    right: tablet ? -11.68 : -9.26, // 3px to the left
-                                    child: Container(
-                                      width: tablet ? 28 : 24, // Fixed width for consistent size
-                                      height: tablet ? 28 : 24, // Fixed height for consistent size
-                                      decoration: BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Colors.white,
-                                          width: tablet ? 1.9 : 2.16, // 5% smaller on tablet (2.0 * 0.95), 10% smaller on mobile (2.4 * 0.9)
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.3),
-                                            blurRadius: 4,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          position.toString(),
-                                          style: TextStyle(
-                                            fontSize: tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648, // 5% smaller on tablet (0.56 * 0.95), 10% smaller on mobile (0.72 * 0.9)
-                                            fontWeight: FontWeight.bold,
+                                  // Position badge - notification style in upper right corner (only show if round > 0)
+                                  if (widget.round.round > 0)
+                                    Positioned(
+                                      top: tablet ? -14.68 : -12.26, // 5px lower than previous
+                                      right: tablet ? -11.68 : -9.26, // 3px to the left
+                                      child: Container(
+                                        width: tablet ? 28 : 24, // Fixed width for consistent size
+                                        height: tablet ? 28 : 24, // Fixed height for consistent size
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
                                             color: Colors.white,
+                                            width: tablet ? 1.9 : 2.16, // 5% smaller on tablet (2.0 * 0.95), 10% smaller on mobile (2.4 * 0.9)
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: 0.3),
+                                              blurRadius: 4,
+                                              offset: Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            position.toString(),
+                                            style: TextStyle(
+                                              fontSize: tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648, // 5% smaller on tablet (0.56 * 0.95), 10% smaller on mobile (0.72 * 0.9)
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),

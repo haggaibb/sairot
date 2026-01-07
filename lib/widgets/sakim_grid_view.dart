@@ -88,8 +88,27 @@ class SakimGridView extends StatelessWidget {
               onDoubleTap: () {
                 if (_.sakimEditModeOn.value && currentRound > 0) {
                   _.loading.value = true;
-                  _.currentEvent.value.sakimRounds[currentRound - 1].participantsInRound.add(participantNumber);
+                  
+                  // Get the stored original index
+                  final originalIndex = _.getLastSakimIndex(participantNumber);
+                  
+                  // Remove the last position from the array
+                  _.removeLastSakimPosition(participantNumber);
+                  
+                  // Remove participant from current round
                   _.currentEvent.value.sakimRounds[currentRound].participantsInRound.remove(participantNumber);
+                  
+                  // Insert participant at original index in previous round (or add to end if no index stored)
+                  final previousRound = _.currentEvent.value.sakimRounds[currentRound - 1];
+                  if (originalIndex != null && originalIndex >= 0 && originalIndex <= previousRound.participantsInRound.length) {
+                    previousRound.participantsInRound.insert(originalIndex, participantNumber);
+                  } else {
+                    previousRound.participantsInRound.add(participantNumber);
+                  }
+                  
+                  // Clear the stored index
+                  _.setLastSakimIndex(participantNumber, null);
+                  
                   _.update();
                   _.currentEvent.value.saveToFirestore();
                   _.loading.value = false;
@@ -107,6 +126,16 @@ class SakimGridView extends StatelessWidget {
                     onPressed: () {
                       if (_.sakimEditModeOn.value) {
                         _.loading.value = true;
+                        
+                        // Find the current index in the round before moving forward (for undo)
+                        final currentRoundList = _.currentEvent.value.sakimRounds[currentRound].participantsInRound;
+                        final currentIndex = currentRoundList.indexOf(participantNumber);
+                        
+                        // Store the current index before moving forward (for undo)
+                        if (currentIndex != -1) {
+                          _.setLastSakimIndex(participantNumber, currentIndex);
+                        }
+                        
                         if (_.currentEvent.value.sakimRounds.length == currentRound + 1) {
                           _.currentEvent.value.sakimRounds.add(
                             SakimRound(
@@ -158,39 +187,42 @@ class SakimGridView extends StatelessWidget {
                   ),
                   // Position badge - within chip border, consistent size
                   // First place gets green badge that's 20% larger
-                  Positioned(
-                    top: tablet ? 4 : 3,
-                    right: tablet ? 4 : 3,
-                    child: Container(
-                      width: tablet ? (isFirstPlace ? 33.6 : 28) : (isFirstPlace ? 28.8 : 24), // 20% larger if first place
-                      height: tablet ? (isFirstPlace ? 33.6 : 28) : (isFirstPlace ? 28.8 : 24), // 20% larger if first place
-                      decoration: BoxDecoration(
-                        color: isFirstPlace ? Colors.green : Colors.red, // Green for first place
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white,
-                          width: tablet ? 1.9 : 2.16,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          currentRound.toString(),
-                          style: TextStyle(
-                            fontSize: tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648,
-                            fontWeight: FontWeight.bold,
+                  // Only show if round number > 0 (not the initial round)
+                  if (currentRound >= 0 && currentRound < _.currentEvent.value.sakimRounds.length &&
+                      _.currentEvent.value.sakimRounds[currentRound].round > 0)
+                    Positioned(
+                      top: tablet ? 4 : 3,
+                      right: tablet ? 4 : 3,
+                      child: Container(
+                        width: tablet ? (isFirstPlace ? 33.6 : 28) : (isFirstPlace ? 28.8 : 24), // 20% larger if first place
+                        height: tablet ? (isFirstPlace ? 33.6 : 28) : (isFirstPlace ? 28.8 : 24), // 20% larger if first place
+                        decoration: BoxDecoration(
+                          color: isFirstPlace ? Colors.green : Colors.red, // Green for first place
+                          shape: BoxShape.circle,
+                          border: Border.all(
                             color: Colors.white,
+                            width: tablet ? 1.9 : 2.16,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            absolutePosition.toString(),
+                            style: TextStyle(
+                              fontSize: tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

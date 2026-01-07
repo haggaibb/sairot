@@ -21,6 +21,8 @@ class Participant {
   String participantAIReport ='';
   List<int> meshulashPositions = [];
   List<int> sakimPositions = [];
+  int? lastMeshulashIndex; // Stores the index in the round they left (for undo)
+  int? lastSakimIndex; // Stores the index in the round they left (for undo)
   List<String> meshulashInstructorComments = [];
   List<String> alonkaInstructorComments = [];
   List<String> sakimInstructorComments = [];
@@ -49,6 +51,8 @@ class Participant {
       'participantAIReport' : participantAIReport,
       'meshulashPositions': meshulashPositions,
       'sakimPositions': sakimPositions,
+      'lastMeshulashIndex': lastMeshulashIndex,
+      'lastSakimIndex': lastSakimIndex,
       'meshulashInstructorComments': meshulashInstructorComments,
       'alonkaInstructorComments': alonkaInstructorComments,
       'sakimInstructorComments': sakimInstructorComments,
@@ -77,6 +81,8 @@ class Participant {
       ..participantAIReport = json['participantAIReport'] ?? json['participateAIReport'] ?? ''
       ..meshulashPositions = List<int>.from(json['meshulashPositions'] ?? [])
       ..sakimPositions = List<int>.from(json['sakimPositions'] ?? [])
+      ..lastMeshulashIndex = json['lastMeshulashIndex']
+      ..lastSakimIndex = json['lastSakimIndex']
       ..meshulashInstructorComments =
           List<String>.from(json['meshulashInstructorComments'] ?? [])
       ..alonkaInstructorComments =

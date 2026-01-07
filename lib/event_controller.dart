@@ -837,6 +837,34 @@ class EventController extends GetxController {
     currentEvent.value.participants[index].sakimPositions.add(pos);
     //currentEvent.value.saveToFirestore();
   }
+
+  /// Remove the last position from sakimPositions array (for undo)
+  void removeLastSakimPosition(int number) {
+    int participantIndex = currentEvent.value.participants
+        .indexWhere((Participant p) => p.number == number);
+    if (participantIndex != -1 && currentEvent.value.participants[participantIndex].sakimPositions.isNotEmpty) {
+      currentEvent.value.participants[participantIndex].sakimPositions.removeLast();
+    }
+  }
+
+  /// Set the last sakim index (for undo tracking)
+  void setLastSakimIndex(int number, int? index) {
+    int participantIndex = currentEvent.value.participants
+        .indexWhere((Participant p) => p.number == number);
+    if (participantIndex != -1) {
+      currentEvent.value.participants[participantIndex].lastSakimIndex = index;
+    }
+  }
+
+  /// Get the last sakim index (for undo tracking)
+  int? getLastSakimIndex(int number) {
+    int participantIndex = currentEvent.value.participants
+        .indexWhere((Participant p) => p.number == number);
+    if (participantIndex != -1) {
+      return currentEvent.value.participants[participantIndex].lastSakimIndex;
+    }
+    return null;
+  }
   void addSakimComments(List<String> comments, int participantNumber) {
     // Find the index of the participant by their number.
     int index = currentEvent.value.participants
@@ -862,6 +890,34 @@ class EventController extends GetxController {
         .indexWhere((Participant p) => p.number == number);
     currentEvent.value.participants[index].meshulashPositions.add(pos);
     //currentEvent.value.saveToFirestore();
+  }
+
+  /// Remove the last position from meshulashPositions array (for undo)
+  void removeLastMeshulashPosition(int number) {
+    int participantIndex = currentEvent.value.participants
+        .indexWhere((Participant p) => p.number == number);
+    if (participantIndex != -1 && currentEvent.value.participants[participantIndex].meshulashPositions.isNotEmpty) {
+      currentEvent.value.participants[participantIndex].meshulashPositions.removeLast();
+    }
+  }
+
+  /// Set the last meshulash index (for undo tracking)
+  void setLastMeshulashIndex(int number, int? index) {
+    int participantIndex = currentEvent.value.participants
+        .indexWhere((Participant p) => p.number == number);
+    if (participantIndex != -1) {
+      currentEvent.value.participants[participantIndex].lastMeshulashIndex = index;
+    }
+  }
+
+  /// Get the last meshulash index (for undo tracking)
+  int? getLastMeshulashIndex(int number) {
+    int participantIndex = currentEvent.value.participants
+        .indexWhere((Participant p) => p.number == number);
+    if (participantIndex != -1) {
+      return currentEvent.value.participants[participantIndex].lastMeshulashIndex;
+    }
+    return null;
   }
   void addMeshulashComments(List<String> comments, int participantNumber) {
     // Find the index of the participant by their number.

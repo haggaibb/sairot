@@ -22,7 +22,9 @@ class AlonkaCharts extends StatelessWidget {
     final eventController = Get.put(EventController());
     final toggleController = Get.put(ChartToggleController());
 
+    // Filter out round 0 - only show rounds starting from 1
     final List<int> rounds = eventController.currentEvent.value.alonkaSprints
+        .where((AlonkaSprint sprint) => sprint.round > 0)
         .map((AlonkaSprint sprint) => sprint.round)
         .toList();
     
@@ -82,7 +84,7 @@ class AlonkaCharts extends StatelessWidget {
                 }
                 // Show chart view
                 if (!toggleController.showPieChart.value) {
-                  // Calculate positions for each sprint
+                  // Calculate positions for each sprint (only for rounds > 0)
                   final List<int> positions = rounds.map((round) => eventController.getAlonkaSprintPosition(number, round)).toList();
                   final List<double> baseCredits = rounds.map((round) => eventController.getAlonkaSprintBaseCredit(number, round)).toList();
                   
@@ -113,10 +115,11 @@ class AlonkaCharts extends StatelessWidget {
                                     int index = entry.key;
                                     int round = entry.value;
                                     int position = positions[index];
-                                    // Only include points where participant has a position
+                                    // Only include points where participant has a position and round > 0
                                     // Invert Y: position 1 should be at top (maxY), higher positions at bottom
-                                    if (position > 0) {
-                                      return FlSpot(round.toDouble() + 1, maxY - position.toDouble() + 1);
+                                    // Use round number directly (already filtered to > 0)
+                                    if (round > 0 && position > 0) {
+                                      return FlSpot(round.toDouble(), maxY - position.toDouble() + 1);
                                     }
                                     return null;
                                   }).where((spot) => spot != null).cast<FlSpot>().toList(),
@@ -161,8 +164,9 @@ class AlonkaCharts extends StatelessWidget {
                                     showTitles: true,
                                     interval: 1,
                                     getTitlesWidget: (value, meta) {
-                                      // Show only interval numbers
-                                      if (value % 1 == 0 && value >= 1 && value <= rounds.length) {
+                                      // Show only interval numbers (round numbers, not indices)
+                                      if (value % 1 == 0 && rounds.isNotEmpty && 
+                                          value >= rounds.first.toDouble() && value <= rounds.last.toDouble()) {
                                         return Text(
                                           value.toInt().toString(),
                                           style: const TextStyle(color: Colors.white),
@@ -182,21 +186,22 @@ class AlonkaCharts extends StatelessWidget {
                               ),
                               gridData: FlGridData(show: true),
                               borderData: FlBorderData(show: false),
-                              minX: 1,
-                              maxX: rounds.length.toDouble(),
+                              minX: rounds.isNotEmpty ? rounds.first.toDouble() - 0.5 : 0.5,
+                              maxX: rounds.isNotEmpty ? rounds.last.toDouble() + 0.5 : 1.5,
                               minY: 1,
                               maxY: maxY,
                             ),
                             ),
                           ),
-                          // Labels showing element icon and position at each point
+                          // Labels showing element icon and position at each point (exclude round 0)
                           ...rounds.asMap().entries.map((entry) {
                             int index = entry.key;
                             int round = entry.value;
                             int position = positions[index];
                             double baseCredit = baseCredits[index];
                             
-                            if (position == 0) return const SizedBox.shrink();
+                            // Exclude round 0 and positions that are 0
+                            if (round == 0 || position == 0) return const SizedBox.shrink();
                             
                             // Determine element icon
                             String iconPath;
@@ -211,9 +216,11 @@ class AlonkaCharts extends StatelessWidget {
                             }
                             
                             // Calculate position for label
-                            // X: map round+1 to chart width (minX=1, maxX=rounds.length)
+                            // X: map round to chart width (minX=rounds.first, maxX=rounds.last)
                             // chartWidth already accounts for rightPadding
-                            final xRatio = rounds.length > 1 ? (round + 1 - 1) / (rounds.length - 1) : 0;
+                            final minX = rounds.isNotEmpty ? rounds.first.toDouble() - 0.5 : 0.5;
+                            final maxX = rounds.isNotEmpty ? rounds.last.toDouble() + 0.5 : 1.5;
+                            final xRatio = rounds.length > 1 ? (round.toDouble() - minX) / (maxX - minX) : 0;
                             final xPos = yAxisWidth + xRatio * chartWidth;
                             
                             // Y: map position to chart height (inverted: position 1 at top)
