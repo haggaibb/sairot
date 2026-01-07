@@ -213,7 +213,7 @@ class SakimGridView extends StatelessWidget {
                         ),
                         child: Center(
                           child: Text(
-                            absolutePosition.toString(),
+                            _.currentEvent.value.sakimRounds[currentRound].round.toString(),
                             style: TextStyle(
                               fontSize: tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648,
                               fontWeight: FontWeight.bold,
