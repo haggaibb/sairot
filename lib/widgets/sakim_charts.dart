@@ -103,6 +103,7 @@ class SakimBarPainter extends CustomPainter {
   final double maxCount; // Right axis max (for scaling bars)
   final double barWidth;
   final double labelChartWidth; // Width used by labels for X positioning
+  final bool isMobile; // Whether this is mobile view
   final Color defaultColor;
   final Color currentRoundColor;
 
@@ -117,6 +118,7 @@ class SakimBarPainter extends CustomPainter {
     required this.maxCount,
     required this.barWidth,
     required this.labelChartWidth,
+    this.isMobile = false,
     this.defaultColor = Colors.black,
     this.currentRoundColor = Colors.green,
   });
@@ -140,20 +142,30 @@ class SakimBarPainter extends CustomPainter {
           ? (round.toDouble() - minX) / (maxX - minX)
           : 0.0; // Handle single round case
       
-      // Calculate X position - compress spacing by reducing effective width by 10px per bar
-      // This brings bars closer together while keeping bar width the same
-      final spacingReduction = 10.0; // Reduce space between bars by 10px
+      // Calculate X position - compress spacing by reducing effective width
+      // Tablet: reduce space between bars by 10px (increased from 9px to reduce gaps by additional 1px)
+      // Mobile: reduce space between bars by 2px
+      final spacingReduction = isMobile ? 2.0 : 10.0;
       final compressedWidth = actualWidth - (spacingReduction * (rounds.length - 1));
       
       // Dynamic offset based on number of rounds
-      // 40px offset is good for 11 rounds, reduce 5px for each round less than 11
-      final baseOffset = 40.0;
+      // Tablet: 45px offset is good for 11 rounds, reduce 5px for each round less than 11
+      // Mobile: 40px offset is good for 11 rounds, reduce 5px for each round less than 11
+      final baseOffset = isMobile ? 40.0 : 45.0;
       final baseRounds = 11;
       final offsetAdjustment = (baseRounds - rounds.length) * 5.0;
       final dynamicOffset = baseOffset - offsetAdjustment;
       
+      // Mobile: adjust offset based on number of rounds
+      // Base offset is -33px for 11 rounds
+      // For 12 rounds: move 5px more to the left (-38px)
+      // For 10 rounds: move 5px more to the right (-28px)
+      final baseMobileOffset = -33.0;
+      final mobileRoundAdjustment = isMobile ? (rounds.length - 11) * 5.0 : 0.0;
+      final mobileOffset = isMobile ? (baseMobileOffset - mobileRoundAdjustment) : -5.0;
+      
       // Shift bars to align with points
-      final xPos = (xRatio * compressedWidth) + dynamicOffset;
+      final xPos = (xRatio * compressedWidth) + dynamicOffset + mobileOffset;
 
       // Calculate Y position (count mapped to LineChart's coordinate system)
       // Limit bars to 50% of the Y-axis range so they don't stretch the full height
@@ -281,7 +293,7 @@ class SakimCharts extends StatelessWidget {
     int numberOfParticipants =  eventController.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active).length;
     bool tablet = isTablet(context);
     // Adjust reserved size for Y-axis based on device type - need more space on mobile
-    final leftAxisReservedSize = tablet ? 40.0 : 55.0; // Reduced on mobile to match alonka and make chart wider
+    final leftAxisReservedSize = tablet ? 40.0 : 10.0; // Further reduced on mobile to make chart wider
     
 //int worstPosition = participantPositions.reduce((a, b) => a > b ? a : b);
     return Scaffold(
@@ -302,7 +314,7 @@ class SakimCharts extends StatelessWidget {
                       : numberOfParticipants.toDouble();
                   
                   // Chart dimensions - reduce on mobile to make chart wider
-                  final rightAxisReservedSize = tablet ? 60.0 : 35.0; // Reduced on mobile to match alonka
+                  final rightAxisReservedSize = tablet ? 60.0 : 15.0; // Further reduced on mobile to make chart wider
                   final topPadding = 20.0;
                   final bottomPadding = 50.0;
                   
@@ -528,15 +540,28 @@ class SakimCharts extends StatelessWidget {
                                   ? (round.toDouble() - minX) / (maxX - minX)
                                   : 0.0;
                               
-                              final spacingReduction = 10.0;
+                              // Tablet: reduce space between bars by 10px (increased from 9px to reduce gaps by additional 1px)
+                              // Mobile: reduce space between bars by 2px
+                              final spacingReduction = tablet ? 10.0 : 2.0;
                               final compressedWidth = actualWidth - (spacingReduction * (rounds.length - 1));
                               
-                              final baseOffset = 40.0;
+                              // Dynamic offset based on number of rounds
+                              // Tablet: 45px offset is good for 11 rounds, reduce 5px for each round less than 11
+                              // Mobile: 40px offset is good for 11 rounds, reduce 5px for each round less than 11
+                              final baseOffset = tablet ? 45.0 : 40.0;
                               final baseRounds = 11;
                               final offsetAdjustment = (baseRounds - rounds.length) * 5.0;
                               final dynamicOffset = baseOffset - offsetAdjustment;
                               
-                              final barX = (xRatio * compressedWidth) + dynamicOffset;
+                              // Mobile: adjust offset based on number of rounds
+                              // Base offset is -33px for 11 rounds
+                              // For 12 rounds: move 5px more to the left (-38px)
+                              // For 10 rounds: move 5px more to the right (-28px)
+                              final baseMobileOffset = -33.0;
+                              final mobileRoundAdjustment = !tablet ? (rounds.length - 11) * 5.0 : 0.0;
+                              final mobileOffset = !tablet ? (baseMobileOffset - mobileRoundAdjustment) : -5.0;
+                              
+                              final barX = (xRatio * compressedWidth) + dynamicOffset + mobileOffset;
                               final barWidth = tablet ? 20.0 : 16.0;
                               
                               // Check if tap is within bar bounds
@@ -658,6 +683,7 @@ class SakimCharts extends StatelessWidget {
                               maxCount: maxCount, // Right axis max for scaling
                               labelChartWidth: constraints.maxWidth - leftAxisReservedSize - (tablet ? (rightAxisReservedSize + 20) : rightAxisReservedSize),
                               barWidth: tablet ? 20.0 : 16.0,
+                              isMobile: !tablet, // Pass mobile flag
                             ),
                             child: Container(), // Empty container for sizing
                           ),
