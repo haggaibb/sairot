@@ -222,6 +222,34 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
     );
   }
 
+  Widget _buildExerciseCommentIndicator(Participant participant, String exercise) {
+    bool hasComment = false;
+    switch (exercise) {
+      case 'alonka':
+        hasComment = participant.alonkaInstructorComments.isNotEmpty;
+        break;
+      case 'meshulash':
+        hasComment = participant.meshulashInstructorComments.isNotEmpty;
+        break;
+      case 'sakim':
+        hasComment = participant.sakimInstructorComments.isNotEmpty;
+        break;
+    }
+    
+    if (!hasComment) {
+      return const SizedBox.shrink();
+    }
+    
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Icon(
+        Icons.comment,
+        size: 16,
+        color: Colors.blue,
+      ),
+    );
+  }
+
   Widget _buildHeaderCell(String title, SortColumn column, double width, {bool isFrozen = false}) {
     return GestureDetector(
       onTap: () => _handleSort(column),
@@ -530,9 +558,16 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                         ),
                       );
                     },
-                    child: Text(
-                      participant.meshulashGrade.toStringAsFixed(2),
-                      style: const TextStyle(color: Colors.black),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          participant.meshulashGrade.toStringAsFixed(2),
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                        _buildExerciseCommentIndicator(participant, 'meshulash'),
+                      ],
                     ),
                   ),
                   // Alonka cell
@@ -550,9 +585,16 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                         ),
                       );
                     },
-                    child: Text(
-                      participant.alonkaGrade.toStringAsFixed(2),
-                      style: const TextStyle(color: Colors.black),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          participant.alonkaGrade.toStringAsFixed(2),
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                        _buildExerciseCommentIndicator(participant, 'alonka'),
+                      ],
                     ),
                   ),
                   // Bur cell
@@ -590,9 +632,16 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                         ),
                       );
                     },
-                    child: Text(
-                      participant.sakimGrade.toStringAsFixed(2),
-                      style: const TextStyle(color: Colors.black),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          participant.sakimGrade.toStringAsFixed(2),
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                        _buildExerciseCommentIndicator(participant, 'sakim'),
+                      ],
                     ),
                   ),
                   ],

@@ -503,22 +503,159 @@ class MeshulashCharts extends StatelessWidget {
                         right: rightAxisReservedSize + 20,
                         top: topPadding,
                         bottom: bottomPadding,
-                        child: CustomPaint(
-                          painter: BarPainter(
-                            rounds: rounds,
-                            counts: participantCounts,
-                            currentRound: currentRound,
-                            minX: minX,
-                            maxX: maxX,
-                            minY: 1.0, // Use LineChart's coordinate system
-                            maxY: participantsCount.toDouble(), // Use LineChart's coordinate system
-                            maxCount: maxCount, // Right axis max for scaling
-                            labelChartWidth: constraints.maxWidth - leftAxisReservedSize - rightAxisReservedSize - 20,
-                            barWidth: tablet ? 20.0 : 16.0,
+                        child: GestureDetector(
+                          onTapDown: (TapDownDetails details) {
+                            // Calculate which bar was tapped
+                            final tapX = details.localPosition.dx;
+                            
+                            // Find which bar was tapped
+                            for (int i = 0; i < rounds.length; i++) {
+                              final round = rounds[i];
+                              final count = participantCounts[i];
+                              
+                              if (count == 0) continue;
+                              
+                              // Calculate bar position (same logic as BarPainter)
+                              final actualWidth = constraints.maxWidth - leftAxisReservedSize - rightAxisReservedSize - 20;
+                              final xRatio = (maxX - minX) > 0 
+                                  ? (round.toDouble() - minX) / (maxX - minX)
+                                  : 0.0;
+                              
+                              final spacingReduction = 10.0;
+                              final compressedWidth = actualWidth - (spacingReduction * (rounds.length - 1));
+                              
+                              final baseOffset = 40.0;
+                              final baseRounds = 11;
+                              final offsetAdjustment = (baseRounds - rounds.length) * 5.0;
+                              final dynamicOffset = baseOffset - offsetAdjustment;
+                              
+                              final barX = (xRatio * compressedWidth) + dynamicOffset;
+                              final barWidth = tablet ? 20.0 : 16.0;
+                              
+                              // Check if tap is within bar bounds
+                              if (tapX >= barX - barWidth / 2 && tapX <= barX + barWidth / 2) {
+                                // Find the round object to get participant numbers
+                                final roundObject = allRounds.firstWhere(
+                                  (r) => r.round == round,
+                                  orElse: () => allRounds.first,
+                                );
+                                final participantNumbers = roundObject.participantsInRound;
+                                
+                                // Calculate positions for each participant
+                                final participantsWithPositions = participantNumbers.asMap().entries.map((entry) {
+                                  final index = entry.key;
+                                  final participantNumber = entry.value;
+                                  
+                                  // Calculate absolute position: count participants in higher rounds + index in current round
+                                  int participantsAhead = 0;
+                                  for (var r in allRounds) {
+                                    if (r.round > round) {
+                                      participantsAhead += r.participantsInRound.length;
+                                    }
+                                  }
+                                  final position = participantsAhead + index + 1; // 1-based position
+                                  
+                                  return MapEntry(participantNumber, position);
+                                }).toList();
+                                
+                                // Show dialog with recruits count and list
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      backgroundColor: Colors.white,
+                                      title: Text(
+                                        'סיבוב $round',
+                                        style: TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      content: SizedBox(
+                                        width: double.maxFinite,
+                                        child: SingleChildScrollView(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'מספר המסיימים: $count',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                'מספרי המסיימים:',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 4,
+                                                children: participantsWithPositions.map((entry) {
+                                                  final number = entry.key;
+                                                  final position = entry.value;
+                                                  return Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.grey[200],
+                                                      borderRadius: BorderRadius.circular(4),
+                                                      border: Border.all(color: Colors.grey[400]!),
+                                                    ),
+                                                    child: Text(
+                                                      '$number ($position)',
+                                                      style: TextStyle(
+                                                        color: Colors.black,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }).toList(),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(),
+                                          child: Text(
+                                            'סגור',
+                                            style: TextStyle(color: Colors.blue),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                                break;
+                              }
+                            }
+                          },
+                          child: CustomPaint(
+                            painter: BarPainter(
+                              rounds: rounds,
+                              counts: participantCounts,
+                              currentRound: currentRound,
+                              minX: minX,
+                              maxX: maxX,
+                              minY: 1.0, // Use LineChart's coordinate system
+                              maxY: participantsCount.toDouble(), // Use LineChart's coordinate system
+                              maxCount: maxCount, // Right axis max for scaling
+                              labelChartWidth: constraints.maxWidth - leftAxisReservedSize - rightAxisReservedSize - 20,
+                              barWidth: tablet ? 20.0 : 16.0,
+                            ),
+                            child: Container(), // Empty container for sizing
                           ),
-                          child: Container(), // Empty container for sizing
-                    ),
-                  ),
+                        ),
+                      ),
                     ],
                   );
                 },

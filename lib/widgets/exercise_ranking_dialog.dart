@@ -24,6 +24,26 @@ class ExerciseRankingDialog extends StatelessWidget {
     final rank = rankInfo['rank'] ?? 0;
     final total = rankInfo['total'] ?? 0;
     final bool isTablet = MediaQuery.of(context).size.width > 600;
+    
+    // Get participant to access comments
+    final participant = eventController.currentEvent.value.participants.firstWhere(
+      (p) => p.number == participantNumber,
+      orElse: () => eventController.currentEvent.value.participants.first,
+    );
+    
+    // Get comments for this exercise
+    List<String> comments = [];
+    switch (exerciseName) {
+      case 'alonka':
+        comments = participant.alonkaInstructorComments;
+        break;
+      case 'meshulash':
+        comments = participant.meshulashInstructorComments;
+        break;
+      case 'sakim':
+        comments = participant.sakimInstructorComments;
+        break;
+    }
 
     return Dialog(
       child: Container(
@@ -73,6 +93,45 @@ class ExerciseRankingDialog extends StatelessWidget {
                   ),
                 ),
               ),
+              // Show comments if they exist
+              if (comments.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'הערות המדריך:',
+                        style: TextStyle(
+                          fontSize: isTablet ? 18 : 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...comments.map((comment) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            '• $comment',
+                            style: TextStyle(
+                              fontSize: isTablet ? 16 : 14,
+                              color: Colors.black,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+              ],
               if (grade > 0) ...[
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
