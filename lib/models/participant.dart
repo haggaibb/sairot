@@ -15,6 +15,10 @@ class Participant {
   ParticipantStatus status = ParticipantStatus.Active;
   String fullName = '';
   int instructorGrade = 0;
+  int instructorMeshulashGrade = 0; // Instructor's grade for Meshulash exercise
+  int instructorAlonkaGrade = 0; // Instructor's grade for Alonka exercise
+  int instructorSakimGrade = 0; // Instructor's grade for Sakim exercise
+  int instructorBurGrade = 0; // Instructor's grade for Bur exercise
   double systemGrade = 0;
   String name = '';
   int groupNumber = 0;
@@ -45,6 +49,10 @@ class Participant {
       'status': status.valueAsString,
       'fullName': fullName,
       'instructorGrade': instructorGrade,
+      'instructorMeshulashGrade': instructorMeshulashGrade,
+      'instructorAlonkaGrade': instructorAlonkaGrade,
+      'instructorSakimGrade': instructorSakimGrade,
+      'instructorBurGrade': instructorBurGrade,
       'systemGrade': systemGrade,
       'name': name,
       'groupNumber': groupNumber,
@@ -76,6 +84,10 @@ class Participant {
           orElse: () => ParticipantStatus.Active)
       ..fullName = json['fullName'] ?? ''
       ..instructorGrade = json['instructorGrade'] ?? 0
+      ..instructorMeshulashGrade = json['instructorMeshulashGrade'] ?? 0
+      ..instructorAlonkaGrade = json['instructorAlonkaGrade'] ?? 0
+      ..instructorSakimGrade = json['instructorSakimGrade'] ?? 0
+      ..instructorBurGrade = json['instructorBurGrade'] ?? 0
       ..systemGrade = (json['systemGrade'] ?? 0).toDouble()
       ..groupNumber = json['groupNumber'] ?? 0
       ..participantAIReport = json['participantAIReport'] ?? json['participateAIReport'] ?? ''

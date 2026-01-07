@@ -101,7 +101,7 @@ class _PerformancePageState extends State<PerformancePage> {
     bool isTablet = MediaQuery.of(context).size.width > 600;
     // 🎨 **Dynamic Sizes for Mobile vs. Tablet**
     double baseFontSize = isTablet ? 24 : 18;
-    double chartHeight = isTablet ? 500 : 300;
+    double chartHeight = isTablet ? 500 : 450; // Original mobile height
     double chartWidth = isTablet ? 650 : 350;
     double titleFontSize = isTablet ? 28 : 22;
     double subtitleFontSize = isTablet ? 22 : 16;

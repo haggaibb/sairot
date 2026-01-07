@@ -17,6 +17,8 @@ class GradesPage extends StatefulWidget {
 
 class _GradesPageState extends State<GradesPage> with EventValidationMixin {
   final eventController = Get.put(EventController());
+  bool _showSystemGrades = true;
+  bool _showInstructorGrades = true;
 
 
   @override
@@ -66,6 +68,32 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
               centerTitle: true,
               title: Text(' דף ציונים לקבוצה ${eventController.currentEvent.value.groupNumber} '),
               actions: [
+                // Toggle system grades visibility
+                IconButton(
+                  icon: Icon(
+                    Icons.calculate,
+                    color: _showSystemGrades ? Colors.blue : Colors.grey,
+                  ),
+                  tooltip: _showSystemGrades ? 'הסתר ציוני מערכת' : 'הצג ציוני מערכת',
+                  onPressed: () {
+                    setState(() {
+                      _showSystemGrades = !_showSystemGrades;
+                    });
+                  },
+                ),
+                // Toggle instructor grades visibility
+                IconButton(
+                  icon: Icon(
+                    Icons.person,
+                    color: _showInstructorGrades ? Colors.blue : Colors.grey,
+                  ),
+                  tooltip: _showInstructorGrades ? 'הסתר ציוני מדריך' : 'הצג ציוני מדריך',
+                  onPressed: () {
+                    setState(() {
+                      _showInstructorGrades = !_showInstructorGrades;
+                    });
+                  },
+                ),
                 IconButton(
                   icon: const Icon(Icons.info_outline),
                   tooltip: 'מדריך למשתמש',
@@ -91,6 +119,8 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
               child: CustomGradesTable(
                 eventController: eventController,
                 isTablet: tablet,
+                showSystemGrades: _showSystemGrades,
+                showInstructorGrades: _showInstructorGrades,
               ),
             )),
       ),

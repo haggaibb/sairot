@@ -1421,6 +1421,28 @@ class EventController extends GetxController {
     currentEvent.value.saveToFirestore();
   }
 
+  setParticipantExerciseGrade(int number, String exercise, int grade) {
+    int participantIndex = currentEvent.value.participants
+        .indexWhere((Participant p) => p.number == number);
+    if (participantIndex == -1) return;
+    
+    switch (exercise) {
+      case 'meshulash':
+        currentEvent.value.participants[participantIndex].instructorMeshulashGrade = grade;
+        break;
+      case 'alonka':
+        currentEvent.value.participants[participantIndex].instructorAlonkaGrade = grade;
+        break;
+      case 'sakim':
+        currentEvent.value.participants[participantIndex].instructorSakimGrade = grade;
+        break;
+      case 'bur':
+        currentEvent.value.participants[participantIndex].instructorBurGrade = grade;
+        break;
+    }
+    currentEvent.value.saveToFirestore();
+  }
+
   /// Get rank information for a participant in a specific exercise
   /// Returns a map with 'rank' (1-based) and 'total' (total participants)
   Map<String, int> getExerciseRank(int participantNumber, String exerciseName) {

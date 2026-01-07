@@ -279,15 +279,15 @@ class MeshulashCharts extends StatelessWidget {
     int participantsCount = eventController.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active).length;
     bool tablet = isTablet(context);
     // Adjust reserved size for Y-axis based on device type - need more space on mobile
-    final leftAxisReservedSize = tablet ? 40.0 : 65.0;
+    final leftAxisReservedSize = tablet ? 40.0 : 55.0; // Reduced on mobile to match alonka and make chart wider
     
     return Scaffold(
       body: SafeArea(
-        minimum: EdgeInsets.zero, // No minimum padding
+        minimum: EdgeInsets.zero,
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 0, vertical: tablet ? 16.0 : 8.0), // No horizontal padding for maximum width
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: tablet ? 16.0 : 2.0), // Match alonka padding for maximum space
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch, // Make column fill width
           children: [
             /// 📊 Combined Chart with Bars and Line
             Expanded(
@@ -298,8 +298,8 @@ class MeshulashCharts extends StatelessWidget {
                       ? participantCounts.reduce((a, b) => a > b ? a : b).toDouble()
                       : participantsCount.toDouble();
                   
-                  // Chart dimensions - increase right axis size to prevent clipping
-                  final rightAxisReservedSize = tablet ? 60.0 : 70.0;
+                  // Chart dimensions - reduce on mobile to make chart wider
+                  final rightAxisReservedSize = tablet ? 60.0 : 35.0; // Reduced on mobile to match alonka
                   final topPadding = 20.0;
                   final bottomPadding = 50.0;
                   
@@ -308,11 +308,11 @@ class MeshulashCharts extends StatelessWidget {
                   final maxX = rounds.isNotEmpty ? rounds.last.toDouble() : 1.0;
                   
                   return Stack(
-                    children: [
+                      children: [
                       /// Line Chart with Dual Y-Axes
                       Positioned(
                         left: leftAxisReservedSize,
-                        right: rightAxisReservedSize + 20,
+                        right: tablet ? (rightAxisReservedSize + 20) : rightAxisReservedSize, // Remove extra 20px on mobile
                         top: topPadding,
                         bottom: bottomPadding,
                         child: LineChart(
@@ -500,7 +500,7 @@ class MeshulashCharts extends StatelessWidget {
                       /// Custom Bars Overlay (same position as LineChart)
                       Positioned(
                         left: leftAxisReservedSize,
-                        right: rightAxisReservedSize + 20,
+                        right: tablet ? (rightAxisReservedSize + 20) : rightAxisReservedSize, // Remove extra 20px on mobile
                         top: topPadding,
                         bottom: bottomPadding,
                         child: GestureDetector(
@@ -649,7 +649,7 @@ class MeshulashCharts extends StatelessWidget {
                               minY: 1.0, // Use LineChart's coordinate system
                               maxY: participantsCount.toDouble(), // Use LineChart's coordinate system
                               maxCount: maxCount, // Right axis max for scaling
-                              labelChartWidth: constraints.maxWidth - leftAxisReservedSize - rightAxisReservedSize - 20,
+                              labelChartWidth: constraints.maxWidth - leftAxisReservedSize - (tablet ? (rightAxisReservedSize + 20) : rightAxisReservedSize),
                               barWidth: tablet ? 20.0 : 16.0,
                             ),
                             child: Container(), // Empty container for sizing
@@ -661,7 +661,7 @@ class MeshulashCharts extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 4), // Match alonka spacing to maximize chart height
             /// 📃 Instructor Comments Section
             p.meshulashInstructorComments.isNotEmpty?const Text(
               'הערות המדריך',
@@ -682,7 +682,7 @@ class MeshulashCharts extends StatelessWidget {
             ),
           ],
         ),
-        ),
+      ),
       ),
     );
   }
