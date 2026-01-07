@@ -5,11 +5,13 @@ import 'package:sairot/models/meshulash_round.dart';
 import '../widgets/comments_dialog.dart';
 import '../models/types.dart';
 import '../utils/tablet_utils.dart';
+import '../models/participant.dart';
 
 class MeshulashRoundPanel extends StatefulWidget {
 
-  const MeshulashRoundPanel({super.key, required this.round});
+  const MeshulashRoundPanel({super.key, required this.round, required this.inOrderOfArrival});
     final MeshulashRound round;
+    final bool inOrderOfArrival;
 
   @override
   State<MeshulashRoundPanel> createState() => _MeshulashRoundPanelState();
@@ -26,6 +28,9 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
   Widget build(BuildContext context) {
     bool tablet = isTablet(context);
     int crossAxisCount = tablet ? (eventController.numberOfCols + 1) : eventController.numberOfCols;
+    
+    // Use widget.inOrderOfArrival to ensure rebuild when it changes
+    final inOrderOfArrival = widget.inOrderOfArrival;
     
     return GetX<EventController>(builder: (eventController) {
       var h = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound.length / 3 + 2;
@@ -48,11 +53,26 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                           physics: NeverScrollableScrollPhysics(),
                           childAspectRatio: eventController.userChildAspectRatio.value,
                           crossAxisCount: crossAxisCount,
-                          children: List.generate(
-                              eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound.length, (index) {
-                              final participantNumber = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index];
-                              // Calculate absolute position based on entry order
-                              // Count participants in higher (better) rounds, then add index in current round
+                          children: () {
+                            // Get participants in this round
+                            final participantsInRound = List<int>.from(
+                              eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound
+                            );
+                            
+                            // Sort based on order of arrival toggle
+                            if (inOrderOfArrival) {
+                              // Sort by Meshulash grade (descending - higher grade = better position)
+                              participantsInRound.sort((a, b) => eventController
+                                  .getMeshulashGrade(b)
+                                  .compareTo(eventController.getMeshulashGrade(a)));
+                            } else {
+                              // Sort by participant number ascending
+                              participantsInRound.sort((a, b) => a.compareTo(b));
+                            }
+                            
+                            return List.generate(participantsInRound.length, (index) {
+                              final participantNumber = participantsInRound[index];
+                              // Calculate absolute position based on sorted order
                               final currentRound = widget.round.round;
                               int participantsAhead = 0;
                               
@@ -63,8 +83,29 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                 }
                               }
                               
-                              // Position = participants ahead + index in current round + 1
-                              final position = participantsAhead + index + 1;
+                              // Calculate position based on sorted order
+                              int position;
+                              if (inOrderOfArrival) {
+                                // When sorted by grade, calculate position based on sorted order
+                                // Get all participants sorted by grade
+                                final allParticipants = eventController.currentEvent.value
+                                    .getParticipantsByStatus(ParticipantStatus.Active);
+                                final sortedByGrade = List<Participant>.from(allParticipants)
+                                  ..sort((a, b) => eventController
+                                      .getMeshulashGrade(b.number)
+                                      .compareTo(eventController.getMeshulashGrade(a.number)));
+                                
+                                // Find position in sorted list (1-based)
+                                final foundIndex = sortedByGrade.indexWhere((p) => p.number == participantNumber);
+                                position = foundIndex >= 0 ? foundIndex + 1 : participantsAhead + index + 1;
+                              } else {
+                                // When sorted by number, calculate position based on original round order
+                                // Need to find the original index in the unsorted round
+                                final originalRoundList = eventController.currentEvent.value
+                                    .meshulashRounds[currentRound].participantsInRound;
+                                final originalIndex = originalRoundList.indexOf(participantNumber);
+                                position = participantsAhead + (originalIndex >= 0 ? originalIndex : index) + 1;
+                              }
                               final scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
                               
                               return Padding(
@@ -206,7 +247,10 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                   ),
                                 ),
                               );
-                          }))),
+                            });
+                          }(),
+                        ),
+                  ),
                 ],
               ),
             ));

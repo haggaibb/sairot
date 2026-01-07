@@ -32,6 +32,7 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
   final ScrollController _scrollController = ScrollController();
   bool _floatingPttEnabled = false;
   bool _volumeButtonPttEnabled = false;
+  bool inOrderOfArrival = true; // Order of arrival mode (default: true)
 
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -145,6 +146,20 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
             ),
             actions: [
               IconButton(
+                onPressed: () {
+                  setState(() {
+                    inOrderOfArrival = !inOrderOfArrival; // Toggle state
+                  });
+                },
+                icon: Icon(
+                  Icons.directions_walk_sharp,
+                  color: inOrderOfArrival
+                      ? Colors.green
+                      : Colors.grey, // Switch color
+                  size: 32,
+                ),
+              ),
+              IconButton(
                 icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
                 tooltip: _isGridView ? 'מעבר לתצוגת רשימה' : 'מעבר לתצוגת רשת',
                 onPressed: () {
@@ -189,7 +204,10 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                         ),
                         child: Column(
                           children: [
-                            MeshulashGridView(),
+                            MeshulashGridView(
+                              key: ValueKey('meshulash_grid_$inOrderOfArrival'),
+                              inOrderOfArrival: inOrderOfArrival,
+                            ),
                             SizedBox(height: tablet ? 60.0 : 40.0), // Increased gap between grid and button
                             if (eventController.currentEvent.value.meshulashEndTime == null)
                               Padding(
@@ -267,30 +285,36 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
               controller: _scrollController,
               child: eventController.currentEvent.value.meshulashRounds.isNotEmpty
                   ? Center(
-                      child: Obx(() => eventController.loading.value
-                          ? LinearProgressIndicator()
-                          : Column(
-                              children: [
-                                SizedBox(
-                                  height: 15,
-                                ),
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: List.generate(
-                                      _.currentEvent.value.meshulashRounds.length,
-                                      (index) {
-                                    return Padding(
-                                      padding: const EdgeInsets.all(5.0),
-                                      child:
-                                          Obx(() => eventController.loading.value
-                                              ? CircularProgressIndicator()
-                                              : MeshulashRoundPanel(
-                                                  round: _.currentEvent.value
-                                                      .meshulashRounds[index],
-                                                )),
-                                    );
-                                  }),
-                                ),
+                      child: Obx(() {
+                        // Use inOrderOfArrival in the key to force rebuild when it changes
+                        final orderKey = inOrderOfArrival;
+                        return eventController.loading.value
+                            ? LinearProgressIndicator()
+                            : Column(
+                                key: ValueKey('meshulash_rounds_$orderKey'),
+                                children: [
+                                  SizedBox(
+                                    height: 15,
+                                  ),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: List.generate(
+                                        eventController.currentEvent.value.meshulashRounds.length,
+                                        (index) {
+                                      return Padding(
+                                        padding: const EdgeInsets.all(5.0),
+                                        child:
+                                            Obx(() => eventController.loading.value
+                                                ? CircularProgressIndicator()
+                                                : MeshulashRoundPanel(
+                                                    key: ValueKey('meshulash_round_${eventController.currentEvent.value.meshulashRounds[index].round}_$inOrderOfArrival'),
+                                                    round: eventController.currentEvent.value
+                                                        .meshulashRounds[index],
+                                                    inOrderOfArrival: inOrderOfArrival,
+                                                  )),
+                                      );
+                                    }),
+                                  ),
                                 Divider(
                                   thickness: dividerThickness,
                                 ),
@@ -386,7 +410,8 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                                         ),
                                       ),
                               ],
-                            )),
+                            );
+                      }),
                     )
                   : Obx(() => eventController.loading.value
                       ? SizedBox(

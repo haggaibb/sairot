@@ -5,12 +5,14 @@ import 'comments_dialog.dart';
 import 'package:sairot/models/sakim_round.dart';
 import '../models/types.dart';
 import '../utils/tablet_utils.dart';
+import '../models/participant.dart';
 
 
 class SakimRoundPanel extends StatefulWidget {
 
-  const SakimRoundPanel({super.key, required this.round});
+  const SakimRoundPanel({super.key, required this.round, required this.inOrderOfArrival});
   final SakimRound round;
+  final bool inOrderOfArrival;
 
   @override
   State<SakimRoundPanel> createState() => _SakimRoundPanelState();
@@ -29,6 +31,9 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
   Widget build(BuildContext context) {
     bool tablet = isTablet(context);
     int crossAxisCount = tablet ? (eventController.numberOfCols + 1) : eventController.numberOfCols;
+    
+    // Use widget.inOrderOfArrival to ensure rebuild when it changes
+    final inOrderOfArrival = widget.inOrderOfArrival;
     
     return GetX<EventController>(builder: (eventController) {
       var h = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound.length / 3 + 2;
@@ -51,23 +56,59 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                         physics: NeverScrollableScrollPhysics(),
                         childAspectRatio: eventController.userChildAspectRatio.value,
                         crossAxisCount: crossAxisCount,
-                        children: List.generate(
-                            eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound.length, (index) {
-                          final participantNumber = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index];
-                          // Calculate absolute position based on entry order
-                          // Count participants in higher (better) rounds, then add index in current round
-                          final currentRound = widget.round.round;
-                          int participantsAhead = 0;
+                        children: () {
+                          // Get participants in this round
+                          final participantsInRound = List<int>.from(
+                            eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound
+                          );
                           
-                          // Count all participants in rounds higher than current round
-                          for (var round in eventController.currentEvent.value.sakimRounds) {
-                            if (round.round > currentRound) {
-                              participantsAhead += round.participantsInRound.length;
-                            }
+                          // Sort based on order of arrival toggle
+                          if (inOrderOfArrival) {
+                            // Sort by Sakim grade (descending - higher grade = better position)
+                            participantsInRound.sort((a, b) => eventController
+                                .getSakimGrade(b)
+                                .compareTo(eventController.getSakimGrade(a)));
+                          } else {
+                            // Sort by participant number ascending
+                            participantsInRound.sort((a, b) => a.compareTo(b));
                           }
                           
-                          // Position = participants ahead + index in current round + 1
-                          final position = participantsAhead + index + 1;
+                          return List.generate(participantsInRound.length, (index) {
+                            final participantNumber = participantsInRound[index];
+                            // Calculate absolute position based on sorted order
+                            final currentRound = widget.round.round;
+                            int participantsAhead = 0;
+                            
+                            // Count all participants in rounds higher than current round
+                            for (var round in eventController.currentEvent.value.sakimRounds) {
+                              if (round.round > currentRound) {
+                                participantsAhead += round.participantsInRound.length;
+                              }
+                            }
+                            
+                            // Calculate position based on sorted order
+                            int position;
+                            if (inOrderOfArrival) {
+                              // When sorted by grade, calculate position based on sorted order
+                              // Get all participants sorted by grade
+                              final allParticipants = eventController.currentEvent.value
+                                  .getParticipantsByStatus(ParticipantStatus.Active);
+                              final sortedByGrade = List<Participant>.from(allParticipants)
+                                ..sort((a, b) => eventController
+                                    .getSakimGrade(b.number)
+                                    .compareTo(eventController.getSakimGrade(a.number)));
+                              
+                              // Find position in sorted list (1-based)
+                              final foundIndex = sortedByGrade.indexWhere((p) => p.number == participantNumber);
+                              position = foundIndex >= 0 ? foundIndex + 1 : participantsAhead + index + 1;
+                            } else {
+                              // When sorted by number, calculate position based on original round order
+                              // Need to find the original index in the unsorted round
+                              final originalRoundList = eventController.currentEvent.value
+                                  .sakimRounds[currentRound].participantsInRound;
+                              final originalIndex = originalRoundList.indexOf(participantNumber);
+                              position = participantsAhead + (originalIndex >= 0 ? originalIndex : index) + 1;
+                            }
                           final scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
                           
                           return Padding(
@@ -206,7 +247,10 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                               ),
                             ),
                           );
-                        }))),
+                        });
+                      }(),
+                    ),
+                  ),
               ],
             ),
           ));

@@ -221,7 +221,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                     ? null
                     : _saveComments,
                 child: Text(
-                  'שמור',
+                  'שמור וסגור',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: eventController.userFontSize.value,

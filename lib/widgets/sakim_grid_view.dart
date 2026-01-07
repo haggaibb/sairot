@@ -6,9 +6,11 @@ import 'package:sairot/models/sakim_round.dart';
 import '../models/types.dart';
 import '../utils/tablet_utils.dart';
 import '../models/system.dart';
+import '../models/participant.dart';
 
 class SakimGridView extends StatelessWidget {
-  const SakimGridView({super.key});
+  const SakimGridView({super.key, required this.inOrderOfArrival});
+  final bool inOrderOfArrival;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +50,17 @@ class SakimGridView extends StatelessWidget {
         crossAxisCount = 3;
       }
 
+      // Sort participants based on order of arrival toggle
+      final participantsList = List<Participant>.from(activeParticipants);
+      if (inOrderOfArrival) {
+        // Sort by Sakim grade (descending - higher grade = better position)
+        participantsList.sort((a, b) => _.getSakimGrade(b.number)
+            .compareTo(_.getSakimGrade(a.number)));
+      } else {
+        // Sort by recruit number ascending
+        participantsList.sort((a, b) => a.number.compareTo(b.number));
+      }
+
       return GridView.count(
         shrinkWrap: true,
         physics: NeverScrollableScrollPhysics(),
@@ -56,7 +69,7 @@ class SakimGridView extends StatelessWidget {
         mainAxisSpacing: 5,
         crossAxisSpacing: 3,
         padding: EdgeInsets.all(3),
-        children: activeParticipants.map((participant) {
+        children: participantsList.map((participant) {
           final participantNumber = participant.number;
           
           // Find which round this participant is in
