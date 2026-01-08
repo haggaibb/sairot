@@ -777,20 +777,28 @@ class EventController extends GetxController {
   delEvent(Event event) async {
     try {
       FirebaseFirestore firestore = FirebaseFirestore.instance;
+      
+      // 🔥 Step 1: Delete from Results collection
       DocumentReference eventRef = firestore.collection('Results')
           .doc(event.instructorId)
-      .collection('events')
-      .doc(event.eventName)
-      .collection('days')
-      .doc(event.date);
-      // 🔥 Step 2: Delete event document
+          .collection('events')
+          .doc(event.eventName)
+          .collection('days')
+          .doc(event.date);
       await eventRef.delete();
+      
+      // 🔥 Step 2: Delete from Events collection (this is what getCurrentEventDays() reads from)
+      DocumentReference eventsRef = firestore.collection('Events')
+          .doc(event.eventName)
+          .collection('days')
+          .doc(event.date);
+      await eventsRef.delete();
+      
+      // 🔥 Step 3: Update AdminIndex (remove instructor/group references)
       eventRef = firestore.collection('AdminIndex')
           .doc(event.eventName)
           .collection('days')
           .doc(event.date);
-      // 🔥 Step 2: Delete event document
-      // await eventRef.delete();
       await eventRef.update({
         "groups": FieldValue.arrayRemove([event.groupNumber.toString()]),
       });
@@ -807,7 +815,19 @@ class EventController extends GetxController {
         item is Map<String, dynamic> && item['instructorId'] == event.instructorId);
         await eventRef.update({'groupsAndInstructors': groupsArray});
       }
-      print("✅ Event '${event.date}' deleted successfully.");
+      
+      // 🔥 Step 4: Delete from local storage
+      await LocalStorageService.instance.deleteEventLocally(event.eventName, event.date);
+      
+      // 🔥 Step 5: Refresh eventDays cache for this event
+      if (eventDays.containsKey(event.eventName)) {
+        eventDays[event.eventName]?.remove(event.date);
+        if (eventDays[event.eventName]!.isEmpty) {
+          eventDays.remove(event.eventName);
+        }
+      }
+      
+      print("✅ Event '${event.date}' deleted successfully from all locations.");
     } catch (e) {
       print("❌ Error deleting event: $e");
     }
