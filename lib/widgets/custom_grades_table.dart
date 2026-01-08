@@ -365,8 +365,9 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
         border: Border(
           bottom: BorderSide(color: Colors.grey[400]!, width: 1),
           right: BorderSide(color: Colors.grey[300]!, width: 1),
+          left: BorderSide(color: Colors.grey[500]!, width: 2), // Left border to separate groups
         ),
-        color: Colors.grey[300],
+        color: Colors.grey[500], // Darker for master headers
       ),
       child: Center(
         child: Text(
@@ -374,7 +375,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,
-            color: Colors.black87,
+            color: Colors.white, // White text for better contrast
           ),
           textAlign: TextAlign.center,
           overflow: TextOverflow.visible,
@@ -384,7 +385,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
     );
   }
 
-  Widget _buildHeaderCell(String title, SortColumn column, double width, {bool isFrozen = false}) {
+  Widget _buildHeaderCell(String title, SortColumn column, double width, {bool isFrozen = false, bool isFirstInGroup = false, bool hasBoldRightBorder = false, bool hasBoldLeftBorder = false}) {
     return GestureDetector(
       onTap: () => _handleSort(column),
       child: Container(
@@ -394,9 +395,14 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(color: Colors.grey[400]!, width: 1),
-            right: BorderSide(color: Colors.grey[300]!, width: 1),
+            right: hasBoldRightBorder
+                ? BorderSide(color: Colors.grey[500]!, width: 2) // Bold right border to separate groups
+                : BorderSide(color: Colors.grey[300]!, width: 1),
+            left: (isFirstInGroup || hasBoldLeftBorder)
+                ? BorderSide(color: Colors.grey[500]!, width: 2) // Left border for first column in group or when specified
+                : BorderSide(color: Colors.grey[300]!, width: 1),
           ),
-          color: Colors.grey[200],
+          color: Colors.grey[300], // Lighter than master but darker than before
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -589,7 +595,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       // Empty cell for master header row alignment (only if master header is shown)
-                      if (widget.showSystemGrades && widget.showInstructorGrades)
+                      if (widget.showSystemGrades || widget.showInstructorGrades)
                         Container(
                           width: numberWidth,
                           height: 48,
@@ -598,7 +604,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                               bottom: BorderSide(color: Colors.grey[400]!, width: 1),
                               right: BorderSide(color: Colors.grey[300]!, width: 1),
                             ),
-                            color: Colors.grey[300],
+                            color: Colors.grey[500], // Match master header background
                           ),
                         ),
                       // Header
@@ -642,8 +648,8 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                     child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Master header row (grouping columns) - only show when both system and instructor grades are visible
-                          if (widget.showSystemGrades && widget.showInstructorGrades)
+                          // Master header row (grouping columns) - show when at least one grade type is visible
+                          if (widget.showSystemGrades || widget.showInstructorGrades)
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -661,7 +667,8 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                                     'אלונקה',
                                     (widget.showSystemGrades ? exerciseWidth : 0) + (widget.showInstructorGrades ? instructorExerciseWidth : 0),
                                   ),
-                                if (widget.showInstructorGrades)
+                                // Bur column - show when either system or instructor grades are visible (Bur only has instructor grade, no system grade)
+                                if (widget.showSystemGrades || widget.showInstructorGrades)
                                   _buildMasterHeaderCell(
                                     'בור',
                                     instructorExerciseWidth,
@@ -681,31 +688,34 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                                 widget.isTablet ? 'ציון סופי' : 'סופי',
                                 SortColumn.finalGrade,
                                 finalGradeWidth,
+                                hasBoldRightBorder: true, // Bold right border to separate final grade group
+                                hasBoldLeftBorder: widget.showInstructorGrades && !widget.showSystemGrades, // Bold left border in instructor-only mode
                               ),
                               if (widget.showSystemGrades)
                                 _buildHeaderCell(
-                                  widget.isTablet ? 'ציון מערכת' : 'מערכת',
+                                  'מערכת',
                                   SortColumn.systemGrade,
                                   systemGradeWidth,
+                                  isFirstInGroup: true, // First column in final grade group
                                 ),
                               if (widget.showSystemGrades || widget.showInstructorGrades) ...[
                                 if (widget.showSystemGrades)
-                                  _buildHeaderCell('משולש', SortColumn.meshulash, exerciseWidth),
+                                  _buildHeaderCell('מערכת', SortColumn.meshulash, exerciseWidth),
                                 if (widget.showInstructorGrades)
-                                  _buildHeaderCell(widget.isTablet ? 'ציון מדריך משולש' : 'מדריך משולש', SortColumn.meshulash, instructorExerciseWidth),
+                                  _buildHeaderCell('מדריך', SortColumn.meshulash, instructorExerciseWidth, isFirstInGroup: true), // First in meshulash group
                                 if (widget.showSystemGrades)
-                                  _buildHeaderCell('אלונקה', SortColumn.alonka, exerciseWidth),
+                                  _buildHeaderCell('מערכת', SortColumn.alonka, exerciseWidth),
                                 if (widget.showInstructorGrades)
-                                  _buildHeaderCell(widget.isTablet ? 'ציון מדריך אלונקה' : 'מדריך אלונקה', SortColumn.alonka, instructorExerciseWidth),
+                                  _buildHeaderCell('מדריך', SortColumn.alonka, instructorExerciseWidth, isFirstInGroup: true), // First in alonka group
                               ],
-                              // Bur column - always show when instructor grades are visible (Bur only has instructor grade, no system grade)
-                              if (widget.showInstructorGrades)
-                                _buildHeaderCell(widget.isTablet ? 'ציון מדריך בור' : 'מדריך בור', SortColumn.bur, instructorExerciseWidth),
+                              // Bur column - show when either system or instructor grades are visible (Bur only has instructor grade, no system grade)
+                              if (widget.showSystemGrades || widget.showInstructorGrades)
+                                _buildHeaderCell('מדריך', SortColumn.bur, instructorExerciseWidth, isFirstInGroup: true), // First in bur group
                               if (widget.showSystemGrades || widget.showInstructorGrades) ...[
                                 if (widget.showSystemGrades)
-                                  _buildHeaderCell('שקים', SortColumn.sakim, sakimWidth),
+                                  _buildHeaderCell('מערכת', SortColumn.sakim, sakimWidth),
                                 if (widget.showInstructorGrades)
-                                  _buildHeaderCell(widget.isTablet ? 'ציון מדריך שקים' : 'מדריך שקים', SortColumn.sakim, instructorExerciseWidth),
+                                  _buildHeaderCell('מדריך', SortColumn.sakim, instructorExerciseWidth, isFirstInGroup: true), // First in sakim group
                               ],
                             ],
                           ),
@@ -969,8 +979,8 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                         isFinalized: isFinalized,
                       ),
                   ],
-                  // Bur instructor grade cell (only instructor grade, no system grade) - always show when instructor grades are visible
-                  if (widget.showInstructorGrades)
+                  // Bur instructor grade cell (only instructor grade, no system grade) - show when either system or instructor grades are visible
+                  if (widget.showSystemGrades || widget.showInstructorGrades)
                     _buildEditableExerciseGradeCell(
                       participantNumber: participant.number,
                       controller: burGradeController,
