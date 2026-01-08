@@ -1421,23 +1421,40 @@ class EventController extends GetxController {
     currentEvent.value.saveToFirestore();
   }
 
-  setParticipantExerciseGrade(int number, String exercise, int grade) {
+  setParticipantExerciseGrade(int number, String exercise, dynamic grade) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex == -1) return;
     
     switch (exercise) {
       case 'meshulash':
-        currentEvent.value.participants[participantIndex].instructorMeshulashGrade = grade;
+        currentEvent.value.participants[participantIndex].instructorMeshulashGrade = grade as int;
         break;
       case 'alonka':
-        currentEvent.value.participants[participantIndex].instructorAlonkaGrade = grade;
+        currentEvent.value.participants[participantIndex].instructorAlonkaGrade = grade as int;
         break;
       case 'sakim':
-        currentEvent.value.participants[participantIndex].instructorSakimGrade = grade;
+        currentEvent.value.participants[participantIndex].instructorSakimGrade = grade as int;
         break;
       case 'bur':
-        currentEvent.value.participants[participantIndex].instructorBurGrade = grade;
+        // Bur grades are stored only in burGrades collection (single source of truth)
+        // Bur has no system grade, only instructor grade
+        // Grade can be int or double for Bur
+        double burGradeValue;
+        if (grade is double) {
+          burGradeValue = grade;
+        } else {
+          burGradeValue = (grade as num).toDouble();
+        }
+        int burIndex = currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == number);
+        if (burIndex != -1) {
+          // Update existing Bur entry
+          currentEvent.value.burGrades[burIndex].burGrade = burGradeValue;
+        } else {
+          // If Bur entry doesn't exist, create it
+          Bur newBur = Bur(id: number)..burGrade = burGradeValue;
+          currentEvent.value.burGrades.add(newBur);
+        }
         break;
     }
     currentEvent.value.saveToFirestore();

@@ -122,8 +122,16 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
         text: participant.instructorSakimGrade.toString(),
       );
       _sakimGradeFocusNodes[participant.number] = FocusNode();
+      // Get Bur grade from burGrades collection, not from participant.instructorBurGrade
+      // Bur grades support doubles, so we keep the decimal value
+      int burIndex = widget.eventController.currentEvent.value.burGrades
+          .indexWhere((bur) => bur.id == participant.number);
+      double burGradeValue = 0.0;
+      if (burIndex != -1) {
+        burGradeValue = widget.eventController.currentEvent.value.burGrades[burIndex].burGrade;
+      }
       _burGradeControllers[participant.number] = TextEditingController(
-        text: participant.instructorBurGrade.toString(),
+        text: burGradeValue.toString(),
       );
       _burGradeFocusNodes[participant.number] = FocusNode();
     }
@@ -146,6 +154,20 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
         // Ensure FocusNode exists for new participants
         if (!_gradeFocusNodes.containsKey(participant.number)) {
           _gradeFocusNodes[participant.number] = FocusNode();
+        }
+        
+        // Update Bur grade controller from burGrades collection
+        final burController = _burGradeControllers[participant.number];
+        if (burController != null) {
+          int burIndex = widget.eventController.currentEvent.value.burGrades
+              .indexWhere((bur) => bur.id == participant.number);
+          double burGradeValue = 0.0;
+          if (burIndex != -1) {
+            burGradeValue = widget.eventController.currentEvent.value.burGrades[burIndex].burGrade;
+          }
+          if (burController.text != burGradeValue.toString()) {
+            burController.text = burGradeValue.toString();
+          }
         }
       }
     }
@@ -441,7 +463,9 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                       controller: controller,
                       focusNode: focusNode,
                       textAlign: TextAlign.center,
-                      keyboardType: TextInputType.number,
+                      keyboardType: exercise == 'bur' 
+                          ? const TextInputType.numberWithOptions(decimal: true)
+                          : TextInputType.number,
                       style: const TextStyle(
                         color: Colors.black,
                         fontSize: 14,
@@ -471,12 +495,22 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                         FocusScope.of(context).unfocus();
                       },
                       onChanged: (value) {
-                        final grade = int.tryParse(value) ?? 0;
-                        widget.eventController.setParticipantExerciseGrade(
-                          participantNumber,
-                          exercise,
-                          grade,
-                        );
+                        // Bur grades support doubles, other exercises use integers
+                        if (exercise == 'bur') {
+                          final grade = double.tryParse(value) ?? 0.0;
+                          widget.eventController.setParticipantExerciseGrade(
+                            participantNumber,
+                            exercise,
+                            grade,
+                          );
+                        } else {
+                          final grade = int.tryParse(value) ?? 0;
+                          widget.eventController.setParticipantExerciseGrade(
+                            participantNumber,
+                            exercise,
+                            grade,
+                          );
+                        }
                       },
                     ),
                   ),
@@ -615,24 +649,28 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                               children: [
                                 _buildMasterHeaderCell(
                                   widget.isTablet ? 'ציון סופי' : 'סופי',
-                                  finalGradeWidth + systemGradeWidth,
+                                  finalGradeWidth + (widget.showSystemGrades ? systemGradeWidth : 0),
                                 ),
-                                _buildMasterHeaderCell(
-                                  'משולש',
-                                  exerciseWidth + instructorExerciseWidth,
-                                ),
-                                _buildMasterHeaderCell(
-                                  'אלונקה',
-                                  exerciseWidth + instructorExerciseWidth,
-                                ),
-                                _buildMasterHeaderCell(
-                                  'בור',
-                                  instructorExerciseWidth,
-                                ),
-                                _buildMasterHeaderCell(
-                                  'שקים',
-                                  sakimWidth + instructorExerciseWidth,
-                                ),
+                                if (widget.showSystemGrades || widget.showInstructorGrades)
+                                  _buildMasterHeaderCell(
+                                    'משולש',
+                                    (widget.showSystemGrades ? exerciseWidth : 0) + (widget.showInstructorGrades ? instructorExerciseWidth : 0),
+                                  ),
+                                if (widget.showSystemGrades || widget.showInstructorGrades)
+                                  _buildMasterHeaderCell(
+                                    'אלונקה',
+                                    (widget.showSystemGrades ? exerciseWidth : 0) + (widget.showInstructorGrades ? instructorExerciseWidth : 0),
+                                  ),
+                                if (widget.showInstructorGrades)
+                                  _buildMasterHeaderCell(
+                                    'בור',
+                                    instructorExerciseWidth,
+                                  ),
+                                if (widget.showSystemGrades || widget.showInstructorGrades)
+                                  _buildMasterHeaderCell(
+                                    'שקים',
+                                    (widget.showSystemGrades ? sakimWidth : 0) + (widget.showInstructorGrades ? instructorExerciseWidth : 0),
+                                  ),
                               ],
                             ),
                           // Header row (individual column headers)
@@ -659,8 +697,11 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                                   _buildHeaderCell('אלונקה', SortColumn.alonka, exerciseWidth),
                                 if (widget.showInstructorGrades)
                                   _buildHeaderCell(widget.isTablet ? 'ציון מדריך אלונקה' : 'מדריך אלונקה', SortColumn.alonka, instructorExerciseWidth),
-                                if (widget.showInstructorGrades)
-                                  _buildHeaderCell(widget.isTablet ? 'ציון מדריך בור' : 'מדריך בור', SortColumn.bur, instructorExerciseWidth),
+                              ],
+                              // Bur column - always show when instructor grades are visible (Bur only has instructor grade, no system grade)
+                              if (widget.showInstructorGrades)
+                                _buildHeaderCell(widget.isTablet ? 'ציון מדריך בור' : 'מדריך בור', SortColumn.bur, instructorExerciseWidth),
+                              if (widget.showSystemGrades || widget.showInstructorGrades) ...[
                                 if (widget.showSystemGrades)
                                   _buildHeaderCell('שקים', SortColumn.sakim, sakimWidth),
                                 if (widget.showInstructorGrades)
@@ -691,6 +732,26 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                 _sakimGradeControllers[participant.number] = TextEditingController(
                   text: participant.instructorSakimGrade.toString(),
                 );
+              }
+              // Always update Bur grade controller from burGrades collection (single source of truth)
+              // Bur grades support doubles, so we keep the decimal value
+              int burIndex = widget.eventController.currentEvent.value.burGrades
+                  .indexWhere((bur) => bur.id == participant.number);
+              double burGradeValue = 0.0;
+              if (burIndex != -1) {
+                burGradeValue = widget.eventController.currentEvent.value.burGrades[burIndex].burGrade;
+              }
+              
+              if (!_burGradeControllers.containsKey(participant.number)) {
+                _burGradeControllers[participant.number] = TextEditingController(
+                  text: burGradeValue.toString(),
+                );
+              } else {
+                // Update existing controller if value has changed
+                final burController = _burGradeControllers[participant.number]!;
+                if (burController.text != burGradeValue.toString()) {
+                  burController.text = burGradeValue.toString();
+                }
               }
               final gradeController = _gradeControllers[participant.number]!;
               final meshulashGradeController = _meshulashGradeControllers[participant.number]!;
@@ -907,17 +968,20 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                         backgroundColor: rowColor,
                         isFinalized: isFinalized,
                       ),
-                    // Bur instructor grade cell (only instructor grade, no system grade)
-                    if (widget.showInstructorGrades)
-                      _buildEditableExerciseGradeCell(
-                        participantNumber: participant.number,
-                        controller: burGradeController,
-                        focusNode: _burGradeFocusNodes[participant.number]!,
-                        exercise: 'bur',
-                        width: instructorExerciseWidth,
-                        backgroundColor: rowColor,
-                        isFinalized: isFinalized,
-                      ),
+                  ],
+                  // Bur instructor grade cell (only instructor grade, no system grade) - always show when instructor grades are visible
+                  if (widget.showInstructorGrades)
+                    _buildEditableExerciseGradeCell(
+                      participantNumber: participant.number,
+                      controller: burGradeController,
+                      focusNode: _burGradeFocusNodes[participant.number]!,
+                      exercise: 'bur',
+                      width: instructorExerciseWidth,
+                      backgroundColor: rowColor,
+                      isFinalized: isFinalized,
+                    ),
+                  // Sakim cells (only show if at least one type is visible)
+                  if (widget.showSystemGrades || widget.showInstructorGrades) ...[
                     // Sakim system grade cell
                     if (widget.showSystemGrades)
                       _buildCell(

@@ -104,14 +104,6 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
     Get.back();
   }
 
-  void _dropParticipant() {
-    if (eventController.currentEvent.value.finalized) return;
-    eventController.loading.value = true;
-    eventController.dropParticipant(widget.participantNumber);
-    eventController.loading.value = false;
-    Get.back();
-  }
-
   Widget _buildCommentsSection() {
     List<String> allComments = [...predefinedComments, ...customComments];
     bool tablet = isTablet(context);
@@ -234,19 +226,6 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                   'בטל',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: eventController.userFontSize.value,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: eventController.currentEvent.value.finalized
-                    ? null
-                    : _dropParticipant,
-                child: Text(
-                  'פרש',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.error,
                     fontSize: eventController.userFontSize.value,
                   ),
                 ),

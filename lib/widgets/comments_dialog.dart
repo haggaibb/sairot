@@ -161,8 +161,44 @@ class _CommentsDialogState extends State<CommentsDialog> {
             ),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context, [ParticipantStatus.Droped.name] );
+            onPressed: () async {
+              // Show warning dialog before dropping participant
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text(
+                      'אזהרה',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
+                    content: const Text(
+                      'פעולה זו היא סופית ולא ניתנת לביטול.\n\n'
+                      'אם המשתתף רק הלך למרפאה, אל תסיר אותו - פשוט התעלם ממספרו בתרגיל.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text(
+                          'ביטול',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          'אישור',
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+              
+              if (confirm == true) {
+                Navigator.pop(context, [ParticipantStatus.Droped.name]);
+              }
             },
             child: Text(
               'פרש',
