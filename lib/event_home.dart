@@ -26,6 +26,7 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
   final themeController = Get.put(ThemeController());
   bool _floatingPttEnabled = false;
   bool _volumeButtonPttEnabled = false;
+  bool _gradesButtonLoading = false;
 
   Widget _buildShiningButton(BuildContext context, dynamic icon, String title, VoidCallback onTap) {
     bool tablet = isTablet(context);
@@ -408,7 +409,28 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
           ),
           appBar: AppBar(
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: Center(child: Text('ימי סיירות')),
+            title: Center(
+              child: Obx(() {
+                if (eventController.backgroundLoading.value) {
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.0,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text('ימי סיירות'),
+                    ],
+                  );
+                }
+                return Text('ימי סיירות');
+              }),
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.info_outline),
@@ -505,9 +527,34 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                               style: ElevatedButton.styleFrom(
                                 minimumSize: tablet ? Size(200, 70) : null,
                               ),
-                              onPressed: () => Get.toNamed('/grades_page'),
+                              onPressed: _gradesButtonLoading ? null : () {
+                                // First, show the progress indicator immediately
+                                setState(() {
+                                  _gradesButtonLoading = true;
+                                });
+                                // Wait for UI to update, then navigate
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  // Navigate to grades page after UI has updated
+                                  Get.toNamed('/grades_page')?.then((_) {
+                                    // Hide progress indicator when user returns from grades page
+                                    if (mounted) {
+                                      setState(() {
+                                        _gradesButtonLoading = false;
+                                      });
+                                    }
+                                  });
+                                  // Hide progress indicator after page loads (give time for table to render)
+                                  Future.delayed(Duration(milliseconds: 800), () {
+                                    if (mounted) {
+                                      setState(() {
+                                        _gradesButtonLoading = false;
+                                      });
+                                    }
+                                  });
+                                });
+                              },
                               child: Text(
-                                'ציונים',
+                                _gradesButtonLoading ? 'טוען...' : 'ציונים',
                                 style: TextStyle(fontSize: buttonFontSize, fontWeight: FontWeight.bold),
                               )),
                           ElevatedButton(

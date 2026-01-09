@@ -289,32 +289,32 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                         // Use inOrderOfArrival in the key to force rebuild when it changes
                         final orderKey = inOrderOfArrival;
                         return eventController.loading.value
-                            ? LinearProgressIndicator()
-                            : Column(
+                          ? LinearProgressIndicator()
+                          : Column(
                                 key: ValueKey('meshulash_rounds_$orderKey'),
-                                children: [
-                                  SizedBox(
-                                    height: 15,
-                                  ),
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: List.generate(
+                              children: [
+                                SizedBox(
+                                  height: 15,
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: List.generate(
                                         eventController.currentEvent.value.meshulashRounds.length,
-                                        (index) {
-                                      return Padding(
-                                        padding: const EdgeInsets.all(5.0),
-                                        child:
-                                            Obx(() => eventController.loading.value
-                                                ? CircularProgressIndicator()
-                                                : MeshulashRoundPanel(
+                                      (index) {
+                                    return Padding(
+                                      padding: const EdgeInsets.all(5.0),
+                                      child:
+                                          Obx(() => eventController.loading.value
+                                              ? CircularProgressIndicator()
+                                              : MeshulashRoundPanel(
                                                     key: ValueKey('meshulash_round_${eventController.currentEvent.value.meshulashRounds[index].round}_$inOrderOfArrival'),
                                                     round: eventController.currentEvent.value
-                                                        .meshulashRounds[index],
+                                                      .meshulashRounds[index],
                                                     inOrderOfArrival: inOrderOfArrival,
-                                                  )),
-                                      );
-                                    }),
-                                  ),
+                                                )),
+                                    );
+                                  }),
+                                ),
                                 Divider(
                                   thickness: dividerThickness,
                                 ),

@@ -13,3 +13,19 @@ enum AlonkaCreditTypes {
   Participated
 }
 
+enum SortColumn {
+  number,
+  finalGrade,
+  systemGrade,
+  meshulash,
+  alonka,
+  bur,
+  sakim,
+}
+
+enum SortDirection {
+  ascending,
+  descending,
+  none,
+}
+

@@ -6,22 +6,6 @@ import '../models/types.dart';
 import 'exercise_ranking_dialog.dart';
 import 'system_grade_breakdown_dialog.dart';
 
-enum SortColumn {
-  number,
-  finalGrade,
-  systemGrade,
-  meshulash,
-  alonka,
-  bur,
-  sakim,
-}
-
-enum SortDirection {
-  ascending,
-  descending,
-  none,
-}
-
 class CustomGradesTable extends StatefulWidget {
   final EventController eventController;
   final bool isTablet;
@@ -41,8 +25,6 @@ class CustomGradesTable extends StatefulWidget {
 }
 
 class _CustomGradesTableState extends State<CustomGradesTable> {
-  SortColumn? _sortColumn = SortColumn.systemGrade;
-  SortDirection _sortDirection = SortDirection.descending;
   final Map<int, TextEditingController> _gradeControllers = {};
   final Map<int, FocusNode> _gradeFocusNodes = {};
   final Map<int, TextEditingController> _meshulashGradeControllers = {};
@@ -209,68 +191,30 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
   }
 
   List<Participant> _getSortedParticipants() {
-    // Filter out rejected (dropped) participants - only show Active participants
-    final participants = List<Participant>.from(
-      widget.eventController.currentEvent.value.participants
-          .where((p) => p.status == ParticipantStatus.Active),
-    );
-
-    if (_sortColumn == null || _sortDirection == SortDirection.none) {
-      return participants;
-    }
-
-    participants.sort((a, b) {
-      int comparison = 0;
-      switch (_sortColumn!) {
-        case SortColumn.number:
-          comparison = a.number.compareTo(b.number);
-          break;
-        case SortColumn.finalGrade:
-          comparison = a.instructorGrade.compareTo(b.instructorGrade);
-          break;
-        case SortColumn.systemGrade:
-          comparison = a.systemGrade.compareTo(b.systemGrade);
-          break;
-        case SortColumn.meshulash:
-          comparison = a.meshulashGrade.compareTo(b.meshulashGrade);
-          break;
-        case SortColumn.alonka:
-          comparison = a.alonkaGrade.compareTo(b.alonkaGrade);
-          break;
-        case SortColumn.bur:
-          comparison = a.burGrade.compareTo(b.burGrade);
-          break;
-        case SortColumn.sakim:
-          comparison = a.sakimGrade.compareTo(b.sakimGrade);
-          break;
-      }
-
-      return _sortDirection == SortDirection.ascending ? comparison : -comparison;
-    });
-
-    return participants;
+    // Use EventController's shared sort state
+    return widget.eventController.getSortedActiveParticipants();
   }
 
   void _handleSort(SortColumn column) {
     setState(() {
-      if (_sortColumn == column) {
+      if (widget.eventController.sortColumn.value == column) {
         // Cycle through: ascending -> descending -> none -> ascending
-        switch (_sortDirection) {
+        switch (widget.eventController.sortDirection.value) {
           case SortDirection.ascending:
-            _sortDirection = SortDirection.descending;
+            widget.eventController.sortDirection.value = SortDirection.descending;
             break;
           case SortDirection.descending:
-            _sortDirection = SortDirection.none;
-            _sortColumn = null;
+            widget.eventController.sortDirection.value = SortDirection.none;
+            widget.eventController.sortColumn.value = null;
             break;
           case SortDirection.none:
-            _sortDirection = SortDirection.ascending;
-            _sortColumn = column;
+            widget.eventController.sortDirection.value = SortDirection.ascending;
+            widget.eventController.sortColumn.value = column;
             break;
         }
       } else {
-        _sortColumn = column;
-        _sortDirection = SortDirection.ascending;
+        widget.eventController.sortColumn.value = column;
+        widget.eventController.sortDirection.value = SortDirection.ascending;
       }
     });
   }
@@ -294,11 +238,11 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
   }
 
   Widget _buildSortIcon(SortColumn column) {
-    if (_sortColumn != column || _sortDirection == SortDirection.none) {
+    if (widget.eventController.sortColumn.value != column || widget.eventController.sortDirection.value == SortDirection.none) {
       return const SizedBox(width: 16);
     }
     return Icon(
-      _sortDirection == SortDirection.ascending
+      widget.eventController.sortDirection.value == SortDirection.ascending
           ? Icons.arrow_upward
           : Icons.arrow_downward,
       size: 16,

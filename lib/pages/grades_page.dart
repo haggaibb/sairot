@@ -19,6 +19,8 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
   final eventController = Get.put(EventController());
   bool _showSystemGrades = true;
   bool _showInstructorGrades = true;
+  bool _isRebuildingSystem = false;
+  bool _isRebuildingInstructor = false;
 
 
   @override
@@ -26,6 +28,11 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
     super.initState();
     checkEventValidity();
     eventController.calculateGrades();
+    // Notify that page has finished loading
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // This will be picked up by the event_home page if it's listening
+      // For now, we'll rely on the delay in event_home
+    });
   }
 
   @override
@@ -70,27 +77,67 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
               actions: [
                 // Toggle system grades visibility
                 IconButton(
-                  icon: Icon(
-                    Icons.calculate,
-                    color: _showSystemGrades ? Colors.blue : Colors.grey,
-                  ),
+                  icon: _isRebuildingSystem
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.0,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                          ),
+                        )
+                      : Icon(
+                          Icons.calculate,
+                          color: _showSystemGrades ? Colors.blue : Colors.grey,
+                        ),
                   tooltip: _showSystemGrades ? 'הסתר ציוני מערכת' : 'הצג ציוני מערכת',
                   onPressed: () {
                     setState(() {
+                      _isRebuildingSystem = true;
                       _showSystemGrades = !_showSystemGrades;
+                    });
+                    // Hide progress indicator after table rebuilds
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      Future.delayed(Duration(milliseconds: 300), () {
+                        if (mounted) {
+                          setState(() {
+                            _isRebuildingSystem = false;
+                          });
+                        }
+                      });
                     });
                   },
                 ),
                 // Toggle instructor grades visibility
                 IconButton(
-                  icon: Icon(
-                    Icons.person,
-                    color: _showInstructorGrades ? Colors.blue : Colors.grey,
-                  ),
+                  icon: _isRebuildingInstructor
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.0,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                          ),
+                        )
+                      : Icon(
+                          Icons.person,
+                          color: _showInstructorGrades ? Colors.blue : Colors.grey,
+                        ),
                   tooltip: _showInstructorGrades ? 'הסתר ציוני מדריך' : 'הצג ציוני מדריך',
                   onPressed: () {
                     setState(() {
+                      _isRebuildingInstructor = true;
                       _showInstructorGrades = !_showInstructorGrades;
+                    });
+                    // Hide progress indicator after table rebuilds
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      Future.delayed(Duration(milliseconds: 300), () {
+                        if (mounted) {
+                          setState(() {
+                            _isRebuildingInstructor = false;
+                          });
+                        }
+                      });
                     });
                   },
                 ),

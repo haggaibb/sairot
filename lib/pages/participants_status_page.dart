@@ -53,10 +53,8 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> with Ev
         ),
         body: SingleChildScrollView(
           child: Center(
-            child: SizedBox(
-              height: MediaQuery.of(context).size.height,
-              child: Column(
-                children: [
+            child: Column(
+              children: [
                   const SizedBox(height: 10),
                   const Text('פעילים',
                       style:
@@ -186,7 +184,6 @@ class _ParticipantsStatusPageState extends State<ParticipantsStatusPage> with Ev
               ),
             ),
           ),
-        ),
       ),
     );
   }

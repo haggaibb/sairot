@@ -31,6 +31,7 @@ class EventController extends GetxController {
   var widgetLoading = false.obs;
   var unfinalizedLoading = false.obs;
   var pastEventsLoading = false.obs;
+  var backgroundLoading = false.obs; // Track background cache/network loading
   GradeSettings gradesData = GradeSettings();
   final themeController = Get.put(ThemeController());
   final platformService = PlatformService.create();
@@ -70,14 +71,62 @@ class EventController extends GetxController {
   /// Settings
   RxDouble userFontSize = 18.0.obs;
   RxDouble userChildAspectRatio = 3.0.obs;
+  /// Grades table sort state (shared with performance page)
+  Rx<SortColumn?> sortColumn = SortColumn.systemGrade.obs;
+  Rx<SortDirection> sortDirection = SortDirection.descending.obs;
+  /// Progress bar state
+  RxBool showProgressBar = false.obs;
+  
+  /// Get sorted list of active participants based on current sort settings
+  List<Participant> getSortedActiveParticipants() {
+    final participants = List<Participant>.from(
+      currentEvent.value.participants
+          .where((p) => p.status == ParticipantStatus.Active),
+    );
+
+    if (sortColumn.value == null || sortDirection.value == SortDirection.none) {
+      return participants;
+    }
+
+    participants.sort((a, b) {
+      int comparison = 0;
+      switch (sortColumn.value!) {
+        case SortColumn.number:
+          comparison = a.number.compareTo(b.number);
+          break;
+        case SortColumn.finalGrade:
+          comparison = a.instructorGrade.compareTo(b.instructorGrade);
+          break;
+        case SortColumn.systemGrade:
+          comparison = a.systemGrade.compareTo(b.systemGrade);
+          break;
+        case SortColumn.meshulash:
+          comparison = a.meshulashGrade.compareTo(b.meshulashGrade);
+          break;
+        case SortColumn.alonka:
+          comparison = a.alonkaGrade.compareTo(b.alonkaGrade);
+          break;
+        case SortColumn.bur:
+          comparison = a.burGrade.compareTo(b.burGrade);
+          break;
+        case SortColumn.sakim:
+          comparison = a.sakimGrade.compareTo(b.sakimGrade);
+          break;
+      }
+
+      return sortDirection.value == SortDirection.ascending ? comparison : -comparison;
+    });
+
+    return participants;
+  }
 
 
 
   @override
   onInit() async {
     loading.value = true;
-    // On web, Hive uses IndexedDB and doesn't need a file path
-    // On mobile, we need to get the documents directory
+    
+    // Step 1: Initialize storage (fast, local operations)
     if (kIsWeb) {
       // Web: Hive uses IndexedDB automatically, no path needed
       if (!Hive.isAdapterRegistered(102)) Hive.registerAdapter(SystemAdapter());
@@ -113,55 +162,75 @@ class EventController extends GetxController {
       await Hive.initFlutter(dir.path);
     }
     
-    // Initialize local storage and sync services
+    // Step 2: Initialize services (fast, local operations)
     await LocalStorageService.instance.initialize();
     await SyncQueueService.instance.initialize();
     
-    // Load from local storage first (fast, works offline)
+    // Step 3: Load critical cached data first (fast, works offline)
     await initSystemHiveBox();
-    await gradesUpdate();
-    
-    // Check connectivity (await to ensure it completes before proceeding)
-    // This is important for first-time login which requires internet
-    try {
-      await connectionEnabled();
-      print('🔍 Connectivity check completed. isConnected: ${isConnected.value}');
-    } catch (e) {
-      print('⚠️ Connectivity check error (non-critical): $e');
-    }
-    
-    await getSystemSettings(); // Loads from cache first, syncs if online
-    await getCurrentEventName(); // Loads from cache first, syncs if online
-    await getUpdatedInstructorsList(); // Loads from cache first, syncs if online
     await checkForLocalLogin(); // Works offline with cached instructors
     
+    // Step 4: Show UI immediately if logged in (don't wait for network)
     if (loggedIn.value) {
-      // Load events from local storage first (fast, works offline)
-      await getUnfinalizedEvents(); // Loads from local first, syncs if online
-      await fetchInstructorEvents(); // Loads from local first, syncs if online
-      
-      // Restore selected event and day from cache, then load the event
+      // Load events from cache immediately
+      await getUnfinalizedEvents(); // Loads from local first
+      await fetchInstructorEvents(); // Loads from local first
       await restoreSelectedEventAndDay();
     }
     
+    // Step 5: Set loading to false to show UI
     super.onInit();
     loading.value = false;
     
-    // Background sync: Process sync queue if online (non-blocking)
-    // This runs after UI is loaded, so it doesn't block the splash screen
-    if (isConnected.value) {
-      // Use a microtask to run after the current frame
-      Future.microtask(() async {
-        try {
-          // Ensure ConnectivityController is initialized and sync its connection status
+    // Step 6: Do network operations in background (non-blocking)
+    backgroundLoading.value = true; // Show background loading indicator
+    _initializeInBackground();
+  }
+
+  /// Initialize non-critical network operations in the background
+  /// This runs after UI is shown, so it doesn't block the splash screen
+  Future<void> _initializeInBackground() async {
+    try {
+      // Non-blocking connectivity check with timeout
+      try {
+        await connectionEnabled().timeout(
+          Duration(seconds: 3),
+          onTimeout: () {
+            print('⚠️ Connectivity check timed out, assuming offline');
+            isConnected.value = false;
+          },
+        );
+        print('🔍 Connectivity check completed. isConnected: ${isConnected.value}');
+      } catch (e) {
+        print('⚠️ Connectivity check error (non-critical): $e');
+        isConnected.value = false;
+      }
+      
+      // Load network-dependent data in background
+      await gradesUpdate();
+      await getSystemSettings(); // Syncs if online
+      await getCurrentEventName(); // Syncs if online
+      await getUpdatedInstructorsList(); // Syncs if online
+      
+      if (loggedIn.value) {
+        // Refresh events from network in background if online
+        if (isConnected.value) {
+          await getUnfinalizedEvents(); // Syncs if online
+          await fetchInstructorEvents(); // Syncs if online
+        }
+        
+        // Process sync queue in background
+        if (isConnected.value) {
           final connectivityController = Get.put(ConnectivityController());
-          // Sync the connection status from EventController to ConnectivityController
           connectivityController.isConnected.value = isConnected.value;
           await connectivityController.processSyncQueue();
-        } catch (e) {
-          print('⚠️ Background sync error (non-critical): $e');
         }
-      });
+      }
+    } catch (e) {
+      print('⚠️ Background initialization error (non-critical): $e');
+    } finally {
+      // Hide background loading indicator when done
+      backgroundLoading.value = false;
     }
   }
 
@@ -1540,12 +1609,15 @@ class EventController extends GetxController {
   Future<void> connectionEnabled() async {
     try {
       print("🔍 Starting connectivity check...");
-      var connectivityResult = await Connectivity().checkConnectivity();
+      
+      // Quick connectivity check first (no HTTP)
+      var connectivityResult = await Connectivity().checkConnectivity()
+          .timeout(Duration(seconds: 2));
       print("🔍 Connectivity result: $connectivityResult");
       
       // ✅ Check if there is no Wi-Fi or mobile data
       if (connectivityResult == ConnectivityResult.none) {
-        print("⚠️ No network available (connectivityResult == none).");
+        print("⚠️ No network available.");
         isConnected.value = false;
         return;
       }
@@ -1560,56 +1632,39 @@ class EventController extends GetxController {
       }
 
       // ✅ Check actual internet access using an HTTP request (mobile/desktop only)
-      // Try multiple times for emulator/slow connections
-      bool httpCheckPassed = false;
-      for (int attempt = 1; attempt <= 2; attempt++) {
-        try {
-          print("🔍 Attempting HTTP request to google.com (attempt $attempt/2)...");
-          final response = await http.get(Uri.parse("https://www.google.com")).timeout(
-            Duration(seconds: 10), // Increased timeout for emulator/slow connections
-            onTimeout: () {
-              print("⚠️ Internet request timed out after 10 seconds (attempt $attempt).");
-              return http.Response('', 500); // Simulate no response
-            },
-          );
+      // Single attempt with shorter timeout for faster response
+      try {
+        print("🔍 Attempting HTTP request to google.com...");
+        final response = await http.get(Uri.parse("https://www.google.com")).timeout(
+          Duration(seconds: 2), // Reduced timeout for faster response
+          onTimeout: () {
+            print("⚠️ Internet request timed out after 2 seconds.");
+            return http.Response('', 500); // Simulate no response
+          },
+        );
 
-          print("🔍 HTTP response status code: ${response.statusCode}");
-          if (response.statusCode == 200) {
-            print("✅ Internet connection OK.");
-            isConnected.value = true;
-            httpCheckPassed = true;
-            break;
-          } else {
-            print("⚠️ HTTP check returned status code: ${response.statusCode}");
-          }
-        } catch (e) {
-          print("⚠️ HTTP check attempt $attempt failed: $e");
-          if (attempt < 2) {
-            print("🔄 Retrying in 1 second...");
-            await Future.delayed(Duration(seconds: 1));
-          }
+        print("🔍 HTTP response status code: ${response.statusCode}");
+        if (response.statusCode == 200) {
+          print("✅ Internet connection confirmed.");
+          isConnected.value = true;
+          return;
+        } else {
+          print("⚠️ HTTP check returned status code: ${response.statusCode}");
         }
+      } catch (e) {
+        print("⚠️ HTTP check failed: $e");
       }
       
       // If HTTP check failed but we have network connectivity, still allow Firestore operations
       // (Firestore might work even if HTTP check fails)
-      if (!httpCheckPassed) {
-        print("⚠️ HTTP check failed, but network connectivity exists.");
-        print("⚠️ Will attempt Firestore operations anyway (they might still work).");
-        // Set to true to allow Firestore operations - if they fail, they'll fail gracefully
-        isConnected.value = true;
-      }
-    } catch (e, stackTrace) {
+      print("⚠️ HTTP check failed, but network connectivity exists.");
+      print("⚠️ Will attempt Firestore operations anyway (they might still work).");
+      isConnected.value = true; // Allow Firestore operations
+      
+    } catch (e) {
       print("❌ Connectivity check error: $e");
-      print("❌ Stack trace: $stackTrace");
-      // If we have any network connectivity, still try Firestore
-      var connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult != ConnectivityResult.none) {
-        print("⚠️ Setting isConnected to true despite HTTP check failure (network exists).");
-        isConnected.value = true;
-      } else {
-        isConnected.value = false;
-      }
+      // Default to offline if check fails
+      isConnected.value = false;
     }
   }
 

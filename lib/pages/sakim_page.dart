@@ -294,32 +294,32 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                         // Use inOrderOfArrival in the key to force rebuild when it changes
                         final orderKey = inOrderOfArrival;
                         return eventController.loading.value
-                            ? LinearProgressIndicator()
-                            : Column(
+                          ? LinearProgressIndicator()
+                          : Column(
                                 key: ValueKey('sakim_rounds_$orderKey'),
-                                children: [
-                                  SizedBox(
-                                    height: 15,
-                                  ),
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: List.generate(
+                              children: [
+                                SizedBox(
+                                  height: 15,
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: List.generate(
                                         eventController.currentEvent.value.sakimRounds.length,
-                                        (index) {
-                                      return Padding(
-                                        padding: const EdgeInsets.all(5.0),
-                                        child:
-                                            Obx(() => eventController.loading.value
-                                                ? CircularProgressIndicator()
-                                                : SakimRoundPanel(
+                                      (index) {
+                                    return Padding(
+                                      padding: const EdgeInsets.all(5.0),
+                                      child:
+                                          Obx(() => eventController.loading.value
+                                              ? CircularProgressIndicator()
+                                              : SakimRoundPanel(
                                                     key: ValueKey('sakim_round_${eventController.currentEvent.value.sakimRounds[index].round}_$inOrderOfArrival'),
                                                     round: eventController.currentEvent.value
-                                                        .sakimRounds[index],
+                                                      .sakimRounds[index],
                                                     inOrderOfArrival: inOrderOfArrival,
-                                                  )),
-                                      );
-                                    }),
-                                  ),
+                                                )),
+                                    );
+                                  }),
+                                ),
                                 Divider(
                                   thickness: dividerThickness,
                                 ),
