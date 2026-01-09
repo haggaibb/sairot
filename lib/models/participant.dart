@@ -14,11 +14,11 @@ class Participant {
   double burGrade = 0;
   ParticipantStatus status = ParticipantStatus.Active;
   String fullName = '';
-  int instructorGrade = 0;
-  int instructorMeshulashGrade = 0; // Instructor's grade for Meshulash exercise
-  int instructorAlonkaGrade = 0; // Instructor's grade for Alonka exercise
-  int instructorSakimGrade = 0; // Instructor's grade for Sakim exercise
-  int instructorBurGrade = 0; // Instructor's grade for Bur exercise
+  double instructorGrade = 0.0;
+  double instructorMeshulashGrade = 0.0; // Instructor's grade for Meshulash exercise
+  double instructorAlonkaGrade = 0.0; // Instructor's grade for Alonka exercise
+  double instructorSakimGrade = 0.0; // Instructor's grade for Sakim exercise
+  int instructorBurGrade = 0; // Instructor's grade for Bur exercise (deprecated - use burGrades collection)
   double systemGrade = 0;
   String name = '';
   int groupNumber = 0;
@@ -34,7 +34,7 @@ class Participant {
   List<String> interviewInstructorComments = [];
 
   /// Set final instructor grade
-  setFinalGrade(int grade) {
+  setFinalGrade(double grade) {
     instructorGrade = grade;
   }
 
@@ -83,10 +83,10 @@ class Participant {
           (e) => e.toString().split('.').last == json['status'],
           orElse: () => ParticipantStatus.Active)
       ..fullName = json['fullName'] ?? ''
-      ..instructorGrade = json['instructorGrade'] ?? 0
-      ..instructorMeshulashGrade = json['instructorMeshulashGrade'] ?? 0
-      ..instructorAlonkaGrade = json['instructorAlonkaGrade'] ?? 0
-      ..instructorSakimGrade = json['instructorSakimGrade'] ?? 0
+      ..instructorGrade = (json['instructorGrade'] ?? 0).toDouble()
+      ..instructorMeshulashGrade = (json['instructorMeshulashGrade'] ?? 0).toDouble()
+      ..instructorAlonkaGrade = (json['instructorAlonkaGrade'] ?? 0).toDouble()
+      ..instructorSakimGrade = (json['instructorSakimGrade'] ?? 0).toDouble()
       ..instructorBurGrade = json['instructorBurGrade'] ?? 0
       ..systemGrade = (json['systemGrade'] ?? 0).toDouble()
       ..groupNumber = json['groupNumber'] ?? 0

@@ -215,6 +215,9 @@ class _BurGradePanelState extends State<BurGradePanel> {
                             onChanged: (val) {
                               widget.bur.burGrade = double.parse(val);
                               eventController.currentEvent.value.burGrades[burIndex] = widget.bur;
+                              // Trigger refresh so grid updates
+                              eventController.currentEvent.refresh();
+                              eventController.update();
                               eventController.currentEvent.value.saveToFirestore();
                               eventController.update();
                             },

@@ -1425,7 +1425,37 @@ class EventController extends GetxController {
     if (totalWeight != 1.0) {
       throw ArgumentError('Weights must sum up to 1.0');
     }
-    return (param1 * weight1) + (param2 * weight2) + (param3 * weight3) + (param4 * weight4);
+    
+    // Only include exercises with grades > 0
+    // Build lists of valid (grade > 0) exercises with their weights
+    double validTotalWeight = 0.0;
+    double weightedSum = 0.0;
+    
+    if (param1 > 0) {
+      validTotalWeight += weight1;
+      weightedSum += param1 * weight1;
+    }
+    if (param2 > 0) {
+      validTotalWeight += weight2;
+      weightedSum += param2 * weight2;
+    }
+    if (param3 > 0) {
+      validTotalWeight += weight3;
+      weightedSum += param3 * weight3;
+    }
+    if (param4 > 0) {
+      validTotalWeight += weight4;
+      weightedSum += param4 * weight4;
+    }
+    
+    // If no valid grades, return 0
+    if (validTotalWeight == 0) {
+      return 0.0;
+    }
+    
+    // Normalize the weighted sum by the total of valid weights
+    // This ensures the result is still a weighted average, but only of exercises with grades
+    return weightedSum / validTotalWeight;
   }
 
   void dropParticipant(int number) {
@@ -1482,6 +1512,7 @@ class EventController extends GetxController {
   }
   calculateGrades() {
     for (Participant p in currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active)) {
+      // Calculate system grades (from performance data)
       p.alonkaGrade = getAlonkaGrade(p.number);
       p.sakimGrade = getSakimGrade(p.number);
       p.burGrade = getBurGrade(p.number);
@@ -1499,15 +1530,71 @@ class EventController extends GetxController {
         weight3: gradesData.weighted['sakim'],
         weight4: gradesData.weighted['bur'],
       );
+      
+      // Note: Final instructor grade is always manual - we don't auto-calculate it
+      // The calculated value is only shown as a hint in the UI
+      // Trigger refresh so UI can update hints
+      currentEvent.refresh();
+      update();
+      
       if (!currentEvent.value.finalized) currentEvent.value.saveToFirestore();
     }
   }
 
-  setParticipantsGrade(int number, int grade) {
+  /// Calculate final instructor grade from weighted average of instructor exercise grades
+  /// Only includes exercises with grades > 0
+  /// Returns the calculated value without modifying instructorGrade (used as hint/placeholder)
+  double getCalculatedInstructorGrade(Participant p) {
+    // Get instructor grades for each exercise
+    double instructorMeshulash = p.instructorMeshulashGrade.toDouble();
+    double instructorAlonka = p.instructorAlonkaGrade.toDouble();
+    double instructorSakim = p.instructorSakimGrade.toDouble();
+    
+    // Get bur instructor grade from burGrades collection
+    double instructorBur = 0.0;
+    int burIndex = currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == p.number);
+    if (burIndex != -1) {
+      instructorBur = currentEvent.value.burGrades[burIndex].burGrade;
+    }
+    
+    // Calculate weighted average of instructor exercise grades
+    // Only include exercises with grades > 0
+    double calculatedGrade = calculateWeightedGrade(
+      param1: instructorMeshulash,
+      param2: instructorAlonka,
+      param3: instructorSakim,
+      param4: instructorBur,
+      weight1: gradesData.weighted['meshulash'],
+      weight2: gradesData.weighted['alonka'],
+      weight3: gradesData.weighted['sakim'],
+      weight4: gradesData.weighted['bur'],
+    );
+    
+    // Return calculated value (keep 2 decimal places)
+    return double.parse(calculatedGrade.toStringAsFixed(2));
+  }
+  
+  /// Calculate instructor grade (for hint display only)
+  /// This is called when exercise grades change to update the hint
+  /// Does NOT modify instructorGrade - it's only used for displaying the hint
+  void calculateInstructorGrade(Participant p) {
+    // Just trigger refresh so UI can update the hint
+    // The actual instructorGrade value is never auto-updated - it's always manual
+    currentEvent.refresh();
+    update();
+  }
+
+  setParticipantsGrade(int number, dynamic grade) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
-    currentEvent.value.participants[participantIndex].instructorGrade = grade;
+    // Convert to double and round to 2 decimal places
+    double gradeValue = grade is double ? grade : (grade as num).toDouble();
+    currentEvent.value.participants[participantIndex].instructorGrade = 
+        double.parse(gradeValue.toStringAsFixed(2));
     currentEvent.value.saveToFirestore();
+    // Trigger refresh to update UI
+    currentEvent.refresh();
+    update();
   }
 
   setParticipantExerciseGrade(int number, String exercise, dynamic grade) {
@@ -1515,19 +1602,39 @@ class EventController extends GetxController {
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex == -1) return;
     
+    bool shouldRecalculateSystemGrade = false;
+    
     switch (exercise) {
       case 'meshulash':
-        currentEvent.value.participants[participantIndex].instructorMeshulashGrade = grade as int;
+        // Convert to double and round to 2 decimal places
+        double meshulashGradeValue = grade is double ? grade : (grade as num).toDouble();
+        currentEvent.value.participants[participantIndex].instructorMeshulashGrade = 
+            double.parse(meshulashGradeValue.toStringAsFixed(2));
+        // Instructor grade for meshulash doesn't affect system grade (system uses system-calculated grade)
+        // But it affects final instructor grade, so recalculate
+        calculateInstructorGrade(currentEvent.value.participants[participantIndex]);
         break;
       case 'alonka':
-        currentEvent.value.participants[participantIndex].instructorAlonkaGrade = grade as int;
+        // Convert to double and round to 2 decimal places
+        double alonkaGradeValue = grade is double ? grade : (grade as num).toDouble();
+        currentEvent.value.participants[participantIndex].instructorAlonkaGrade = 
+            double.parse(alonkaGradeValue.toStringAsFixed(2));
+        // Instructor grade for alonka doesn't affect system grade (system uses system-calculated grade)
+        // But it affects final instructor grade, so recalculate
+        calculateInstructorGrade(currentEvent.value.participants[participantIndex]);
         break;
       case 'sakim':
-        currentEvent.value.participants[participantIndex].instructorSakimGrade = grade as int;
+        // Convert to double and round to 2 decimal places
+        double sakimGradeValue = grade is double ? grade : (grade as num).toDouble();
+        currentEvent.value.participants[participantIndex].instructorSakimGrade = 
+            double.parse(sakimGradeValue.toStringAsFixed(2));
+        // Instructor grade for sakim doesn't affect system grade (system uses system-calculated grade)
+        // But it affects final instructor grade, so recalculate
+        calculateInstructorGrade(currentEvent.value.participants[participantIndex]);
         break;
       case 'bur':
         // Bur grades are stored only in burGrades collection (single source of truth)
-        // Bur has no system grade, only instructor grade
+        // Bur has no system grade, only instructor grade, so it affects system grade calculation
         // Grade can be int or double for Bur
         double burGradeValue;
         if (grade is double) {
@@ -1544,8 +1651,21 @@ class EventController extends GetxController {
           Bur newBur = Bur(id: number)..burGrade = burGradeValue;
           currentEvent.value.burGrades.add(newBur);
         }
+        // Trigger refresh so UI updates (especially bur page grid)
+        currentEvent.refresh();
+        update();
+        // Bur grade affects both system grade and final instructor grade, so recalculate both
+        shouldRecalculateSystemGrade = true;
+        calculateInstructorGrade(currentEvent.value.participants[participantIndex]);
         break;
     }
+    
+    // Only recalculate system grade for bur (since it uses instructor grade)
+    // For meshulash/alonka/sakim, system grade uses system-calculated grades, not instructor grades
+    if (shouldRecalculateSystemGrade) {
+      calculateGrades();
+    }
+    
     currentEvent.value.saveToFirestore();
   }
 

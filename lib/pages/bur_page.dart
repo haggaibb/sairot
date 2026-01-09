@@ -168,7 +168,9 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                       SizedBox(
                                         height: 20,
                                       ),
-                                      GridView.count(
+                                      Obx(() {
+                                        // Access burGrades inside Obx to make it reactive
+                                        return GridView.count(
                                           shrinkWrap: true,
                                           physics: NeverScrollableScrollPhysics(),
                                           childAspectRatio: eventController.userChildAspectRatio.value,
@@ -231,7 +233,9 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
 
                                                   )),
                                             );
-                                          })),
+                                          }),
+                                        );
+                                      }),
                                       if (!isLandscape)
                                         Divider(
                                           thickness: dividerThickness,
@@ -478,7 +482,9 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                           height: (eventController.currentEvent.value.activeParticipants.length / 3 + 2) < 2 
                                               ? 120 
                                               : ((eventController.currentEvent.value.activeParticipants.length / 3 + 2) * 55 * 0.8), // 20% smaller
-                                          child: GridView.count(
+                                          child: Obx(() {
+                                            // Access burGrades inside Obx to make it reactive
+                                            return GridView.count(
                                               childAspectRatio: eventController.userChildAspectRatio.value,
                                               crossAxisCount: isLandscape && tablet ? 4 : eventController.numberOfCols,
                                               children: List.generate(
@@ -487,59 +493,61 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                       .value
                                                       .activeParticipants
                                                       .length, (index) {
-                                            int burIndex = eventController
-                                                .currentEvent.value.burGrades
-                                                .indexWhere((Bur bur) =>
-                                                    bur.id ==
-                                                    eventController
-                                                        .currentEvent
-                                                        .value
-                                                        .activeParticipants[index]
-                                                        .number);
-                                            // Check if participant has a bur grade entry
-                                            bool hasBurGrade = burIndex != -1 && 
-                                                burIndex < eventController.currentEvent.value.burGrades.length;
-                                            double burGrade = hasBurGrade 
-                                                ? eventController.currentEvent.value.burGrades[burIndex].burGrade 
-                                                : 0.0;
-                                            return Padding(
-                                              padding: const EdgeInsets.all(5.0),
-                                              child: ElevatedButton(
-                                                  style: ElevatedButton.styleFrom(
-                                                      foregroundColor: Colors.black,
-                                                      backgroundColor:
-                                                          burGrade != 0
-                                                              ? Colors.green
-                                                              : Theme.of(context).colorScheme.primary,),
-                                                  onPressed: () async {
-                                                    if (eventController
-                                                        .currentEvent
-                                                        .value
-                                                        .finalized) return;
-                                                    if (!hasBurGrade) return; // Don't navigate if no bur grade entry
-                                                    Navigator.push(
-                                                      context,
-                                                      MaterialPageRoute(
-                                                          builder: (context) =>
-                                                              BurGradePanel(
-                                                                  bur: eventController
-                                                                          .currentEvent
-                                                                          .value
-                                                                          .burGrades[
-                                                                      burIndex])),
-                                                    );
-                                                  },
-                                                  child: Text(eventController
-                                                      .currentEvent
-                                                      .value
-                                                      .activeParticipants[index]
-                                                      .number
-                                                      .toString(),
-                                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
+                                                int burIndex = eventController
+                                                    .currentEvent.value.burGrades
+                                                    .indexWhere((Bur bur) =>
+                                                        bur.id ==
+                                                        eventController
+                                                            .currentEvent
+                                                            .value
+                                                            .activeParticipants[index]
+                                                            .number);
+                                                // Check if participant has a bur grade entry
+                                                bool hasBurGrade = burIndex != -1 && 
+                                                    burIndex < eventController.currentEvent.value.burGrades.length;
+                                                double burGrade = hasBurGrade 
+                                                    ? eventController.currentEvent.value.burGrades[burIndex].burGrade 
+                                                    : 0.0;
+                                                return Padding(
+                                                  padding: const EdgeInsets.all(5.0),
+                                                  child: ElevatedButton(
+                                                      style: ElevatedButton.styleFrom(
+                                                          foregroundColor: Colors.black,
+                                                          backgroundColor:
+                                                              burGrade != 0
+                                                                  ? Colors.green
+                                                                  : Theme.of(context).colorScheme.primary,),
+                                                      onPressed: () async {
+                                                        if (eventController
+                                                            .currentEvent
+                                                            .value
+                                                            .finalized) return;
+                                                        if (!hasBurGrade) return; // Don't navigate if no bur grade entry
+                                                        Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(
+                                                              builder: (context) =>
+                                                                  BurGradePanel(
+                                                                      bur: eventController
+                                                                              .currentEvent
+                                                                              .value
+                                                                              .burGrades[
+                                                                          burIndex])),
+                                                        );
+                                                      },
+                                                      child: Text(eventController
+                                                          .currentEvent
+                                                          .value
+                                                          .activeParticipants[index]
+                                                          .number
+                                                          .toString(),
+                                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
 
-                                                  )),
+                                                      )),
+                                                );
+                                              }),
                                             );
-                                          })),
+                                          }),
                                         ),
                                         Divider(
                                           thickness: dividerThickness,
