@@ -13,6 +13,8 @@ import 'services/user_preferences_service.dart';
 import 'widgets/floating_ptt_button.dart';
 import 'widgets/wifi_settings_button.dart';
 import 'mixins/event_validation_mixin.dart';
+import 'models/participant.dart';
+import 'widgets/comments_dialog.dart';
 
 class EventHome extends StatefulWidget {
   const EventHome({super.key});
@@ -98,6 +100,106 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
           duration: const Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  /// Show dialog to add generic comments for a participant
+  Future<void> _showAddGenericCommentDialog(BuildContext context) async {
+    // Load participants for dropdown
+    final participants = eventController.currentEvent.value.participants
+        .where((p) => p.status == ParticipantStatus.Active)
+        .toList();
+    
+    participants.sort((a, b) => a.number.compareTo(b.number));
+
+    if (participants.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('אין משתתפים פעילים'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    Participant? selectedParticipant = participants.first;
+
+    // First, show participant selection dialog
+    final participantResult = await showDialog<Participant>(
+      context: context,
+      builder: (BuildContext context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: const Text('בחר משתתף'),
+                content: DropdownButtonFormField<Participant>(
+                  value: selectedParticipant,
+                  decoration: const InputDecoration(
+                    labelText: 'מספר משתתף',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: participants.map((participant) {
+                    return DropdownMenuItem<Participant>(
+                      value: participant,
+                      child: Text('${participant.number}'),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedParticipant = value;
+                    });
+                  },
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('ביטול'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (selectedParticipant != null) {
+                        Navigator.of(context).pop(selectedParticipant);
+                      }
+                    },
+                    child: const Text('המשך'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+
+    if (participantResult == null) return;
+
+    // Then show CommentsDialog for the selected participant
+    final commentsResult = await showDialog<List<String>>(
+      context: context,
+      builder: (BuildContext context) {
+        return CommentsDialog(
+          commentsList: eventController.gradesData.listOfCommentsInterview,
+          selectedComments: participantResult.genericInstructorComments,
+          title: participantResult.number.toString(),
+          exerciseType: ExerciseType.generic,
+          instructorCustomComments: eventController.getInstructorCustomCommentsForExercise('generic'),
+        );
+      },
+    );
+
+    if (commentsResult != null) {
+      eventController.addGenericComments(commentsResult, participantResult.number);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('הערות כלליות נשמרו בהצלחה'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -462,6 +564,11 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
               }),
             ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.comment),
+                tooltip: 'הוסף הערה לרשימה הכללית',
+                onPressed: () => _showAddGenericCommentDialog(context),
+              ),
               IconButton(
                 icon: const Icon(Icons.info_outline),
                 tooltip: 'מדריך למשתמש',

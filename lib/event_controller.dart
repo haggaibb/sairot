@@ -23,13 +23,14 @@ import 'utils/logger.dart';
 import 'services/platform_service.dart';
 import 'services/local_storage_service.dart';
 import 'services/sync_queue_service.dart';
+import 'services/instructor_profile_service.dart';
 import 'connectivity_controller.dart';
 
 
 class EventController extends GetxController {
   var loading = false.obs;
   var widgetLoading = false.obs;
-  var unfinalizedLoading = false.obs;
+  var unfinalizedLoading = true.obs; // Start as true to show loading message initially
   var pastEventsLoading = false.obs;
   var backgroundLoading = false.obs; // Track background cache/network loading
   GradeSettings gradesData = GradeSettings();
@@ -76,6 +77,8 @@ class EventController extends GetxController {
   Rx<SortDirection> sortDirection = SortDirection.descending.obs;
   /// Progress bar state
   RxBool showProgressBar = false.obs;
+  /// Instructor custom comments (exercise type -> list of comments)
+  RxMap<String, List<String>> instructorCustomComments = <String, List<String>>{}.obs;
   
   /// Get sorted list of active participants based on current sort settings
   List<Participant> getSortedActiveParticipants() {
@@ -215,6 +218,8 @@ class EventController extends GetxController {
       await getUpdatedInstructorsList(); // Syncs if online
       
       if (loggedIn.value) {
+        // Load instructor's custom comments
+        await loadInstructorCustomComments();
         // Load unfinalized events (from Firestore if online, local if offline)
         // This is done here after connectivity check to avoid showing stale data
         await getUnfinalizedEvents();
@@ -1211,6 +1216,24 @@ class EventController extends GetxController {
       print("❌ Participant not found with number: $participantNumber");
     }
   }
+
+  /// Generic Comments (from event home page)
+  void addGenericComments(List<String> comments, int participantNumber) {
+    // Find the index of the participant by their number.
+    int index = currentEvent.value.participants
+        .indexWhere((participant) => participant.number == participantNumber);
+    // ✅ Ensure participant exists.
+    if (index != -1) {
+      // ✅ Update the participant's generic comment list.
+      currentEvent.value.participants[index].genericInstructorComments = comments;
+      print("✅ Generic comments saved successfully: ${comments}");
+      currentEvent.value.saveToFirestore();
+      currentEvent.refresh();
+    } else {
+      print("❌ Participant not found with number: $participantNumber");
+    }
+  }
+
   Color getLeadershipStatus(){
     int count = 0;
     bool interviewsHaveStarted = false;
@@ -2163,6 +2186,11 @@ class EventController extends GetxController {
         });
       }
       
+      // Load instructor's custom comments after login
+      loadInstructorCustomComments().catchError((e) {
+        print('⚠️ Failed to load instructor custom comments (non-critical): $e');
+      });
+      
       loading.value = false;
       return true;
     } else {
@@ -2263,6 +2291,13 @@ class EventController extends GetxController {
         if (currentInstructor.id.isNotEmpty && isConnected.value) {
           registerDevice().catchError((e) {
             print('⚠️ Device registration failed (non-critical): $e');
+          });
+        }
+        
+        // Load instructor's custom comments after local login check
+        if (currentInstructor.id.isNotEmpty) {
+          loadInstructorCustomComments().catchError((e) {
+            print('⚠️ Failed to load instructor custom comments (non-critical): $e');
           });
         }
         
@@ -2410,7 +2445,7 @@ class EventController extends GetxController {
         print('⚠️ Error deleting playground from local storage: $e');
       }
     } catch (e) {
-      print('❌ Error in _deletePlaygroundEvent: $e');
+      print('❌ Error in deletePlaygroundEvent: $e');
     }
   }
 
@@ -2424,4 +2459,91 @@ class EventController extends GetxController {
     }
   }
 
+  /// 📝 Load instructor's custom comments from Firebase/local storage
+  Future<void> loadInstructorCustomComments() async {
+    try {
+      if (!loggedIn.value || currentInstructor.id.isEmpty) {
+        return;
+      }
+      
+      final comments = await InstructorProfileService.loadInstructorCustomComments(currentInstructor.id);
+      instructorCustomComments.value = comments;
+      instructorCustomComments.refresh();
+      print('✅ Loaded ${comments.length} custom comment categories for instructor');
+    } catch (e) {
+      print('❌ Error loading instructor custom comments: $e');
+    }
+  }
+
+  /// 💾 Save a custom comment to instructor's profile
+  Future<bool> saveInstructorCustomComment(String exerciseType, String comment) async {
+    try {
+      if (!loggedIn.value || currentInstructor.id.isEmpty) {
+        return false;
+      }
+      
+      final success = await InstructorProfileService.saveCustomComment(
+        currentInstructor.id,
+        exerciseType,
+        comment,
+      );
+      
+      if (success) {
+        // Reload comments to update UI
+        await loadInstructorCustomComments();
+      }
+      
+      return success;
+    } catch (e) {
+      print('❌ Error saving instructor custom comment: $e');
+      return false;
+    }
+  }
+
+  /// 🗑️ Remove a custom comment from instructor's profile
+  Future<bool> removeInstructorCustomComment(String exerciseType, String comment) async {
+    try {
+      if (!loggedIn.value || currentInstructor.id.isEmpty) {
+        return false;
+      }
+      
+      final success = await InstructorProfileService.removeCustomComment(
+        currentInstructor.id,
+        exerciseType,
+        comment,
+      );
+      
+      if (success) {
+        // Reload comments to update UI
+        await loadInstructorCustomComments();
+      }
+      
+      return success;
+    } catch (e) {
+      print('❌ Error removing instructor custom comment: $e');
+      return false;
+    }
+  }
+
+  /// 📋 Get instructor's custom comments for a specific exercise type
+  List<String> getInstructorCustomCommentsForExercise(String exerciseType) {
+    try {
+      final List<String> result = [];
+      
+      // Add exercise-specific comments
+      if (instructorCustomComments.containsKey(exerciseType)) {
+        result.addAll(instructorCustomComments[exerciseType]!);
+      }
+      
+      // Add generic comments
+      if (instructorCustomComments.containsKey('generic')) {
+        result.addAll(instructorCustomComments['generic']!);
+      }
+      
+      return result;
+    } catch (e) {
+      print('❌ Error getting instructor custom comments for exercise: $e');
+      return [];
+    }
+  }
 }

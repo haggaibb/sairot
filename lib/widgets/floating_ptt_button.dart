@@ -7,6 +7,7 @@ import '../models/participant.dart';
 import '../models/types.dart';
 import '../utils/text_cleaning_util.dart';
 import 'package:get/get.dart';
+import 'comments_dialog.dart';
 
 class FloatingPttButton extends StatefulWidget {
   final String instructorId;
@@ -221,13 +222,28 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
       print('🎤 Could not extract participant number from text: "$text"');
     }
     
-    // Always show selection dialog, but pre-select participant if number was found
-    if (mounted && !_isShowingDialog) {
-      _isShowingDialog = true;
-      try {
-        await _showParticipantSelectionDialog(commentText, preselectedParticipantNumber: extractedParticipantNumber);
-      } finally {
-        _isShowingDialog = false;
+    // Check if we're in event home (no exercise context)
+    final exerciseContext = ExerciseContextService().getCurrentExercise();
+    
+    if (exerciseContext == null) {
+      // No exercise context - show participant selection then generic comments dialog
+      if (mounted && !_isShowingDialog) {
+        _isShowingDialog = true;
+        try {
+          await _showGenericCommentDialog(commentText, preselectedParticipantNumber: extractedParticipantNumber);
+        } finally {
+          _isShowingDialog = false;
+        }
+      }
+    } else {
+      // Has exercise context - show normal participant selection dialog
+      if (mounted && !_isShowingDialog) {
+        _isShowingDialog = true;
+        try {
+          await _showParticipantSelectionDialog(commentText, preselectedParticipantNumber: extractedParticipantNumber);
+        } finally {
+          _isShowingDialog = false;
+        }
       }
     }
   }
@@ -400,6 +416,12 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
       // Get current exercise context
       final exerciseContext = ExerciseContextService().getCurrentExercise();
       
+      // If no exercise context, this should not be called (should use _showGenericCommentDialog instead)
+      if (exerciseContext == null) {
+        print('⚠️ _saveComment called with no exercise context - this should not happen');
+        return;
+      }
+      
       // Save to appropriate field based on exercise context
       switch (exerciseContext) {
         case 'meshulash':
@@ -459,7 +481,7 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
           break;
           
         default:
-          // Fallback to interview comments (general comments) if no context or unknown context
+          // Unknown exercise context - fallback to interview comments
           final existingComments = _eventController.currentEvent.value.participants
               .firstWhere((p) => p.number == participantNumber)
               .interviewInstructorComments;
@@ -622,6 +644,142 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
       }
       
       selectedParticipantNotifier.dispose();
+    }
+  }
+
+  /// Show dialog to add generic comments for a participant (when no exercise context)
+  Future<void> _showGenericCommentDialog(String commentText, {int? preselectedParticipantNumber}) async {
+    // Load participants for dropdown
+    final participants = _eventController.currentEvent.value.participants
+        .where((p) => p.status == ParticipantStatus.Active)
+        .toList();
+    
+    participants.sort((a, b) => a.number.compareTo(b.number));
+
+    if (participants.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('אין משתתפים פעילים'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Find preselected participant if number was provided
+    Participant? preselectedParticipant;
+    if (preselectedParticipantNumber != null) {
+      preselectedParticipant = participants.firstWhere(
+        (p) => p.number == preselectedParticipantNumber,
+        orElse: () => Participant(number: -1, name: ''),
+      );
+      
+      if (preselectedParticipant.number == -1) {
+        preselectedParticipant = participants.first;
+      }
+    } else {
+      preselectedParticipant = participants.first;
+    }
+
+    // First, show participant selection dialog
+    final participantResult = await showDialog<Participant>(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            Participant? selectedParticipant = preselectedParticipant;
+            
+            return AlertDialog(
+              title: const Text('בחר משתתף'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (commentText.isNotEmpty) ...[
+                    const Text('הערה:'),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        commentText,
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  DropdownButtonFormField<Participant>(
+                    value: selectedParticipant,
+                    decoration: const InputDecoration(
+                      labelText: 'מספר משתתף',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: participants.map((participant) {
+                      return DropdownMenuItem<Participant>(
+                        value: participant,
+                        child: Text('${participant.number}'),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedParticipant = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('ביטול'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (selectedParticipant != null) {
+                      Navigator.of(context).pop(selectedParticipant);
+                    }
+                  },
+                  child: const Text('המשך'),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+
+    if (participantResult == null) return;
+
+    // Then show CommentsDialog for the selected participant
+    final commentsResult = await showDialog<List<String>>(
+      context: context,
+      builder: (BuildContext context) {
+        return CommentsDialog(
+          commentsList: _eventController.gradesData.listOfCommentsInterview,
+          selectedComments: participantResult.genericInstructorComments,
+          title: participantResult.number.toString(),
+          exerciseType: ExerciseType.generic,
+          instructorCustomComments: _eventController.getInstructorCustomCommentsForExercise('generic'),
+        );
+      },
+    );
+
+    if (commentsResult != null) {
+      _eventController.addGenericComments(commentsResult, participantResult.number);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('הערות כלליות נשמרו למשתתף ${participantResult.number}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 

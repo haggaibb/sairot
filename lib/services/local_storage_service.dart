@@ -224,5 +224,62 @@ class LocalStorageService {
       print('❌ Error clearing events: $e');
     }
   }
+
+  Box<dynamic>? _instructorCustomCommentsBox;
+
+  /// Initialize instructor custom comments box
+  Future<void> _initInstructorCustomCommentsBox() async {
+    if (_instructorCustomCommentsBox == null) {
+      if (kIsWeb) {
+        _instructorCustomCommentsBox = await Hive.openBox('instructor_custom_comments');
+      } else {
+        var dir = await getApplicationDocumentsDirectory();
+        _instructorCustomCommentsBox = await Hive.openBox('instructor_custom_comments', path: dir.path);
+      }
+    }
+  }
+
+  /// Save instructor custom comments to local storage
+  Future<bool> saveInstructorCustomCommentsLocally(String instructorId, Map<String, List<String>> comments) async {
+    try {
+      await _initInstructorCustomCommentsBox();
+      
+      await _instructorCustomCommentsBox!.put(instructorId, jsonEncode(comments));
+      
+      print('✅ Instructor custom comments saved locally for: $instructorId');
+      return true;
+    } catch (e) {
+      print('❌ Error saving instructor custom comments locally: $e');
+      return false;
+    }
+  }
+
+  /// Load instructor custom comments from local storage
+  Future<Map<String, List<String>>> loadInstructorCustomCommentsLocally(String instructorId) async {
+    try {
+      await _initInstructorCustomCommentsBox();
+      
+      final commentsData = _instructorCustomCommentsBox!.get(instructorId);
+      
+      if (commentsData == null) {
+        return {};
+      }
+      
+      final commentsJson = jsonDecode(commentsData as String) as Map<String, dynamic>;
+      
+      // Convert to Map<String, List<String>>
+      final Map<String, List<String>> result = {};
+      commentsJson.forEach((key, value) {
+        if (value is List) {
+          result[key] = value.map((e) => e.toString()).toList();
+        }
+      });
+      
+      return result;
+    } catch (e) {
+      print('❌ Error loading instructor custom comments locally: $e');
+      return {};
+    }
+  }
 }
 

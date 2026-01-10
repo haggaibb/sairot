@@ -462,8 +462,40 @@ class _HomeState extends State<Home> {
                   bool tablet = isTablet(context);
                   double maxWidth = tablet ? 480.0 : 400.0;
                   
-                  return !eventController.unfinalizedLoading.value
-                      ? Expanded(
+                  // Show loading message
+                  if (eventController.unfinalizedLoading.value) {
+                    return Expanded(
+                      child: Center(
+                        child: Text(
+                          'מחפש ארועים פתוחים...',
+                          style: TextStyle(
+                            fontSize: tablet ? 20 : 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  // Show "no open events" message if list is empty
+                  if (eventController.unfinalizedEvents.isEmpty) {
+                    return Expanded(
+                      child: Center(
+                        child: Text(
+                          'אין ארועים פתוחים',
+                          style: TextStyle(
+                            fontSize: tablet ? 20 : 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  
+                  // Show the list of events
+                  return Expanded(
                     child: Center(
                       child: ConstrainedBox(
                         constraints: BoxConstraints(maxWidth: maxWidth),
@@ -477,10 +509,6 @@ class _HomeState extends State<Home> {
                         ),
                       ),
                     ),
-                  )
-                      : SizedBox(
-                    width: 200,
-                    child: LinearProgressIndicator(),
                   );
                 }),
                 /// Past Events

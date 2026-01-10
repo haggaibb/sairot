@@ -6,6 +6,18 @@ import '../models/types.dart';
 import 'exercise_ranking_dialog.dart';
 import 'system_grade_breakdown_dialog.dart';
 
+/// Helper method to get adjusted system grade based on group strength
+double getAdjustedSystemGrade(double baseGrade, GroupStrength groupStrength) {
+  switch (groupStrength) {
+    case GroupStrength.weak:
+      return (baseGrade - 1.0).clamp(0.0, 10.0); // Reduce 1 point, clamp between 0-10
+    case GroupStrength.strong:
+      return (baseGrade + 1.0).clamp(0.0, 10.0); // Add 1 point, clamp between 0-10
+    case GroupStrength.normal:
+      return baseGrade; // No adjustment
+  }
+}
+
 class CustomGradesTable extends StatefulWidget {
   final EventController eventController;
   final bool isTablet;
@@ -36,6 +48,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
   final Map<int, TextEditingController> _burGradeControllers = {};
   final Map<int, FocusNode> _burGradeFocusNodes = {};
   int? _selectedParticipantNumber; // Track selected row
+  int? _loadingParticipantNumber; // Track which participant is loading performance page
 
   @override
   void initState() {
@@ -303,6 +316,35 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
     return ''; // Don't show hint if there's a saved value (it will be shown in regular text)
   }
 
+  /// Get adjusted system grade for display (based on group strength)
+  double _getAdjustedSystemGrade(Participant participant) {
+    final groupStrength = widget.eventController.currentEvent.value.groupStrength;
+    
+    // Get base exercise grades
+    final baseMeshulash = participant.meshulashGrade;
+    final baseAlonka = participant.alonkaGrade;
+    final baseSakim = participant.sakimGrade;
+    final burGrade = participant.burGrade;
+    
+    // Apply group strength adjustment to meshulash, alonka, sakim
+    final adjustedMeshulash = getAdjustedSystemGrade(baseMeshulash, groupStrength);
+    final adjustedAlonka = getAdjustedSystemGrade(baseAlonka, groupStrength);
+    final adjustedSakim = getAdjustedSystemGrade(baseSakim, groupStrength);
+    
+    // Recalculate system grade with adjusted values
+    final gradesData = widget.eventController.gradesData;
+    return widget.eventController.calculateWeightedGrade(
+      param1: adjustedMeshulash,
+      param2: adjustedAlonka,
+      param3: adjustedSakim,
+      param4: burGrade,
+      weight1: gradesData.weighted['meshulash'],
+      weight2: gradesData.weighted['alonka'],
+      weight3: gradesData.weighted['sakim'],
+      weight4: gradesData.weighted['bur'],
+    );
+  }
+
   Color _getRowColor(Participant participant) {
     // If row is selected, highlight it
     if (_selectedParticipantNumber == participant.number) {
@@ -310,7 +352,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
     }
     
     final finalGrade = participant.instructorGrade;
-    final systemGrade = participant.systemGrade;
+    final systemGrade = _getAdjustedSystemGrade(participant);
 
     // Color green if final instructor grade meets threshold (>= 5)
     if (finalGrade >= 5) {
@@ -521,9 +563,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                             );
                           }
                         });
-                        setState(() {
-                          _selectedParticipantNumber = participantNumber;
-                        });
+                        // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
                       },
                       onEditingComplete: () {
                         FocusScope.of(context).unfocus();
@@ -574,6 +614,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
     required double width,
     Color? backgroundColor,
     VoidCallback? onDoubleTap,
+    VoidCallback? onTap,
   }) {
     return Listener(
       onPointerDown: (_) {
@@ -586,6 +627,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
         });
       },
       child: GestureDetector(
+        onTap: onTap,
         onDoubleTap: onDoubleTap,
         child: Container(
           width: width,
@@ -666,17 +708,34 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                           width: numberWidth,
                           backgroundColor: rowColor,
                           onDoubleTap: () {
-                            Get.toNamed('/performance_page/${participant.number}');
+                            setState(() {
+                              _loadingParticipantNumber = participant.number;
+                            });
+                            Get.toNamed('/performance_page/${participant.number}')?.then((_) {
+                              // Clear loading state when navigation completes (or is cancelled)
+                              if (mounted) {
+                                setState(() {
+                                  _loadingParticipantNumber = null;
+                                });
+                              }
+                            });
                           },
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _buildCommentIndicator(participant),
-                              Text(
-                                participant.number.toString(),
-                                style: const TextStyle(color: Colors.black),
-                              ),
+                              if (_loadingParticipantNumber == participant.number)
+                                Text(
+                                  'טוען...',
+                                  style: const TextStyle(color: Colors.blue),
+                                )
+                              else ...[
+                                _buildCommentIndicator(participant),
+                                Text(
+                                  participant.number.toString(),
+                                  style: const TextStyle(color: Colors.black),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -836,9 +895,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                   if (focusedNode != _gradeFocusNodes[participant.number]) {
                     FocusScope.of(context).unfocus();
                   }
-                  setState(() {
-                    _selectedParticipantNumber = participant.number;
-                  });
+                  // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
                 },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -909,10 +966,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                                           );
                                         }
                                       });
-                                      // Also select the row
-                                      setState(() {
-                                        _selectedParticipantNumber = participant.number;
-                                      });
+                                      // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
                                     },
                                     onEditingComplete: () {
                                       // Unfocus when editing is complete (Enter key)
@@ -939,7 +993,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                     _buildCell(
                       width: systemGradeWidth,
                       backgroundColor: rowColor,
-                      onDoubleTap: () {
+                      onTap: () {
                         showDialog(
                           context: context,
                           builder: (context) => SystemGradeBreakdownDialog(
@@ -948,7 +1002,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                         );
                       },
                       child: Text(
-                        participant.systemGrade.toStringAsFixed(2),
+                        _getAdjustedSystemGrade(participant).toStringAsFixed(2),
                         style: const TextStyle(color: Colors.black),
                       ),
                     ),
@@ -959,14 +1013,17 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                       _buildCell(
                         width: exerciseWidth,
                         backgroundColor: rowColor,
-                        onDoubleTap: () {
+                        onTap: () {
                           showDialog(
                             context: context,
                             builder: (context) => ExerciseRankingDialog(
                               participantNumber: participant.number,
                               exerciseName: 'meshulash',
                               exerciseNameHebrew: 'משולש',
-                              grade: participant.meshulashGrade,
+                              grade: getAdjustedSystemGrade(
+                                participant.meshulashGrade,
+                                widget.eventController.currentEvent.value.groupStrength,
+                              ),
                             ),
                           );
                         },
@@ -975,7 +1032,10 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              participant.meshulashGrade.toStringAsFixed(2),
+                              getAdjustedSystemGrade(
+                                participant.meshulashGrade,
+                                widget.eventController.currentEvent.value.groupStrength,
+                              ).toStringAsFixed(2),
                               style: const TextStyle(color: Colors.black),
                             ),
                             _buildExerciseCommentIndicator(participant, 'meshulash'),
@@ -998,14 +1058,17 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                       _buildCell(
                         width: exerciseWidth,
                         backgroundColor: rowColor,
-                        onDoubleTap: () {
+                        onTap: () {
                           showDialog(
                             context: context,
                             builder: (context) => ExerciseRankingDialog(
                               participantNumber: participant.number,
                               exerciseName: 'alonka',
                               exerciseNameHebrew: 'אלונקה',
-                              grade: participant.alonkaGrade,
+                              grade: getAdjustedSystemGrade(
+                                participant.alonkaGrade,
+                                widget.eventController.currentEvent.value.groupStrength,
+                              ),
                             ),
                           );
                         },
@@ -1014,7 +1077,10 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              participant.alonkaGrade.toStringAsFixed(2),
+                              getAdjustedSystemGrade(
+                                participant.alonkaGrade,
+                                widget.eventController.currentEvent.value.groupStrength,
+                              ).toStringAsFixed(2),
                               style: const TextStyle(color: Colors.black),
                             ),
                             _buildExerciseCommentIndicator(participant, 'alonka'),
@@ -1051,14 +1117,17 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                       _buildCell(
                         width: sakimWidth,
                         backgroundColor: rowColor,
-                        onDoubleTap: () {
+                        onTap: () {
                           showDialog(
                             context: context,
                             builder: (context) => ExerciseRankingDialog(
                               participantNumber: participant.number,
                               exerciseName: 'sakim',
                               exerciseNameHebrew: 'שקים',
-                              grade: participant.sakimGrade,
+                              grade: getAdjustedSystemGrade(
+                                participant.sakimGrade,
+                                widget.eventController.currentEvent.value.groupStrength,
+                              ),
                             ),
                           );
                         },
@@ -1067,7 +1136,10 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              participant.sakimGrade.toStringAsFixed(2),
+                              getAdjustedSystemGrade(
+                                participant.sakimGrade,
+                                widget.eventController.currentEvent.value.groupStrength,
+                              ).toStringAsFixed(2),
                               style: const TextStyle(color: Colors.black),
                             ),
                             _buildExerciseCommentIndicator(participant, 'sakim'),

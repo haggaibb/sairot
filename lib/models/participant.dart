@@ -32,6 +32,7 @@ class Participant {
   List<String> sakimInstructorComments = [];
   List<String> leadershipInstructorComments = [];
   List<String> interviewInstructorComments = [];
+  List<String> genericInstructorComments = []; // Generic comments (from event home page)
 
   /// Set final instructor grade
   setFinalGrade(double grade) {
@@ -66,6 +67,7 @@ class Participant {
       'sakimInstructorComments': sakimInstructorComments,
       'leadershipInstructorComments': leadershipInstructorComments,
       'interviewInstructorComments': interviewInstructorComments,
+      'genericInstructorComments': genericInstructorComments,
     };
   }
 
@@ -104,7 +106,9 @@ class Participant {
       ..leadershipInstructorComments =
           List<String>.from(json['leadershipInstructorComments'] ?? [])
       ..interviewInstructorComments =
-          List<String>.from(json['interviewInstructorComments'] ?? []);
+          List<String>.from(json['interviewInstructorComments'] ?? [])
+      ..genericInstructorComments =
+          List<String>.from(json['genericInstructorComments'] ?? []);
   }
 
   /// tests

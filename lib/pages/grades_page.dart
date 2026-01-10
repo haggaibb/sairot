@@ -7,6 +7,7 @@ import '../utils/tablet_utils.dart';
 import '../widgets/custom_grades_table.dart';
 import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
+import '../models/types.dart';
 
 class GradesPage extends StatefulWidget {
   const GradesPage({super.key});
@@ -33,6 +34,132 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
         eventController.calculateGrades();
       }
     });
+  }
+
+  IconData _getGroupStrengthIcon(GroupStrength strength) {
+    switch (strength) {
+      case GroupStrength.weak:
+        return Icons.trending_down;
+      case GroupStrength.strong:
+        return Icons.trending_up;
+      case GroupStrength.normal:
+        return Icons.trending_flat;
+    }
+  }
+
+  Color _getGroupStrengthColor(GroupStrength strength) {
+    switch (strength) {
+      case GroupStrength.weak:
+        return Colors.red;
+      case GroupStrength.strong:
+        return Colors.green;
+      case GroupStrength.normal:
+        return Colors.grey;
+    }
+  }
+
+  Future<void> _showGroupStrengthDialog(BuildContext context) async {
+    final currentStrength = eventController.currentEvent.value.groupStrength;
+    
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('חוזק הקבוצה'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'בחר את חוזק הקבוצה. זה ישפיע על ציוני המערכת:',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                RadioListTile<GroupStrength>(
+                  title: Row(
+                    children: [
+                      Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Icon(Icons.trending_down, color: Colors.red),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('חלשה'),
+                    ],
+                  ),
+                  subtitle: const Text('מוריד 1 נקודה מציוני משולש, אלונקה ושקים'),
+                  value: GroupStrength.weak,
+                  groupValue: currentStrength,
+                  onChanged: (GroupStrength? value) {
+                    if (value != null) {
+                      eventController.currentEvent.value.groupStrength = value;
+                      eventController.currentEvent.refresh();
+                      eventController.update();
+                      eventController.currentEvent.value.saveToFirestore();
+                      Navigator.of(context).pop();
+                    }
+                  },
+                ),
+                RadioListTile<GroupStrength>(
+                  title: Row(
+                    children: [
+                      Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Icon(Icons.trending_flat, color: Colors.grey),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('רגילה'),
+                    ],
+                  ),
+                  subtitle: const Text('ללא שינוי בציונים'),
+                  value: GroupStrength.normal,
+                  groupValue: currentStrength,
+                  onChanged: (GroupStrength? value) {
+                    if (value != null) {
+                      eventController.currentEvent.value.groupStrength = value;
+                      eventController.currentEvent.refresh();
+                      eventController.update();
+                      eventController.currentEvent.value.saveToFirestore();
+                      Navigator.of(context).pop();
+                    }
+                  },
+                ),
+                RadioListTile<GroupStrength>(
+                  title: Row(
+                    children: [
+                      Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Icon(Icons.trending_up, color: Colors.green),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('חזקה'),
+                    ],
+                  ),
+                  subtitle: const Text('מוסיף 1 נקודה לציוני משולש, אלונקה ושקים'),
+                  value: GroupStrength.strong,
+                  groupValue: currentStrength,
+                  onChanged: (GroupStrength? value) {
+                    if (value != null) {
+                      eventController.currentEvent.value.groupStrength = value;
+                      eventController.currentEvent.refresh();
+                      eventController.update();
+                      eventController.currentEvent.value.saveToFirestore();
+                      Navigator.of(context).pop();
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('ביטול'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -141,6 +268,18 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
                     });
                   },
                 ),
+                // Group strength selector
+                Obx(() => IconButton(
+                  icon: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Icon(
+                      _getGroupStrengthIcon(eventController.currentEvent.value.groupStrength),
+                      color: _getGroupStrengthColor(eventController.currentEvent.value.groupStrength),
+                    ),
+                  ),
+                  tooltip: 'חוזק הקבוצה',
+                  onPressed: () => _showGroupStrengthDialog(context),
+                )),
                 IconButton(
                   icon: const Icon(Icons.info_outline),
                   tooltip: 'מדריך למשתמש',

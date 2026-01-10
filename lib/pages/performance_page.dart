@@ -161,6 +161,54 @@ class _PerformancePageState extends State<PerformancePage> {
                   style: TextStyle(
                       fontSize: titleFontSize, fontWeight: FontWeight.bold),
                 ),
+                // Show final grade if available
+                if (p.instructorGrade > 0)
+                  Text(
+                    'ציון סופי: ${p.instructorGrade.toStringAsFixed(2)}',
+                    style: TextStyle(
+                        fontSize: subtitleFontSize, fontWeight: FontWeight.bold),
+                  ),
+                SizedBox(height: 10),
+                // Show generic comments if available
+                if (p.genericInstructorComments.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'הערות כלליות:',
+                          style: TextStyle(
+                            fontSize: baseFontSize,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: p.genericInstructorComments.map((comment) {
+                            return Chip(
+                              label: Text(
+                                comment,
+                                style: TextStyle(fontSize: subtitleFontSize),
+                              ),
+                              backgroundColor: Colors.white.withOpacity(0.3),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                ],
 
                 SizedBox(height: spacing),
 

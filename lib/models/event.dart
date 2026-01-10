@@ -27,6 +27,7 @@ class Event {
   double RUNNER_CREDIT = 0.2;
   int groupNumber = 0;
   String instructorName = '';
+  GroupStrength groupStrength = GroupStrength.normal; // Group strength: weak, normal, or strong
   List<Participant> activeParticipants = [];
   List<Bur> burGrades = [];
   GradeSettings gradeSettings = GradeSettings();
@@ -59,6 +60,7 @@ class Event {
       'RUNNER_CREDIT': RUNNER_CREDIT,
       'groupNumber': groupNumber,
       'instructorName': instructorName,
+      'groupStrength': groupStrength.name,
       'activeParticipants': activeParticipants.map((e) => e.toJson()).toList(),
       'burGrades': burGrades.map((e) => e.toJson()).toList(),
       'gradeSettings': gradeSettings.toJson(),
@@ -104,6 +106,13 @@ class Event {
       ..RUNNER_CREDIT = (json['RUNNER_CREDIT'] ?? 0.2).toDouble()
       ..groupNumber = json['groupNumber'] ?? 0
       ..instructorName = json['instructorName'] ?? ''
+      ..groupStrength = json['groupStrength'] != null
+          ? (json['groupStrength'] == 'weak' 
+              ? GroupStrength.weak 
+              : json['groupStrength'] == 'strong' 
+                  ? GroupStrength.strong 
+                  : GroupStrength.normal)
+          : GroupStrength.normal
       ..activeParticipants = (json['activeParticipants'] as List<dynamic>?)
               ?.map((e) => Participant.fromJson(e))
               .toList() ??

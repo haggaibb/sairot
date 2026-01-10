@@ -192,6 +192,8 @@ class _LeadershipPageState extends State<LeadershipPage> with EventValidationMix
                                                         .value
                                                         .activeParticipants[index]
                                                         .number.toString(),
+                                                    exerciseType: ExerciseType.leadership,
+                                                    instructorCustomComments: eventController.getInstructorCustomCommentsForExercise('leadership'),
                                                   ));
                                           if (res!=null) {
                                             if (res.contains(ParticipantStatus.Droped.name)) {

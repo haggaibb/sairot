@@ -174,6 +174,8 @@ class MeshulashGridView extends StatelessWidget {
                           commentsList: _.gradesData.listOfCommentsMeshulash,
                           selectedComments: _.getParticipant(participantNumber).meshulashInstructorComments,
                           title: participantNumber.toString(),
+                          exerciseType: ExerciseType.meshulash,
+                          instructorCustomComments: _.getInstructorCustomCommentsForExercise('meshulash'),
                         ),
                       );
                       if (res != null) {
@@ -199,7 +201,7 @@ class MeshulashGridView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Position badge - within chip border, consistent size
+                  // Position badge - within chip border, scales with font size
                   // First place gets green badge that's 20% larger
                   // Only show if round number > 0 (not the initial round)
                   if (currentRound >= 0 && currentRound < _.currentEvent.value.meshulashRounds.length &&
@@ -207,34 +209,47 @@ class MeshulashGridView extends StatelessWidget {
                     Positioned(
                       top: tablet ? 4 : 3,
                       right: tablet ? 4 : 3,
-                      child: Container(
-                        width: tablet ? (isFirstPlace ? 33.6 : 28) : (isFirstPlace ? 28.8 : 24), // 20% larger if first place
-                        height: tablet ? (isFirstPlace ? 33.6 : 28) : (isFirstPlace ? 28.8 : 24), // 20% larger if first place
-                        decoration: BoxDecoration(
-                          color: isFirstPlace ? Colors.green : Colors.red, // Green for first place
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: tablet ? 1.9 : 2.16,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.3),
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
+                      child: Builder(
+                        builder: (context) {
+                          // Calculate badge size based on font size
+                          // Ensure it's large enough for 2-digit numbers
+                          final badgeFontSize = tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648;
+                          // Base size with 20% larger for first place
+                          final baseSize = tablet ? (isFirstPlace ? 33.6 : 28.0) : (isFirstPlace ? 28.8 : 24.0);
+                          // Badge size should be at least 2.2x the font size to accommodate 2 digits comfortably
+                          final minSizeForTwoDigits = badgeFontSize * 2.2;
+                          final badgeSize = (baseSize > minSizeForTwoDigits) ? baseSize : minSizeForTwoDigits;
+                          
+                          return Container(
+                            width: badgeSize,
+                            height: badgeSize,
+                            decoration: BoxDecoration(
+                              color: isFirstPlace ? Colors.green : Colors.red, // Green for first place
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: tablet ? 1.9 : 2.16,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 4,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            _.currentEvent.value.meshulashRounds[currentRound].round.toString(),
-                            style: TextStyle(
-                              fontSize: tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                            child: Center(
+                              child: Text(
+                                _.currentEvent.value.meshulashRounds[currentRound].round.toString(),
+                                style: TextStyle(
+                                  fontSize: badgeFontSize,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ),
                 ],

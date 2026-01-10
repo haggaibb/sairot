@@ -10,6 +10,7 @@ import '../widgets/interview_chart.dart';
 import '../widgets/leadership_chart.dart';
 import '../utils/tablet_utils.dart';
 import '../widgets/wifi_settings_button.dart';
+import '../widgets/comment_save_confirmation_dialog.dart';
 
 final eventController = Get.put(EventController());
 
@@ -31,8 +32,9 @@ class InterviewDetailPage extends StatefulWidget {
 
 class _InterviewDetailPageState extends State<InterviewDetailPage> {
   late List<String> predefinedComments;
-  late List<String> customComments;
-  late List<String> instructorComments;
+  late List<String> sessionOnlyCustomComments; // Comments added in this session, not saved to profile
+  late List<String> instructorSavedComments; // Comments saved to instructor's profile
+  late List<String> instructorComments; // All selected comments
   TextEditingController customCommentCtrl = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -46,9 +48,12 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
     // Load selected comments (including predefined + any custom ones)
     instructorComments = List<String>.from(widget.selectedComments ?? []);
 
-    // Identify which selected comments are custom
-    customComments = instructorComments
-        .where((c) => !predefinedComments.contains(c))
+    // Load instructor's saved custom comments
+    instructorSavedComments = eventController.getInstructorCustomCommentsForExercise('interview');
+
+    // Identify which selected comments are session-only (not in predefined, not in instructor's saved)
+    sessionOnlyCustomComments = instructorComments
+        .where((c) => !predefinedComments.contains(c) && !instructorSavedComments.contains(c))
         .toList();
   }
 
@@ -64,9 +69,10 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
     String newComment = customCommentCtrl.text.trim();
     if (newComment.isNotEmpty &&
         !predefinedComments.contains(newComment) &&
-        !customComments.contains(newComment)) {
+        !instructorSavedComments.contains(newComment) &&
+        !sessionOnlyCustomComments.contains(newComment)) {
       setState(() {
-        customComments.add(newComment);
+        sessionOnlyCustomComments.add(newComment);
         instructorComments.add(newComment); // Add to selected comments
       });
 
@@ -75,12 +81,86 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
     }
   }
 
-  /// **Deletes a Custom Comment Completely**
-  void deleteCustomComment(String comment) {
+  /// **Deletes a Session-Only Custom Comment**
+  void deleteSessionOnlyComment(String comment) {
     setState(() {
-      customComments.remove(comment);
+      sessionOnlyCustomComments.remove(comment);
       instructorComments.remove(comment);
     });
+  }
+
+  /// **Handle long-press on comment to save/remove from instructor profile**
+  Future<void> handleCommentLongPress(String comment) async {
+    // Check if comment is in instructor's saved list
+    final isInInstructorSaved = instructorSavedComments.contains(comment);
+    
+    // Check if comment is session-only (not in predefined, not in instructor's saved)
+    final isSessionOnly = !predefinedComments.contains(comment) && !isInInstructorSaved;
+    
+    // Only allow long-press on instructor's saved comments (to remove) or session-only (to save)
+    if (!isInInstructorSaved && !isSessionOnly) {
+      return; // System predefined - no long-press
+    }
+    
+    // Show confirmation dialog
+    final confirmed = await CommentSaveConfirmationDialog.show(
+      context,
+      isRemoving: isInInstructorSaved,
+      comment: comment,
+    );
+    
+    if (confirmed == true) {
+      if (isInInstructorSaved) {
+        // Remove from instructor's profile
+        final success = await eventController.removeInstructorCustomComment(
+          'interview',
+          comment,
+        );
+        
+        if (success && mounted) {
+          // Update local state
+          setState(() {
+            instructorSavedComments.remove(comment);
+            // Reload from controller
+            final updatedComments = eventController.getInstructorCustomCommentsForExercise('interview');
+            instructorSavedComments = List<String>.from(updatedComments);
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('ההערה הוסרה מהרשימה האישית שלך'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else if (isSessionOnly) {
+        // Save to instructor's profile
+        final success = await eventController.saveInstructorCustomComment(
+          'interview',
+          comment,
+        );
+        
+        if (success && mounted) {
+          // Update local state
+          setState(() {
+            sessionOnlyCustomComments.remove(comment);
+            // Reload from controller
+            final updatedComments = eventController.getInstructorCustomCommentsForExercise('interview');
+            instructorSavedComments = List<String>.from(updatedComments);
+            if (!instructorSavedComments.contains(comment)) {
+              instructorSavedComments.add(comment);
+            }
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('ההערה נשמרה לרשימה האישית שלך'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _saveComments() {
@@ -90,9 +170,10 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
     String textInField = customCommentCtrl.text.trim();
     if (textInField.isNotEmpty &&
         !predefinedComments.contains(textInField) &&
-        !customComments.contains(textInField)) {
+        !instructorSavedComments.contains(textInField) &&
+        !sessionOnlyCustomComments.contains(textInField)) {
       setState(() {
-        customComments.add(textInField);
+        sessionOnlyCustomComments.add(textInField);
         instructorComments.add(textInField);
       });
       customCommentCtrl.clear();
@@ -105,7 +186,18 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
   }
 
   Widget _buildCommentsSection() {
-    List<String> allComments = [...predefinedComments, ...customComments];
+    /// **Order comments: Instructor's saved first, then predefined, then session-only**
+    // Remove duplicates (instructor's saved takes precedence)
+    final predefinedFiltered = predefinedComments
+        .where((c) => !instructorSavedComments.contains(c))
+        .toList();
+    
+    final allComments = [
+      ...instructorSavedComments, // First: Instructor's custom comments
+      ...predefinedFiltered, // Second: Predefined comments (excluding instructor's saved)
+      ...sessionOnlyCustomComments, // Third: Session-only custom comments
+    ];
+    
     bool tablet = isTablet(context);
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -174,16 +266,39 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
             runSpacing: 12,
             children: allComments.map((comment) {
               bool isSelected = instructorComments.contains(comment);
-              return ChoiceChip(
-                label: Text(
-                  comment,
-                  style: TextStyle(
-                    fontSize: eventController.userFontSize.value,
-                    fontWeight: FontWeight.bold,
-                  ),
+              final isInInstructorSaved = instructorSavedComments.contains(comment);
+              final isSessionOnly = sessionOnlyCustomComments.contains(comment);
+              
+              // Only enable long-press for instructor's saved comments or session-only comments
+              final canLongPress = isInInstructorSaved || isSessionOnly;
+
+              Widget chip = ChoiceChip(
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isInInstructorSaved)
+                      const Icon(
+                        Icons.star,
+                        size: 16,
+                        color: Colors.amber,
+                      ),
+                    if (isInInstructorSaved) const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        comment,
+                        style: TextStyle(
+                          fontSize: eventController.userFontSize.value,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 selected: isSelected,
                 selectedColor: colorScheme.primaryContainer,
+                backgroundColor: isInInstructorSaved
+                    ? Colors.amber.withValues(alpha: 0.1) // Light amber background for saved comments
+                    : null,
                 labelStyle: TextStyle(
                   color: isSelected
                       ? colorScheme.onPrimaryContainer
@@ -201,6 +316,16 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                         });
                       },
               );
+              
+              // Wrap with GestureDetector for long-press if eligible
+              if (canLongPress && !eventController.currentEvent.value.finalized) {
+                chip = GestureDetector(
+                  onLongPress: () => handleCommentLongPress(comment),
+                  child: chip,
+                );
+              }
+              
+              return chip;
             }).toList(),
           ),
           SizedBox(height: 12),

@@ -1,6 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../event_controller.dart';
+import '../models/types.dart';
+
+/// Helper method to get adjusted system grade based on group strength
+double getAdjustedSystemGrade(double baseGrade, GroupStrength groupStrength) {
+  switch (groupStrength) {
+    case GroupStrength.weak:
+      return (baseGrade - 1.0).clamp(0.0, 10.0); // Reduce 1 point, clamp between 0-10
+    case GroupStrength.strong:
+      return (baseGrade + 1.0).clamp(0.0, 10.0); // Add 1 point, clamp between 0-10
+    case GroupStrength.normal:
+      return baseGrade; // No adjustment
+  }
+}
 
 class SystemGradeBreakdownDialog extends StatelessWidget {
   final int participantNumber;
@@ -10,12 +23,42 @@ class SystemGradeBreakdownDialog extends StatelessWidget {
     required this.participantNumber,
   });
 
+  /// Get adjusted system grade for display (based on group strength)
+  double _getAdjustedSystemGrade(EventController eventController, participant) {
+    final groupStrength = eventController.currentEvent.value.groupStrength;
+    
+    // Get base exercise grades
+    final baseMeshulash = participant.meshulashGrade;
+    final baseAlonka = participant.alonkaGrade;
+    final baseSakim = participant.sakimGrade;
+    final burGrade = participant.burGrade;
+    
+    // Apply group strength adjustment to meshulash, alonka, sakim
+    final adjustedMeshulash = getAdjustedSystemGrade(baseMeshulash, groupStrength);
+    final adjustedAlonka = getAdjustedSystemGrade(baseAlonka, groupStrength);
+    final adjustedSakim = getAdjustedSystemGrade(baseSakim, groupStrength);
+    
+    // Recalculate system grade with adjusted values
+    final gradesData = eventController.gradesData;
+    return eventController.calculateWeightedGrade(
+      param1: adjustedMeshulash,
+      param2: adjustedAlonka,
+      param3: adjustedSakim,
+      param4: burGrade,
+      weight1: gradesData.weighted['meshulash'],
+      weight2: gradesData.weighted['alonka'],
+      weight3: gradesData.weighted['sakim'],
+      weight4: gradesData.weighted['bur'],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final eventController = Get.find<EventController>();
     final participant = eventController.getParticipant(participantNumber);
     final allRanks = eventController.getAllExerciseRanks(participantNumber);
     final bool isTabletDevice = MediaQuery.of(context).size.width > 600;
+    final groupStrength = eventController.currentEvent.value.groupStrength;
 
 
     return Dialog(
@@ -53,7 +96,7 @@ class SystemGradeBreakdownDialog extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  'ציון מערכת כולל: ${participant.systemGrade.toStringAsFixed(2)}',
+                  'ציון מערכת כולל: ${_getAdjustedSystemGrade(eventController, participant).toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: isTabletDevice ? 22 : 20,
                     fontWeight: FontWeight.bold,
@@ -75,6 +118,7 @@ class SystemGradeBreakdownDialog extends StatelessWidget {
                   participant,
                   allRanks,
                   isTabletDevice,
+                  groupStrength,
                 ),
               ),
               const SizedBox(height: 15),
@@ -111,14 +155,15 @@ class SystemGradeBreakdownDialog extends StatelessWidget {
     participant,
     allRanks,
     bool isTablet,
+    GroupStrength groupStrength,
   ) {
     final firstColumnWidth = isTablet ? 120.0 : 100.0;
     final cellHeight = 48.0;
     final rows = [
-      {'exercise': 'משולש', 'grade': participant.meshulashGrade.toStringAsFixed(2), 'rank': '${allRanks['meshulash']!['rank']}/${allRanks['meshulash']!['total']}'},
-      {'exercise': 'אלונקה', 'grade': participant.alonkaGrade.toStringAsFixed(2), 'rank': '${allRanks['alonka']!['rank']}/${allRanks['alonka']!['total']}'},
+      {'exercise': 'משולש', 'grade': getAdjustedSystemGrade(participant.meshulashGrade, groupStrength).toStringAsFixed(2), 'rank': '${allRanks['meshulash']!['rank']}/${allRanks['meshulash']!['total']}'},
+      {'exercise': 'אלונקה', 'grade': getAdjustedSystemGrade(participant.alonkaGrade, groupStrength).toStringAsFixed(2), 'rank': '${allRanks['alonka']!['rank']}/${allRanks['alonka']!['total']}'},
       {'exercise': 'בור', 'grade': participant.burGrade.toStringAsFixed(2), 'rank': '${allRanks['bur']!['rank']}/${allRanks['bur']!['total']}'},
-      {'exercise': 'שקים', 'grade': participant.sakimGrade.toStringAsFixed(2), 'rank': '${allRanks['sakim']!['rank']}/${allRanks['sakim']!['total']}'},
+      {'exercise': 'שקים', 'grade': getAdjustedSystemGrade(participant.sakimGrade, groupStrength).toStringAsFixed(2), 'rank': '${allRanks['sakim']!['rank']}/${allRanks['sakim']!['total']}'},
     ];
 
     return Row(

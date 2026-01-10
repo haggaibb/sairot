@@ -134,6 +134,8 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                           .getParticipant(participantNumber))
                                                       .alonkaInstructorComments,
                                                   title: participantNumber.toString(),
+                                                  exerciseType: ExerciseType.alonka,
+                                                  instructorCustomComments: eventController.getInstructorCustomCommentsForExercise('alonka'),
                                               ));
                                           if (res != null) {
                                             if (res.contains(ParticipantStatus.Droped.name)) {
@@ -234,6 +236,8 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                         .getParticipant(number))
                                                     .alonkaInstructorComments,
                                                 title: number.toString(),
+                                                exerciseType: ExerciseType.alonka,
+                                                instructorCustomComments: eventController.getInstructorCustomCommentsForExercise('alonka'),
                                               ),
                                             );
                                             if (res != null) {
@@ -288,6 +292,8 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                         .getParticipant(number))
                                                     .alonkaInstructorComments,
                                                 title: number.toString(),
+                                                exerciseType: ExerciseType.alonka,
+                                                instructorCustomComments: eventController.getInstructorCustomCommentsForExercise('alonka'),
                                               ),
                                             );
                                             if (res != null) {
@@ -339,6 +345,8 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                                                         .getParticipant(number))
                                                     .alonkaInstructorComments,
                                                 title: number.toString(),
+                                                exerciseType: ExerciseType.alonka,
+                                                instructorCustomComments: eventController.getInstructorCustomCommentsForExercise('alonka'),
                                               ),
                                             );
                                             if (res != null) {

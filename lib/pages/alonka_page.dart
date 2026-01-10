@@ -610,6 +610,8 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
         commentsList: eventController.gradesData.listOfCommentsAlonka,
         selectedComments: eventController.getParticipant(participantNumber).alonkaInstructorComments,
         title: participantNumber.toString(),
+        exerciseType: ExerciseType.alonka,
+        instructorCustomComments: eventController.getInstructorCustomCommentsForExercise('alonka'),
       ),
     );
     if (res != null) {

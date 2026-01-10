@@ -188,6 +188,8 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                                     commentsList: eventController.gradesData.listOfCommentsMeshulash,
                                                   selectedComments: (eventController.getParticipant(participantNumber).meshulashInstructorComments),
                                                   title: participantNumber.toString(),
+                                                  exerciseType: ExerciseType.meshulash,
+                                                  instructorCustomComments: eventController.getInstructorCustomCommentsForExercise('meshulash'),
                                                 ));
                                             if (res!=null) {
                                               if (res.contains(ParticipantStatus.Droped.name)) {
@@ -209,38 +211,53 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                           ),
                                       ),
                                       // Position badge - notification style in upper right corner (only show if round > 0)
+                                      // Badge size scales with font size to prevent clipping of 2-digit numbers
                                       if (widget.round.round > 0)
                                         Positioned(
-                                          top: tablet ? -14.68 : -12.26, // 5px lower than previous
-                                          right: tablet ? -11.68 : -9.26, // 3px to the left
-                                          child: Container(
-                                            width: tablet ? 28 : 24, // Fixed width for consistent size
-                                            height: tablet ? 28 : 24, // Fixed height for consistent size
-                                            decoration: BoxDecoration(
-                                              color: Colors.red,
-                                              shape: BoxShape.circle,
-                                              border: Border.all(
-                                                color: Colors.white,
-                                                width: tablet ? 1.9 : 2.16, // 5% smaller on tablet (2.0 * 0.95), 10% smaller on mobile (2.4 * 0.9)
-                                              ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black.withValues(alpha: 0.3),
-                                                  blurRadius: 4,
-                                                  offset: Offset(0, 2),
+                                          // Adjust position based on badge size to prevent clipping
+                                          top: tablet ? -14.68 : -12.26,
+                                          right: tablet ? -11.68 : -9.26,
+                                          child: Builder(
+                                            builder: (context) {
+                                              // Calculate badge size based on font size
+                                              // Ensure it's large enough for 2-digit numbers
+                                              final badgeFontSize = tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648;
+                                              // Badge size should be at least 1.8x the font size to accommodate 2 digits comfortably
+                                              // Add padding for border and ensure minimum size
+                                              final baseSize = tablet ? 28.0 : 24.0;
+                                              final minSizeForTwoDigits = badgeFontSize * 2.2; // Enough space for 2 digits
+                                              final badgeSize = (baseSize > minSizeForTwoDigits) ? baseSize : minSizeForTwoDigits;
+                                              
+                                              return Container(
+                                                width: badgeSize,
+                                                height: badgeSize,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: Colors.white,
+                                                    width: tablet ? 1.9 : 2.16,
+                                                  ),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black.withValues(alpha: 0.3),
+                                                      blurRadius: 4,
+                                                      offset: Offset(0, 2),
+                                                    ),
+                                                  ],
                                                 ),
-                                              ],
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                position.toString(),
-                                                style: TextStyle(
-                                                  fontSize: tablet ? scaledFontSize * 0.532 : scaledFontSize * 0.648, // 5% smaller on tablet (0.56 * 0.95), 10% smaller on mobile (0.72 * 0.9)
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
+                                                child: Center(
+                                                  child: Text(
+                                                    position.toString(),
+                                                    style: TextStyle(
+                                                      fontSize: badgeFontSize,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
                                                 ),
-                                              ),
-                                            ),
+                                              );
+                                            },
                                           ),
                                         ),
                                     ],

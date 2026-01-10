@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/bur.dart';
 import '../event_controller.dart';
+import 'comment_save_confirmation_dialog.dart';
 
 class BurGradePanel extends StatefulWidget {
   final Bur bur;
@@ -17,8 +18,9 @@ class _BurGradePanelState extends State<BurGradePanel> {
   TextEditingController customCommentCtrl = TextEditingController();
 
   late List<String> predefinedComments;
-  late List<String> customComments;
-  late List<String> instructorComments;
+  late List<String> sessionOnlyCustomComments; // Comments added in this session, not saved to profile
+  late List<String> instructorSavedComments; // Comments saved to instructor's profile
+  late List<String> instructorComments; // All selected comments
   int burIndex = 0;
 
   @override
@@ -35,8 +37,13 @@ class _BurGradePanelState extends State<BurGradePanel> {
 
     predefinedComments = List<String>.from(eventController.currentEvent.value.gradeSettings.listOfCommentsBur);
 
-    // **Identify which selected comments are custom**
-    customComments = instructorComments.where((comment) => !predefinedComments.contains(comment)).toList();
+    // Load instructor's saved custom comments
+    instructorSavedComments = eventController.getInstructorCustomCommentsForExercise('bur');
+
+    // Identify which selected comments are session-only (not in predefined, not in instructor's saved)
+    sessionOnlyCustomComments = instructorComments
+        .where((comment) => !predefinedComments.contains(comment) && !instructorSavedComments.contains(comment))
+        .toList();
   }
 
   /// **Adds a New Custom Comment**
@@ -44,9 +51,10 @@ class _BurGradePanelState extends State<BurGradePanel> {
     String newComment = customCommentCtrl.text.trim();
     if (newComment.isNotEmpty &&
         !predefinedComments.contains(newComment) &&
-        !customComments.contains(newComment)) {
+        !instructorSavedComments.contains(newComment) &&
+        !sessionOnlyCustomComments.contains(newComment)) {
       setState(() {
-        customComments.add(newComment);
+        sessionOnlyCustomComments.add(newComment);
         instructorComments.add(newComment);
       });
 
@@ -58,15 +66,89 @@ class _BurGradePanelState extends State<BurGradePanel> {
     }
   }
 
-  /// **Deletes a Custom Comment**
-  void deleteCustomComment(String comment) {
+  /// **Deletes a Session-Only Custom Comment**
+  void deleteSessionOnlyComment(String comment) {
     setState(() {
-      customComments.remove(comment);
+      sessionOnlyCustomComments.remove(comment);
       instructorComments.remove(comment);
     });
 
     // Save updated comments to Firestore (non-blocking)
     saveToFirestore();
+  }
+
+  /// **Handle long-press on comment to save/remove from instructor profile**
+  Future<void> handleCommentLongPress(String comment) async {
+    // Check if comment is in instructor's saved list
+    final isInInstructorSaved = instructorSavedComments.contains(comment);
+    
+    // Check if comment is session-only (not in predefined, not in instructor's saved)
+    final isSessionOnly = !predefinedComments.contains(comment) && !isInInstructorSaved;
+    
+    // Only allow long-press on instructor's saved comments (to remove) or session-only (to save)
+    if (!isInInstructorSaved && !isSessionOnly) {
+      return; // System predefined - no long-press
+    }
+    
+    // Show confirmation dialog
+    final confirmed = await CommentSaveConfirmationDialog.show(
+      context,
+      isRemoving: isInInstructorSaved,
+      comment: comment,
+    );
+    
+    if (confirmed == true) {
+      if (isInInstructorSaved) {
+        // Remove from instructor's profile
+        final success = await eventController.removeInstructorCustomComment(
+          'bur',
+          comment,
+        );
+        
+        if (success && mounted) {
+          // Update local state
+          setState(() {
+            instructorSavedComments.remove(comment);
+            // Reload from controller
+            final updatedComments = eventController.getInstructorCustomCommentsForExercise('bur');
+            instructorSavedComments = List<String>.from(updatedComments);
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('ההערה הוסרה מהרשימה האישית שלך'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else if (isSessionOnly) {
+        // Save to instructor's profile
+        final success = await eventController.saveInstructorCustomComment(
+          'bur',
+          comment,
+        );
+        
+        if (success && mounted) {
+          // Update local state
+          setState(() {
+            sessionOnlyCustomComments.remove(comment);
+            // Reload from controller
+            final updatedComments = eventController.getInstructorCustomCommentsForExercise('bur');
+            instructorSavedComments = List<String>.from(updatedComments);
+            if (!instructorSavedComments.contains(comment)) {
+              instructorSavedComments.add(comment);
+            }
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('ההערה נשמרה לרשימה האישית שלך'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    }
   }
 
   /// **Saves Instructor Comments to Firestore**
@@ -78,8 +160,17 @@ class _BurGradePanelState extends State<BurGradePanel> {
 
   @override
   Widget build(BuildContext context) {
-    /// **Combine Predefined & Custom Comments for UI Display**
-    List<String> allComments = [...predefinedComments, ...customComments];
+    /// **Order comments: Instructor's saved first, then predefined, then session-only**
+    // Remove duplicates (instructor's saved takes precedence)
+    final predefinedFiltered = predefinedComments
+        .where((c) => !instructorSavedComments.contains(c))
+        .toList();
+    
+    final allComments = [
+      ...instructorSavedComments, // First: Instructor's custom comments
+      ...predefinedFiltered, // Second: Predefined comments (excluding instructor's saved)
+      ...sessionOnlyCustomComments, // Third: Session-only custom comments
+    ];
 
     return Container(
       decoration: BoxDecoration(
@@ -118,59 +209,60 @@ class _BurGradePanelState extends State<BurGradePanel> {
                       runSpacing: 10,
                       children: allComments.map((comment) {
                         bool isSelected = instructorComments.contains(comment);
-                        bool isCustom = customComments.contains(comment);
+                        final isInInstructorSaved = instructorSavedComments.contains(comment);
+                        final isSessionOnly = sessionOnlyCustomComments.contains(comment);
+                        
+                        // Only enable long-press for instructor's saved comments or session-only comments
+                        final canLongPress = isInInstructorSaved || isSessionOnly;
 
-                        return GestureDetector(
-                          onLongPress: isCustom
-                              ? () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => AlertDialog(
-                                title: const Text("מחיקת הערה"),
-                                content: Text("האם למחוק את ההערה \"$comment\"?"),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      deleteCustomComment(comment);
-                                      Navigator.pop(context);
-                                    },
-                                    child: const Text("מחק"),
+                        Widget chip = ChoiceChip(
+                          label: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isInInstructorSaved)
+                                const Icon(
+                                  Icons.star,
+                                  size: 16,
+                                  color: Colors.amber,
+                                ),
+                              if (isInInstructorSaved) const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  comment,
+                                  style: TextStyle(
+                                    fontSize: eventController.userFontSize.value,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text("ביטול"),
-                                  ),
-                                ],
+                                ),
                               ),
-                            );
-                          }
-                              : null,
-                          child: ChoiceChip(
-                            label: Text(
-                              comment,
-                              style: TextStyle(
-                                fontSize: eventController.userFontSize.value,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            selected: isSelected,
-                            selectedColor: isCustom ? Colors.blue.withValues(alpha: 0.3) : Colors.blue,
-                            onSelected: (bool selected) {
-                              setState(() {
-                                if (selected) {
-                                  instructorComments.add(comment);
-                                } else {
-                                  instructorComments.remove(comment);
-                                  if (isCustom) {
-                                    customComments.remove(comment);
-                                  }
-                                }
-                              });
-                              print(customComments);
-                              saveToFirestore();
-                            },
+                            ],
                           ),
+                          selected: isSelected,
+                          selectedColor: Colors.blue.withValues(alpha: 0.3),
+                          backgroundColor: isInInstructorSaved
+                              ? Colors.amber.withValues(alpha: 0.1) // Light amber background for saved comments
+                              : null,
+                          onSelected: (bool selected) {
+                            setState(() {
+                              if (selected) {
+                                instructorComments.add(comment);
+                              } else {
+                                instructorComments.remove(comment);
+                              }
+                            });
+                            saveToFirestore();
+                          },
                         );
+                        
+                        // Wrap with GestureDetector for long-press if eligible
+                        if (canLongPress) {
+                          chip = GestureDetector(
+                            onLongPress: () => handleCommentLongPress(comment),
+                            child: chip,
+                          );
+                        }
+                        
+                        return chip;
                       }).toList(),
                     ),
 
