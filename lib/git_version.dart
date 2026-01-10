@@ -1,3 +1,3 @@
 /// Auto-generated Git version and branch info
-const String gitVersion = 'ab9654e';
-const String gitBranch = '1.0.0+12';
+const String gitVersion = '4091b3e';
+const String gitBranch = '1.0.0+13';

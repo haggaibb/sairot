@@ -37,6 +37,8 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
   late List<String> predefinedComments;
   late List<String> sessionOnlyCustomComments; // Comments added in this session, not saved to profile
   late List<String> instructorSavedComments; // Comments saved to instructor's profile
+  late List<String> instructorSavedCommentsInterview; // Interview-specific saved comments
+  late List<String> instructorSavedCommentsGeneric; // Generic saved comments
   late List<String> instructorComments; // All selected comments
   TextEditingController customCommentCtrl = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -55,8 +57,12 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
     // Load selected comments (including predefined + any custom ones)
     instructorComments = List<String>.from(widget.selectedComments ?? []);
 
-    // Load instructor's saved custom comments
+    // Load instructor's saved custom comments (both interview and generic)
     instructorSavedComments = eventController.getInstructorCustomCommentsForExercise('interview');
+    
+    // Separate interview and generic comments for proper removal
+    instructorSavedCommentsInterview = List<String>.from(eventController.instructorCustomComments['interview'] ?? []);
+    instructorSavedCommentsGeneric = List<String>.from(eventController.instructorCustomComments['generic'] ?? []);
 
     // Identify which selected comments are session-only (not in predefined, not in instructor's saved)
     sessionOnlyCustomComments = instructorComments
@@ -197,9 +203,15 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
     
     if (confirmed == true) {
       if (isInInstructorSaved) {
+        // Determine which exercise type the comment belongs to
+        String exerciseType = 'interview';
+        if (instructorSavedCommentsGeneric.contains(comment) && !instructorSavedCommentsInterview.contains(comment)) {
+          exerciseType = 'generic';
+        }
+        
         // Remove from instructor's profile
         final success = await eventController.removeInstructorCustomComment(
-          'interview',
+          exerciseType,
           comment,
         );
         
@@ -207,9 +219,16 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
           // Update local state
           setState(() {
             instructorSavedComments.remove(comment);
+            if (exerciseType == 'interview') {
+              instructorSavedCommentsInterview.remove(comment);
+            } else {
+              instructorSavedCommentsGeneric.remove(comment);
+            }
             // Reload from controller
             final updatedComments = eventController.getInstructorCustomCommentsForExercise('interview');
             instructorSavedComments = List<String>.from(updatedComments);
+            instructorSavedCommentsInterview = List<String>.from(eventController.instructorCustomComments['interview'] ?? []);
+            instructorSavedCommentsGeneric = List<String>.from(eventController.instructorCustomComments['generic'] ?? []);
           });
           
           ScaffoldMessenger.of(context).showSnackBar(
@@ -342,11 +361,12 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
           ),
         ],
       ),
-      padding: EdgeInsets.all(tablet ? 16 : 12),
+      padding: EdgeInsets.all(tablet ? 16 : 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (tablet) ...[
           Text(
             'בחר הערה עבור מספר ${widget.participantNumber}',
             style: TextStyle(
@@ -356,6 +376,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
             ),
           ),
           SizedBox(height: 12),
+          ],
           // Custom Comment Input (Single-line)
           Obx(() => TextField(
             controller: customCommentCtrl,
@@ -369,6 +390,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
               ),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: tablet ? 16 : 12),
               suffixIcon: IconButton(
                 icon: Icon(
                   Icons.send,
@@ -385,11 +407,11 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                 ? null
                 : (_) => addCustomComment(),
           )),
-          SizedBox(height: 12),
+          SizedBox(height: tablet ? 12 : 8),
           // Comments List (Predefined & Custom)
           Wrap(
-            spacing: 12,
-            runSpacing: 12,
+            spacing: tablet ? 12 : 8,
+            runSpacing: tablet ? 12 : 8,
             children: allComments.map((comment) {
               bool isSelected = instructorComments.contains(comment);
               final isInInstructorSaved = instructorSavedComments.contains(comment);
@@ -454,7 +476,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
               return chip;
             }).toList(),
           ),
-          SizedBox(height: 12),
+          SizedBox(height: tablet ? 12 : 8),
           // Action Buttons
           Obx(() => Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -467,7 +489,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                   'שמור וסגור',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: eventController.userFontSize.value,
+                    fontSize: tablet ? eventController.userFontSize.value : (eventController.userFontSize.value * 0.9),
                   ),
                 ),
               ),
@@ -477,7 +499,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                   'בטל',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: eventController.userFontSize.value,
+                    fontSize: tablet ? eventController.userFontSize.value : (eventController.userFontSize.value * 0.9),
                   ),
                 ),
               ),
@@ -519,7 +541,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
       ),
       child: DefaultTabController(
         length: 3,
-        child: Column(
+      child: Column(
           children: [
             SizedBox(height: 10),
             Container(
@@ -529,11 +551,17 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                   Tab(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('גרפים'),
-                        SizedBox(width: 6),
-                        Icon(Icons.bar_chart, size: 18),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+                        Flexible(
+                          child: Text(
+                            'גרפים',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        SizedBox(width: isTablet ? 6 : 4),
+                        Icon(Icons.bar_chart, size: isTablet ? 18 : 16),
                       ],
                     ),
                   ),
@@ -542,9 +570,15 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('טבלת ציונים'),
-                        SizedBox(width: 6),
-                        Icon(Icons.table_chart, size: 18),
+                        Flexible(
+                          child: Text(
+                            'טבלת ציונים',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        SizedBox(width: isTablet ? 6 : 4),
+                        Icon(Icons.table_chart, size: isTablet ? 18 : 16),
                       ],
                     ),
                   ),
@@ -553,9 +587,15 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('סיכום הערות'),
-                        SizedBox(width: 6),
-                        Icon(Icons.summarize, size: 18),
+                        Flexible(
+                          child: Text(
+                            'סיכום הערות',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        SizedBox(width: isTablet ? 6 : 4),
+                        Icon(Icons.summarize, size: isTablet ? 18 : 16),
                       ],
                     ),
                   ),
@@ -837,7 +877,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                   ),
                   child: Text(
                     'מערכת: ${adjustedSystemGrade.toStringAsFixed(2)}',
-                    style: TextStyle(
+              style: TextStyle(
                       fontSize: isTablet ? 16 : 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
@@ -1271,7 +1311,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
             _buildCommentsSection(),
             // Performance Section with tabs (each tab handles its own scrolling)
             Expanded(
-              child: _buildPerformanceSection(),
+                  child: _buildPerformanceSection(),
             ),
           ],
         ),
