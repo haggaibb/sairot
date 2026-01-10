@@ -6,7 +6,7 @@ import '../event_controller.dart';
 import 'package:get/get.dart';
 import '../models/event.dart';
 import '../models/participant.dart';
-import 'package:firebase_vertexai/firebase_vertexai.dart';
+import '../services/ocr_service.dart';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
 import '../utils/tablet_utils.dart';
@@ -37,10 +37,20 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
   Uint8List? _imageFile;
   final ImagePicker _picker = ImagePicker();
   bool isLoading = false;
-  final model = FirebaseVertexAI.instance.generativeModel(model: 'gemini-2.0-flash-001');
+  final OCRService _ocrService = OCRService();
+  String? _lastOcrMethod; // Track which OCR method was used (mlkit or vertexai)
+  bool _showRetryOption = false; // Show retry with Vertex AI option
+  String _loadingMessage = 'סבלנות, זה יכול לקחת כמה דקות'; // Dynamic loading message
+  
   // 📸 Capture image from camera
   Future<void> _captureImage(ImageSource src) async {
-    final XFile? image = await _picker.pickImage(source: src);
+    // Use high quality settings for better OCR accuracy
+    final XFile? image = await _picker.pickImage(
+      source: src,
+      imageQuality: 90, // High quality for better OCR
+      maxWidth: 1920, // Limit size for performance
+      maxHeight: 2560,
+    );
     if (image == null) return;
 
     // Read image bytes directly (works on both mobile and web)
@@ -50,85 +60,531 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
       _imageFile = imageBytes;
     });
 
-    // Send to Vertex AI
-    await _sendToVertexAI(_imageFile!);
+    // Process with OCR service (ML Kit first, Vertex AI fallback)
+    await _processImageOCR(_imageFile!);
   }
 
-  // 📤 Convert image to Base64 and send to Vertex AI
-  Future<void> _sendToVertexAI(Uint8List imageBytes) async {
-    // Check connectivity before attempting OCR
-    if (!eventController.isConnected.value) {
-      eventController.loading.value = false;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "אינטרנט נדרש לסריקת תמונה",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontSize: 16
-              ),
-            ),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-      return;
-    }
-
-    // Provide a text prompt to include with the image
+  // 📤 Process image with OCR service (ML Kit offline, Vertex AI fallback)
+  Future<void> _processImageOCR(Uint8List imageBytes, {bool forceVertexAI = false}) async {
     eventController.loading.value = true;
-    final prompt = TextPart("extract the data into json");
-    // Prepare images for input
-    final imagePart = InlineDataPart('image/jpeg', imageBytes);
-
-    // To generate text output, call generateContent with the text and image
+    _showRetryOption = false;
+    
     try {
-      final response = await model.generateContent(
-        generationConfig: GenerationConfig(
-          responseMimeType: "application/json",
-        ),
-        [Content.multi([prompt, imagePart])]
-      );
+      Map<String, dynamic>? result;
       
-      try {
-        // ✅ Now decode JSON properly
-        var jsonData = jsonDecode(response.text ?? '');
-        groupNumber.text = jsonData[0]['מספר קבוצה'].toString();
-        participants = [];
-        for (var element in jsonData) {
-          participants.add(Participant(
-              number: int.parse(element['מספר רץ']),
-              name: element['תעודת זהות']
-          ));
+      if (forceVertexAI) {
+        // Update loading message for cloud scan
+        setState(() {
+          _loadingMessage = 'מנסה סריקה מתקדמת בענן... זה עשוי לקחת כמה דקות';
+        });
+        // Force Vertex AI (for retry)
+        if (!eventController.isConnected.value) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  "אין חיבור לאינטרנט. אנא בדוק את החיבור ונסה שוב.",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 16
+                  ),
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          eventController.loading.value = false;
+          return;
         }
-        //print("✅ Decoded JSON: $jsonData");
-      } catch (e) {
-        print("❌ JSON Decoding Error: $e");
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "מחפש חיבור לאינטרנט ומנסה סריקה מתקדמת...",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 16
+                ),
+              ),
+              backgroundColor: Colors.blue,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        
+        try {
+          result = await _ocrService.processImageWithVertexAIOnly(imageBytes);
+          _lastOcrMethod = 'vertexai';
+          _showRetryOption = false; // Don't show retry option after using Vertex AI
+          
+          // Check if Vertex AI failed
+          if (result != null && result['success'] == false) {
+            // Vertex AI failed - show specific error
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "❌ סריקה מתקדמת נכשלה",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 16
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        "הסריקה המתקדמת לא הצליחה לחלץ את הנתונים מהתמונה.",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        "טיפים: ודא שהתמונה ברורה, יש תאורה טובה, והטקסט לא מטושטש.",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontStyle: FontStyle.italic
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 6),
+                ),
+              );
+            }
+            eventController.loading.value = false;
+            setState(() {
+              _loadingMessage = 'סבלנות, זה יכול לקחת כמה דקות';
+            });
+            return;
+          }
+        } catch (e) {
+          print("❌ Vertex AI failed: $e");
+          // Vertex AI threw an exception - show error
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "❌ שגיאה בסריקה המתקדמת",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 16
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      "הסריקה המתקדמת נכשלה. אנא נסה שוב או ודא שיש חיבור יציב לאינטרנט.",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+          eventController.loading.value = false;
+          setState(() {
+            _loadingMessage = 'סבלנות, זה יכול לקחת כמה דקות';
+          });
+          return;
+        }
+      } else {
+        // Normal flow: ML Kit first, then Vertex AI if needed
+        // Update loading message for local scan
+        setState(() {
+          _loadingMessage = 'מנסה סריקה מקומית וחילוץ נתונים...';
+        });
+        
+        result = await _ocrService.processImage(imageBytes);
+        _lastOcrMethod = result?['method'] ?? 'unknown';
+        
+        // If ML Kit was used (successful or not), we'll show retry option after processing
+        // This will be set in the success handler below
+        
+        // If ML Kit failed and we're trying Vertex AI, show message and progress
+        if (result != null && result['success'] == false && result['method'] == 'mlkit') {
+          // Update loading message for cloud fallback - use setState to update UI immediately
+          if (mounted) {
+            setState(() {
+              _loadingMessage = 'סריקה מקומית נכשלה. מנסה כעת סריקה מתקדמת בענן... זה עשוי לקחת כמה דקות';
+            });
+          }
+          // Give UI time to render the updated message before showing dialog
+          await Future.delayed(Duration(milliseconds: 500));
+          
+          if (eventController.isConnected.value) {
+            if (mounted) {
+              // Show failure message and cloud retry attempt
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: Row(
+                      children: [
+                        Icon(Icons.cloud_upload, color: Colors.blue[700], size: 28),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            "סריקה מקומית נכשלה",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "הסריקה המקומית לא הצליחה לחלץ את הנתונים.",
+                          style: TextStyle(fontSize: 15),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          "מנסה כעת סריקה מתקדמת בענן...",
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[700],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 20),
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[700]!),
+                        ),
+                        SizedBox(height: 20),
+                        Text(
+                          "זה עשוי לקחת דקה או שתיים",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+              
+              // Wait a bit for the dialog to show, then retry with Vertex AI
+              await Future.delayed(Duration(milliseconds: 500));
+              
+              // Retry with Vertex AI
+              try {
+                result = await _ocrService.processImageWithVertexAIOnly(imageBytes);
+                _lastOcrMethod = 'vertexai';
+                _showRetryOption = false; // Don't show retry option after using Vertex AI
+                
+                // Close the dialog before checking result
+                if (mounted) {
+                  Navigator.of(context).popUntil((route) => route.isFirst || !(route is DialogRoute));
+                }
+                
+                // Check if Vertex AI also failed
+                if (result != null && result['success'] == false) {
+                  // Vertex AI failed - show specific error
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "❌ סריקה מתקדמת נכשלה",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                fontSize: 16
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              "גם הסריקה המקומית וגם הסריקה המתקדמת לא הצליחו לחלץ את הנתונים.",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              "טיפים: ודא שהתמונה ברורה, יש תאורה טובה, והטקסט לא מטושטש.",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontStyle: FontStyle.italic
+                              ),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 6),
+                      ),
+                    );
+                  }
+                  eventController.loading.value = false;
+                  setState(() {
+              _loadingMessage = 'סבלנות, זה יכול לקחת כמה דקות';
+            });
+                  return;
+                }
+              } catch (e) {
+                print("❌ Vertex AI retry failed: $e");
+                // Close dialog before showing error
+                if (mounted) {
+                  Navigator.of(context).popUntil((route) => route.isFirst || !(route is DialogRoute));
+                }
+                // Vertex AI threw an exception - show error
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "❌ שגיאה בסריקה המתקדמת",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 16
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            "הסריקה המקומית נכשלה, וגם ניסיון הסריקה המתקדמת נכשל.",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            "אנא נסה שוב או ודא שיש חיבור יציב לאינטרנט.",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontStyle: FontStyle.italic
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 6),
+                    ),
+                  );
+                }
+                eventController.loading.value = false;
+                setState(() {
+              _loadingMessage = 'סבלנות, זה יכול לקחת כמה דקות';
+            });
+                return;
+              }
+            } else {
+              // No internet connection - close dialog and show error
+              if (mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst || !(route is DialogRoute));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "❌ סריקה מקומית נכשלה",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: 16
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          "הסריקה המקומית לא הצליחה, ואין חיבור לאינטרנט לסריקה מתקדמת.",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          "אנא בדוק את החיבור לאינטרנט ונסה שוב.",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic
+                          ),
+                        ),
+                      ],
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 5),
+                  ),
+                );
+              }
+              eventController.loading.value = false;
+              setState(() {
+              _loadingMessage = 'סבלנות, זה יכול לקחת כמה דקות';
+            });
+              return;
+            }
+          }
+        }
       }
-      processResponse(response.text ?? '');
+      
+      if (result != null && result['success'] == true) {
+        // Close progress dialog if it's open (should already be closed, but just in case)
+        if (mounted) {
+          Navigator.of(context).popUntil((route) => route.isFirst || !(route is DialogRoute));
+        }
+        
+        final data = result['data'] as List;
+        
+        if (data.isNotEmpty) {
+          // Extract group number
+          if (result['groupNumber'] != null) {
+            groupNumber.text = result['groupNumber'].toString();
+          } else if (data[0]['מספר קבוצה'] != null) {
+            groupNumber.text = data[0]['מספר קבוצה'].toString();
+          }
+          
+          // Extract participants
+          participants = [];
+          for (var element in data) {
+            if (element['מספר רץ'] != null && element['תעודת זהות'] != null) {
+              participants.add(Participant(
+                number: int.parse(element['מספר רץ'].toString()),
+                name: element['תעודת זהות'].toString()
+              ));
+            }
+          }
+          
+          // Sort participants by number
+          participants.sort((a, b) => a.number.compareTo(b.number));
+          
+          // ALWAYS show retry option if ML Kit was used (even if successful, user should double-check)
+          // Only hide it if Vertex AI was already used
+          if (_lastOcrMethod == 'mlkit') {
+            _showRetryOption = true; // Always show panel after local scan for user to verify
+            print("✅ ML Kit was used - showing retry panel");
+          } else if (_lastOcrMethod == 'vertexai') {
+            _showRetryOption = false; // Already used cloud service, no need for retry
+            print("✅ Vertex AI was used - hiding retry panel");
+          }
+          
+          print("📊 Panel visibility: _showRetryOption=$_showRetryOption, _lastOcrMethod=$_lastOcrMethod, participants=${participants.length}, _imageFile=${_imageFile != null}");
+          
+          setState(() {});
+          
+          if (mounted) {
+            String methodText = _lastOcrMethod == 'vertexai' ? ' (סריקה מתקדמת)' : '';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  "✅ סריקה הושלמה בהצלחה$methodText",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 16
+                  ),
+                ),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          throw Exception("No data extracted from image");
+        }
+      } else {
+        // This handles cases where result is null or success is false but we haven't handled it yet
+        // (shouldn't happen often, but good to have as fallback)
+        throw Exception(result?['error'] ?? "OCR processing failed");
+      }
     } catch (e) {
-      print("❌ Error calling Vertex AI: $e");
+      print("❌ Error in OCR processing: $e");
+      
+      // Close progress dialog if it's open
       if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst || !(route is DialogRoute));
+      }
+      
+      // Only show error snackbar if we haven't already shown one above
+      // (This is a fallback for unexpected errors)
+      if (mounted) {
+        String errorMessage = "לא ניתן לחלץ את הנתונים מהתמונה.";
+        String details = "";
+        
+        // Provide more specific error message
+        if (!eventController.isConnected.value) {
+          errorMessage = "לא ניתן לחלץ את הנתונים מהתמונה.";
+          details = "אנא נסה שוב או ודא שיש חיבור לאינטרנט לסריקה מתקדמת.";
+        } else {
+          errorMessage = "לא ניתן לחלץ את הנתונים מהתמונה.";
+          details = "טיפים לשיפור: ודא שהתמונה ברורה, יש תאורה טובה, הטקסט לא מטושטש, והמסמך מלא במסגרת.";
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              "שגיאה בסריקת התמונה. אנא נסה שוב.",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontSize: 16
-              ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  errorMessage,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 16
+                  ),
+                ),
+                if (details.isNotEmpty) ...[
+                  SizedBox(height: 4),
+                  Text(
+                    details,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14
+                    ),
+                  ),
+                ],
+              ],
             ),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
+            duration: Duration(seconds: 5),
           ),
         );
       }
     } finally {
       eventController.loading.value = false;
+      // Reset loading message to default
+      setState(() {
+        _loadingMessage = 'סבלנות, זה יכול לקחת כמה דקות';
+      });
     }
   }
   //
@@ -271,7 +727,18 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                             height: 50,
                             child: CircularProgressIndicator(),
                           ),
-                          Text('סבלנות, זה יכול לקחת כמה דקות')
+                          SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Text(
+                              _loadingMessage,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
                         ],
                       );
                     }
@@ -332,11 +799,13 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                           bool tablet = isTablet(context);
                           // Increase recruit number column width for tablet to hold 3 digits
                           final recruitNumberWidth = tablet ? 150.0 : 100.0;
-                          // Increase name column width for mobile to prevent clipping
-                          final nameColumnWidth = tablet ? 200.0 : 180.0;
+                          // Increase name column width for tablet (30% larger: 200 * 1.3 = 260)
+                          final nameColumnWidth = tablet ? 260.0 : 180.0;
+                          // Increase list height for tablet (30% larger: 300 * 1.3 = 390)
+                          final listHeight = tablet ? 390.0 : 300.0;
                           
                           return Container(
-                            height: 300, // Set height as per your requirement
+                            height: listHeight,
                             child: SingleChildScrollView(
                               scrollDirection: Axis.vertical,
                               child: SingleChildScrollView(
@@ -504,6 +973,92 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                           child: const Text('שמור',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           )),
+                      // Info panel: Explain local scan and offer cloud retry (if ML Kit was used) - after save button
+                      if (_showRetryOption && _imageFile != null && participants.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+                          child: Container(
+                            padding: EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50], // Light blue background for better contrast
+                              border: Border.all(color: Colors.blue[300]!, width: 1.5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.info_outline, color: Colors.red[700], size: 24), // Red icon for visibility
+                                    SizedBox(width: 8),
+                                    Text(
+                                      "סריקה מקומית מהירה",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[900], // Dark text for better contrast
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 12),
+                                Text(
+                                  "הסריקה בוצעה במצב מקומי (ללא אינטרנט). אנא בדוק היטב את הנתונים שחולצו.",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[800], // Dark text for better contrast
+                                    height: 1.4,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  "אם יש שגיאות או נתונים חסרים, תוכל לנסות סריקה מתקדמת בענן (דורש אינטרנט) לתוצאות מדויקות יותר.",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[800], // Dark text for better contrast
+                                    height: 1.4,
+                                  ),
+                                ),
+                                SizedBox(height: 12),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: ElevatedButton.icon(
+                                    onPressed: eventController.isConnected.value
+                                        ? () async {
+                                            await _processImageOCR(_imageFile!, forceVertexAI: true);
+                                          }
+                                        : null,
+                                    icon: Icon(Icons.cloud_upload, size: 20),
+                                    label: Text(
+                                      "נסה סריקה מתקדמת",
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue[700],
+                                      foregroundColor: Colors.white,
+                                      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                if (!eventController.isConnected.value)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8.0),
+                                    child: Text(
+                                      "⚠️ אין חיבור לאינטרנט - סריקה מתקדמת לא זמינה",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.orange[700],
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
                       SizedBox(height: 50,),
                     ],
                   );}),
@@ -514,5 +1069,15 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _ocrService.dispose();
+    groupNumber.dispose();
+    instructorId.dispose();
+    participantName.dispose();
+    participantNumber.dispose();
+    super.dispose();
   }
 }
