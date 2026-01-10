@@ -185,6 +185,26 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                     ],
                   ),
                 ),
+                /// Back to Home Page
+                ListTile(
+                  title: Row(
+                    children: [
+                      Icon(Icons.calendar_month_sharp),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      const Text('חזרה לתפריט ראשי'),
+                    ],
+                  ),
+                  onTap: () async {
+                    // Save playground normally when going back to main menu (don't delete it)
+                    if (!eventController.currentEvent.value.finalized) {
+                      eventController.currentEvent.value.saveToFirestore();
+                    }
+                    await eventController.getUnfinalizedEvents();
+                    Get.toNamed('/home');
+                  },
+                ),
                 /// Loading
                 Obx(() => eventController.loading.value
                     ? SizedBox(
@@ -206,7 +226,10 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                           ],
                         ),
                         onTap: () async {
-                          if (eventController.gradesCanBeFinalized()) {
+                          final isPlayground = eventController.currentEvent.value.eventName == 'playground';
+                          
+                          if (isPlayground) {
+                            // For playground: skip all validation and reset the playground
                             var res = await showDialog(
                               context: context,
                               builder: (BuildContext context) {
@@ -214,60 +237,85 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                               },
                             );
                             if (res) {
-                              // Check connectivity before finalization
-                              if (!eventController.isConnected.value) {
-                                showCustomMessageAlert(
-                                  context,
-                                  "תקלה",
-                                  "אינטרנט נדרש לסיום ושמירת האירוע",
-                                  Icons.wifi_off,
-                                );
-                                return;
-                              }
-                              
                               eventController.loading.value = true;
                               
-                              // Debug: Log instructorGrade values before finalization
-                              print('🔍 Before finalization - instructorGrade values:');
-                              for (var p in eventController.currentEvent.value.participants) {
-                                if (p.status == ParticipantStatus.Active) {
-                                  print('  Participant ${p.number}: instructorGrade = ${p.instructorGrade}');
+                              // Delete/reset the playground (this prepares it for a fresh start)
+                              await eventController.deletePlaygroundEvent();
+                              
+                              showCustomMessageAlert(context, "הצלחה",
+                                  "מגרש המשחקים אופס", Icons.check);
+                              
+                              eventController.loading.value = false;
+                              
+                              // Navigate back to home
+                              await eventController.getUnfinalizedEvents();
+                              Get.toNamed('/home');
+                            }
+                          } else {
+                            // For real events: normal finalization process with validation
+                            if (eventController.gradesCanBeFinalized()) {
+                              var res = await showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return YesNoDialog();
+                                },
+                              );
+                              if (res) {
+                                // Check connectivity before finalization
+                                if (!eventController.isConnected.value) {
+                                  showCustomMessageAlert(
+                                    context,
+                                    "תקלה",
+                                    "אינטרנט נדרש לסיום ושמירת האירוע",
+                                    Icons.wifi_off,
+                                  );
+                                  return;
                                 }
-                              }
-                              
-                              // Save qualified recruits to Firestore FIRST (while grades are definitely in memory)
-                              try {
-                                await eventController.finalizeEventAndUpdateQualifiedRecruits();
-                              } catch (e) {
-                                print('❌ Error saving qualified recruits: $e');
-                                // Don't block finalization if qualified recruits save fails
-                              }
-                              
-                              // NOW set finalized flag
-                              eventController.currentEvent.value.finalized = true;
-                              eventController.currentEvent.refresh();
-                              
-                              // Debug: Verify instructorGrade values are still present before saving
-                              print('🔍 Before saving finalized event - instructorGrade values:');
-                              for (var p in eventController.currentEvent.value.participants) {
-                                if (p.status == ParticipantStatus.Active) {
-                                  print('  Participant ${p.number}: instructorGrade = ${p.instructorGrade}');
+                                
+                                eventController.loading.value = true;
+                                
+                                // Debug: Log instructorGrade values before finalization
+                                print('🔍 Before finalization - instructorGrade values:');
+                                for (var p in eventController.currentEvent.value.participants) {
+                                  if (p.status == ParticipantStatus.Active) {
+                                    print('  Participant ${p.number}: instructorGrade = ${p.instructorGrade}');
+                                  }
                                 }
-                              }
-                              
-                              // Save the event with finalized flag AND all instructorGrade values
-                              if(await eventController.currentEvent.value.saveToFirestore()) {
-                                showCustomMessageAlert(context, "הצלחה",
-                                    "הארוע נסגר בהצלחה", Icons.check);
-                              }
-                            } else {
+                                
+                                // Save qualified recruits to Firestore FIRST (while grades are definitely in memory)
+                                try {
+                                  await eventController.finalizeEventAndUpdateQualifiedRecruits();
+                                } catch (e) {
+                                  print('❌ Error saving qualified recruits: $e');
+                                  // Don't block finalization if qualified recruits save fails
+                                }
+                                
+                                // NOW set finalized flag
+                                eventController.currentEvent.value.finalized = true;
+                                eventController.currentEvent.refresh();
+                                
+                                // Debug: Verify instructorGrade values are still present before saving
+                                print('🔍 Before saving finalized event - instructorGrade values:');
+                                for (var p in eventController.currentEvent.value.participants) {
+                                  if (p.status == ParticipantStatus.Active) {
+                                    print('  Participant ${p.number}: instructorGrade = ${p.instructorGrade}');
+                                  }
+                                }
+                                
+                                // Save the event with finalized flag AND all instructorGrade values
+                                if(await eventController.currentEvent.value.saveToFirestore()) {
+                                  showCustomMessageAlert(context, "הצלחה",
+                                      "הארוע נסגר בהצלחה", Icons.check);
+                                }
+                              } else {
 
+                              }
+                              eventController.loading.value = false;
+                              }
+                            else {
+                              showCustomMessageAlert(context, "תקלה",
+                                  "לא ניתנו ציונים סופיים", Icons.check);
                             }
-                            eventController.loading.value = false;
-                            }
-                          else {
-                            showCustomMessageAlert(context, "תקלה",
-                                "לא ניתנו ציונים סופיים", Icons.check);
                           }
                         },
                       )),
@@ -289,24 +337,6 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                               '/event_settings/${eventController.currentEvent.value.date}');
                         },
                       )),
-                /// Back to Home Page
-                ListTile(
-                  title: Row(
-                    children: [
-                      Icon(Icons.calendar_month_sharp),
-                      SizedBox(
-                        width: 10,
-                      ),
-                      const Text('חזרה לתפריט ראשי'),
-                    ],
-                  ),
-                  onTap: () async {
-                    if (!eventController.currentEvent.value.finalized)
-                      eventController.currentEvent.value.saveToFirestore();
-                    await eventController.getUnfinalizedEvents();
-                    Get.toNamed('/home');
-                  },
-                ),
                 /// Dark Mode
                 Obx(() => SwitchListTile(
                   title: Text(

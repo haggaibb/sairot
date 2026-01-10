@@ -172,10 +172,12 @@ class EventController extends GetxController {
     
     // Step 4: Show UI immediately if logged in (don't wait for network)
     if (loggedIn.value) {
-      // Load events from cache immediately
-      await getUnfinalizedEvents(); // Loads from local first
+      // Don't load unfinalized events here - wait for connectivity check to avoid showing stale data
+      // Only load event list from cache (for dropdown, less critical)
       await fetchInstructorEvents(); // Loads from local first
-      await restoreSelectedEventAndDay();
+      // Don't auto-load cached event on startup to avoid showing stale data
+      // User can manually select an event from the list
+      // await restoreSelectedEventAndDay(); // Disabled to prevent flash of stale events
     }
     
     // Step 5: Set loading to false to show UI
@@ -213,10 +215,21 @@ class EventController extends GetxController {
       await getUpdatedInstructorsList(); // Syncs if online
       
       if (loggedIn.value) {
+        // Load unfinalized events (from Firestore if online, local if offline)
+        // This is done here after connectivity check to avoid showing stale data
+        await getUnfinalizedEvents();
+        
         // Refresh events from network in background if online
         if (isConnected.value) {
-          await getUnfinalizedEvents(); // Syncs if online
           await fetchInstructorEvents(); // Syncs if online
+          
+          // After syncing, restore and load cached event if it's still valid
+          // This ensures we only load events that exist after sync
+          await restoreSelectedEventAndDay();
+        } else {
+          // If offline, load from local and restore cached event
+          await fetchInstructorEvents(); // Loads from local
+          await restoreSelectedEventAndDay();
         }
         
         // Process sync queue in background
@@ -309,20 +322,31 @@ class EventController extends GetxController {
           if (cachedSettingsData != null) {
             try {
               // Convert any Map type (including LinkedMap) to Map<String, dynamic>
-              // First convert to a regular Map, then to Map<String, dynamic>
-              final tempMap = <String, dynamic>{};
+              // Recursively convert nested maps as well
               if (cachedSettingsData is Map) {
-                cachedSettingsData.forEach((key, value) {
-                  tempMap[key.toString()] = value;
-                });
+                // Helper function to recursively convert LinkedMap to Map<String, dynamic>
+                dynamic convertValue(dynamic value) {
+                  if (value is Map) {
+                    final converted = <String, dynamic>{};
+                    for (var entry in value.entries) {
+                      converted[entry.key.toString()] = convertValue(entry.value);
+                    }
+                    return converted;
+                  } else if (value is List) {
+                    return value.map((item) => convertValue(item)).toList();
+                  }
+                  return value;
+                }
+                
+                // Create a new Map and copy all entries, converting keys to String
+                final tempMap = <String, dynamic>{};
+                for (var entry in cachedSettingsData.entries) {
+                  tempMap[entry.key.toString()] = convertValue(entry.value);
+                }
                 cachedSettingsJson = tempMap;
               } else {
-                // If it's not a Map, try to cast it
-                final asMap = cachedSettingsData as Map;
-                asMap.forEach((key, value) {
-                  tempMap[key.toString()] = value;
-                });
-                cachedSettingsJson = tempMap;
+                // If it's not a Map, skip it
+                cachedSettingsJson = null;
               }
             } catch (e) {
               print('⚠️ Could not convert cached settings data: $e');
@@ -408,48 +432,107 @@ class EventController extends GetxController {
       unfinalizedLoading.value=true;
       unfinalizedEvents.clear();
       
-      // First, load from local storage
-      final localEvents = await LocalStorageService.instance.getLocalUnfinalizedEvents();
-      // Filter by current instructor and event name
-      final filteredLocalEvents = localEvents.where((e) => 
-        e.instructorId == currentInstructor.id && 
-        e.eventName == currentEventName
-      ).toList();
+      // If currentEventName is 'playground', load all unfinalized events for the instructor
+      // Otherwise, load only events for the current event name
+      final shouldLoadAllEvents = currentEventName == 'playground' || currentEventName.isEmpty;
       
-      if (filteredLocalEvents.isNotEmpty) {
-        unfinalizedEvents.addAll(filteredLocalEvents);
-        print('✅ Loaded ${filteredLocalEvents.length} unfinalized events from local storage');
-      }
-      
-      // If online, sync with Firestore and update local cache
+      // If online, prioritize Firestore to avoid showing stale local data
+      // Only load from local storage if offline or if Firestore sync fails
       if (isConnected.value) {
         try {
-          QuerySnapshot unfinalizedSnapshot = await firestore.collection('Results')
-              .doc(currentInstructor.id)
-              .collection('events')
-              .doc(currentEventName)
-              .collection('days')
-              .where('finalized', isEqualTo: false)
-              .get();
-          
-          if (unfinalizedSnapshot.docs.isNotEmpty) {
+          if (shouldLoadAllEvents) {
+            // Load all unfinalized events across all event names for this instructor
+            QuerySnapshot eventsSnapshot = await firestore.collection('Results')
+                .doc(currentInstructor.id)
+                .collection('events')
+                .get();
+            
             unfinalizedEvents.clear(); // Clear local events, use Firestore data
-            for (var doc in unfinalizedSnapshot.docs) {
-              Map<String, dynamic> docData = doc.data() as Map<String, dynamic>;
-              final event = Event.fromJson(docData);
-              unfinalizedEvents.add(event);
+            for (var eventDoc in eventsSnapshot.docs) {
+              if (eventDoc.id == 'playground') continue; // Skip playground
               
-              // Save to local storage
-              await LocalStorageService.instance.saveEventLocally(event);
+              QuerySnapshot daysSnapshot = await firestore.collection('Results')
+                  .doc(currentInstructor.id)
+                  .collection('events')
+                  .doc(eventDoc.id)
+                  .collection('days')
+                  .where('finalized', isEqualTo: false)
+                  .get();
+              
+              for (var doc in daysSnapshot.docs) {
+                Map<String, dynamic> docData = doc.data() as Map<String, dynamic>;
+                final event = Event.fromJson(docData);
+                // Exclude playground events
+                if (event.eventName != 'playground') {
+                  unfinalizedEvents.add(event);
+                  
+                  // Save to local storage
+                  await LocalStorageService.instance.saveEventLocally(event);
+                }
+              }
             }
-            print('✅ Synced ${unfinalizedEvents.length} unfinalized events from Firestore');
+            print('✅ Synced ${unfinalizedEvents.length} unfinalized events from Firestore (all events)');
+          } else {
+            // Load only for current event name
+            QuerySnapshot unfinalizedSnapshot = await firestore.collection('Results')
+                .doc(currentInstructor.id)
+                .collection('events')
+                .doc(currentEventName)
+                .collection('days')
+                .where('finalized', isEqualTo: false)
+                .get();
+            
+            if (unfinalizedSnapshot.docs.isNotEmpty) {
+              unfinalizedEvents.clear(); // Clear local events, use Firestore data
+              for (var doc in unfinalizedSnapshot.docs) {
+                Map<String, dynamic> docData = doc.data() as Map<String, dynamic>;
+                final event = Event.fromJson(docData);
+                // Exclude playground events
+                if (event.eventName != 'playground') {
+                  unfinalizedEvents.add(event);
+                  
+                  // Save to local storage
+                  await LocalStorageService.instance.saveEventLocally(event);
+                }
+              }
+              print('✅ Synced ${unfinalizedEvents.length} unfinalized events from Firestore');
+            }
           }
         } catch (e) {
           print("⚠️ Error fetching unfinalized events from Firestore: $e");
-          // Keep using local events if Firestore fetch fails
+          // Fall through to load from local storage if Firestore fetch fails
         }
-      } else {
-        print('📴 Using local unfinalized events (offline mode)');
+      }
+      
+      // If offline or Firestore fetch failed/returned empty, load from local storage
+      if (!isConnected.value || unfinalizedEvents.isEmpty) {
+        final localEvents = await LocalStorageService.instance.getLocalUnfinalizedEvents();
+        // Filter by current instructor, exclude playground
+        List<Event> filteredLocalEvents;
+        if (shouldLoadAllEvents) {
+          // Load all unfinalized events for this instructor (excluding playground)
+          filteredLocalEvents = localEvents.where((e) => 
+            e.instructorId == currentInstructor.id && 
+            e.eventName != 'playground'
+          ).toList();
+        } else {
+          // Load only events for current event name
+          filteredLocalEvents = localEvents.where((e) => 
+            e.instructorId == currentInstructor.id && 
+            e.eventName == currentEventName &&
+            e.eventName != 'playground'
+          ).toList();
+        }
+        
+        if (filteredLocalEvents.isNotEmpty) {
+          unfinalizedEvents.clear(); // Clear any partial Firestore data
+          unfinalizedEvents.addAll(filteredLocalEvents);
+          print('✅ Loaded ${filteredLocalEvents.length} unfinalized events from local storage');
+        }
+        
+        if (!isConnected.value) {
+          print('📴 Using local unfinalized events (offline mode)');
+        }
       }
     } catch (e) {
       unfinalizedLoading.value=false;
@@ -466,8 +549,11 @@ class EventController extends GetxController {
       // First, load from local cache
       final localEventList = await LocalStorageService.instance.getLocalEventList();
       if (localEventList.isNotEmpty) {
-        events.value = localEventList;
-        print('✅ Loaded ${localEventList.length} events from local cache');
+        final filteredList = localEventList
+            .where((eventName) => eventName != 'playground')
+            .toList();
+        events.value = filteredList;
+        print('✅ Loaded ${filteredList.length} events from local cache (playground filtered)');
       }
       
       // If online, sync with Firestore and update cache
@@ -475,7 +561,10 @@ class EventController extends GetxController {
         try {
           QuerySnapshot eventsSnapshot = await firestore.collection('Results').doc(currentInstructor.id).collection('events').get();
           if (eventsSnapshot.docs.isNotEmpty) {
-            events.value = eventsSnapshot.docs.map((doc) => doc.id).toList();
+            events.value = eventsSnapshot.docs
+                .map((doc) => doc.id)
+                .where((eventName) => eventName != 'playground')
+                .toList();
             final monthMap = {
               'January': 1,
               'February': 2,
@@ -529,6 +618,11 @@ class EventController extends GetxController {
   /// 📅 Fetch Available Days for Selected Event
   Future<void> fetchEventDays(String eventName) async {
     pastEventsLoading.value = true;
+    // Skip fetching days for playground
+    if (eventName == 'playground') {
+      pastEventsLoading.value = false;
+      return;
+    }
     try {
       QuerySnapshot daysSnapshot = await firestore.collection('Results')
           .doc(currentInstructor.id)
@@ -552,14 +646,13 @@ class EventController extends GetxController {
   Future<void> loadInstructorEvent(String eventName, String day) async {
     pastEventsLoading.value = true;
     try {
-      // First, try to load from local storage
-      final localEvent = await LocalStorageService.instance.loadEventLocally(eventName, day);
-      if (localEvent != null) {
-        currentEvent.value = localEvent;
-        print('✅ Loaded event from local storage: $eventName - $day');
+      // Clear current event to avoid showing stale data during load
+      // Only clear if we're loading a different event than what's currently loaded
+      if (currentEvent.value.eventName != eventName || currentEvent.value.date != day) {
+        currentEvent.value = Event(date: '', instructorId: '', eventName: '');
       }
       
-      // If online, try to sync with Firestore and update local cache
+      // If online, try Firestore first to avoid showing stale cached data
       if (isConnected.value) {
         try {
           DocumentSnapshot eventSnapshot = await firestore.collection('Results')
@@ -576,20 +669,22 @@ class EventController extends GetxController {
             // Update local cache
             await LocalStorageService.instance.saveEventLocally(currentEvent.value);
             print('✅ Synced event from Firestore: $eventName - $day');
-          } else if (localEvent == null) {
-            print('⚠️ Event not found in Firestore and not in local storage: $eventName - $day');
+            pastEventsLoading.value = false;
+            return; // Successfully loaded from Firestore, exit early
           }
         } catch (e) {
           print("⚠️ Error loading event from Firestore: $e");
-          // Keep using local event if available
-          if (localEvent == null) {
-            print("❌ No local event available and Firestore fetch failed");
-          }
+          // Fall through to try local storage
         }
+      }
+      
+      // If offline or Firestore fetch failed, try local storage
+      final localEvent = await LocalStorageService.instance.loadEventLocally(eventName, day);
+      if (localEvent != null) {
+        currentEvent.value = localEvent;
+        print('✅ Loaded event from local storage: $eventName - $day');
       } else {
-        if (localEvent == null) {
-          print('📴 Event not found in local storage (offline mode): $eventName - $day');
-        }
+        print('⚠️ Event not found in local storage (offline mode): $eventName - $day');
       }
     } catch (e) {
       pastEventsLoading.value = false;
@@ -739,10 +834,55 @@ class EventController extends GetxController {
           }
         }
 
-        // If both event and day are available, load the event
+        // If both event and day are available, verify the event still exists in current unfinalized events
+        // This prevents loading stale cached events that no longer exist or are from different dates
         if (selectedEvent.value != null && selectedDay.value != null) {
-          print('🔄 Auto-loading event: ${selectedEvent.value} / ${selectedDay.value}');
-          await loadInstructorEvent(selectedEvent.value!, selectedDay.value!);
+          // Check if this event/day combination exists in the current unfinalized events list
+          bool eventExistsInUnfinalized = unfinalizedEvents.any((e) => 
+            e.eventName == selectedEvent.value && e.date == selectedDay.value
+          );
+          
+          if (!eventExistsInUnfinalized) {
+            // Cached event is not in current unfinalized events, clear the cache
+            print('⚠️ Cached event not in current unfinalized events, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
+            selectedEvent.value = null;
+            selectedDay.value = null;
+            await saveSelectedEventAndDay(null, null);
+            return; // Don't load stale event
+          }
+          
+          // Check if the event still exists in local storage before auto-loading
+          final cachedEvent = await LocalStorageService.instance.loadEventLocally(
+            selectedEvent.value!, 
+            selectedDay.value!
+          );
+          
+          if (cachedEvent != null) {
+            // Verify the cached event matches currentEventName (if set) to avoid loading wrong events
+            // Only auto-load if it's a valid, current event
+            bool shouldLoad = true;
+            if (currentEventName.isNotEmpty && cachedEvent.eventName != currentEventName) {
+              print('⚠️ Cached event name mismatch: cached=${cachedEvent.eventName}, current=$currentEventName');
+              shouldLoad = false;
+            }
+            
+            if (shouldLoad) {
+              print('🔄 Auto-loading cached event: ${selectedEvent.value} / ${selectedDay.value}');
+              await loadInstructorEvent(selectedEvent.value!, selectedDay.value!);
+            } else {
+              // Clear stale cache if event doesn't match
+              print('⚠️ Cached event is stale, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
+              selectedEvent.value = null;
+              selectedDay.value = null;
+              await saveSelectedEventAndDay(null, null);
+            }
+          } else {
+            // Clear stale cache if event no longer exists
+            print('⚠️ Cached event no longer exists, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
+            selectedEvent.value = null;
+            selectedDay.value = null;
+            await saveSelectedEventAndDay(null, null);
+          }
         }
       }
     } catch (e) {
@@ -787,6 +927,7 @@ class EventController extends GetxController {
           event.toJson()
         );
         print('📴 Event saved locally, queued for sync when online');
+        // Note: Playground is NOT deleted here - it persists like a real event
         return;
       }
       
@@ -811,6 +952,8 @@ class EventController extends GetxController {
             print('⚠️ Firestore save failed, queued for retry');
           }
         }
+        // Note: Playground is NOT deleted here - it persists like a real event
+        // It will only be deleted when user explicitly saves/closes it
       } catch (e) {
         print('⚠️ Error saving to Firestore: $e, queuing for retry');
         // Queue for retry
@@ -2137,6 +2280,138 @@ class EventController extends GetxController {
     Get.changeThemeMode(isDark ? ThemeMode.dark : ThemeMode.light);
     system.value.isDarkMode = isDark;
     system.value.save();
+  }
+
+  /// 🎮 Create a playground event with 16 generic participants
+  Event _createPlaygroundEvent() {
+    final random = Random();
+    final Set<int> usedNumbers = {};
+    final List<Participant> participants = [];
+    
+    // Generate 16 unique random numbers between 85-350
+    while (usedNumbers.length < 16) {
+      final number = 85 + random.nextInt(350 - 85 + 1); // 85 to 350 inclusive
+      if (!usedNumbers.contains(number)) {
+        usedNumbers.add(number);
+        participants.add(Participant(
+          number: number,
+          name: 'טירון ${usedNumbers.length}',
+        )..status = ParticipantStatus.Active);
+      }
+    }
+    
+    // Sort participants by number
+    participants.sort((a, b) => a.number.compareTo(b.number));
+    
+    final event = Event(
+      date: '01-01-2026',
+      instructorId: currentInstructor.id,
+      eventName: 'playground',
+    )
+      ..participants = participants
+      ..activeParticipants = List<Participant>.from(participants)
+      ..instructorName = '${currentInstructor.firstName} ${currentInstructor.lastName}'
+      ..groupNumber = 1  // Set groupNumber to pass validation (non-zero)
+      ..finalized = false
+      ..alonkaSprints = []
+      ..sakimRounds = []
+      ..meshulashRounds = []
+      ..burGrades = []
+      ..burStartTime = null
+      ..burEndTime = null
+      ..alonkaStartTime = null
+      ..alonkaEndTime = null
+      ..meshulashStartTime = null
+      ..meshulashEndTime = null
+      ..sakimStartTime = null
+      ..sakimEndTime = null;
+    
+    return event;
+  }
+
+  /// 🎮 Load playground event (loads existing if available, creates new only if needed)
+  Future<void> loadPlaygroundEvent() async {
+    try {
+      currentEventName = 'playground';
+      
+      // Try to load existing playground from local storage first
+      final existingPlayground = await LocalStorageService.instance.loadEventLocally('playground', '01-01-2026');
+      
+      if (existingPlayground != null && existingPlayground.participants.isNotEmpty) {
+        // Load existing playground
+        // Ensure the loaded event has the correct instructor ID (in case instructor changed)
+        // Note: eventName, date, and instructorId are final, so they should already be correct from JSON
+        currentEvent.value = existingPlayground;
+        
+        // Explicitly save to ensure it's persisted (in case of any issues)
+        await existingPlayground.saveToLocal();
+        
+        print('✅ Loaded existing playground event: ${existingPlayground.participants.length} participants, first participant: ${existingPlayground.participants.first.number}, eventName: ${existingPlayground.eventName}');
+        print('   Participants: ${existingPlayground.participants.map((p) => p.number).join(", ")}');
+      } else {
+        // Create new playground event only if it doesn't exist or is empty
+        print('🆕 No existing playground found (or empty), creating new one...');
+        if (existingPlayground != null) {
+          print('   Existing playground was empty (${existingPlayground.participants.length} participants)');
+        }
+        final playgroundEvent = _createPlaygroundEvent();
+        currentEvent.value = playgroundEvent;
+        
+        // Save the new playground to local storage so it persists
+        await playgroundEvent.saveToLocal();
+        print('✅ Created new playground event: ${playgroundEvent.participants.length} participants, groupNumber: ${playgroundEvent.groupNumber}, first participant: ${playgroundEvent.participants.first.number}');
+        print('   Participants: ${playgroundEvent.participants.map((p) => p.number).join(", ")}');
+      }
+      
+      // Calculate grades synchronously before navigation
+      // This ensures the event is fully ready and avoids build phase issues
+      calculateGrades();
+    } catch (e) {
+      print('❌ Error loading playground event: $e');
+      // If loading fails, create a new playground as fallback
+      try {
+        final playgroundEvent = _createPlaygroundEvent();
+        currentEvent.value = playgroundEvent;
+        await playgroundEvent.saveToLocal();
+        calculateGrades();
+        print('✅ Created fallback playground event after error');
+      } catch (fallbackError) {
+        print('❌ Error creating fallback playground: $fallbackError');
+      }
+    }
+  }
+
+  /// 🎮 Delete playground event from Firestore and local storage
+  /// This is called when the user saves and closes the playground to reset it
+  Future<void> deletePlaygroundEvent() async {
+    try {
+      // Delete from Firestore
+      if (isConnected.value) {
+        try {
+          await firestore
+              .collection('Results')
+              .doc(currentInstructor.id)
+              .collection('events')
+              .doc('playground')
+              .collection('days')
+              .doc('01-01-2026')
+              .delete();
+          print('✅ Deleted playground from Firestore');
+        } catch (e) {
+          print('⚠️ Error deleting playground from Firestore: $e');
+        }
+      }
+      
+      // Delete from local storage
+      try {
+        await LocalStorageService.instance.deleteEventLocally('playground', '01-01-2026');
+        print('✅ Deleted playground from local storage');
+      } catch (e) {
+        print('⚠️ Error deleting playground from local storage: $e');
+      }
+    } catch (e) {
+      print('❌ Error in _deletePlaygroundEvent: $e');
+    }
   }
 
   /// 🔍 Get Full Name of an Instructor by `instructorId`

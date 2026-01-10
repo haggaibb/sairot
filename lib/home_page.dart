@@ -262,6 +262,20 @@ class _HomeState extends State<Home> {
                     child: LinearProgressIndicator(),
                   )
                       : SizedBox.shrink()),
+                  /// 🎮 Playground
+                  ListTile(
+                    leading: Icon(Icons.sports_esports, color: Colors.orange),
+                    title: const Text('מגרש משחקים',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(context); // Close drawer
+                      eventController.pastEventsLoading.value = true;
+                      await eventController.loadPlaygroundEvent();
+                      eventController.pastEventsLoading.value = false;
+                      Get.toNamed('/event_home');
+                    },
+                  ),
 
                 ],
               ),

@@ -134,6 +134,11 @@ class LocalStorageService {
   /// Update event list with new event name
   Future<void> _updateEventList(String eventName) async {
     try {
+      // Skip playground events - they should not appear in the event list
+      if (eventName == 'playground') {
+        return;
+      }
+      
       if (_eventListBox == null) await initialize();
       
       final currentList = await getLocalEventList();

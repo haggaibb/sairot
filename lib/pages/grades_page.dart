@@ -27,11 +27,11 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
   void initState() {
     super.initState();
     checkEventValidity();
-    eventController.calculateGrades();
-    // Notify that page has finished loading
+    // Defer calculateGrades to avoid build phase issues
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // This will be picked up by the event_home page if it's listening
-      // For now, we'll rely on the delay in event_home
+      if (mounted) {
+        eventController.calculateGrades();
+      }
     });
   }
 

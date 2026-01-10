@@ -297,32 +297,35 @@ class Event {
         print('⚠️ Failed to update events doc (non-critical): $e');
       }
 
-      try {
-        await FirebaseFirestore.instance
-            .collection('AdminIndex')
-            .doc(eventName)
-            .collection('days')
-            .doc(date)
-            .set({
-          "instructors": FieldValue.arrayUnion([instructorId]),
-          "groups": FieldValue.arrayUnion([groupNumber.toString()]),
-          "groupsAndInstructors": FieldValue.arrayUnion([{
-            'groupNumber': groupNumber.toString(),
-            'instructorId': instructorId.toString()
-          }])
-        }, SetOptions(merge: true))
-            .timeout(Duration(seconds: 5));
-      } catch (e) {
-        print('⚠️ Failed to update AdminIndex (non-critical): $e');
-      }
-      
-      try {
-        await FirebaseFirestore.instance.collection('AdminIndex')
-            .doc(eventName)
-            .set({'exists': true}, SetOptions(merge: true))
-            .timeout(Duration(seconds: 5));
-      } catch (e) {
-        print('⚠️ Failed to update AdminIndex doc (non-critical): $e');
+      // Skip AdminIndex updates for playground events
+      if (eventName != 'playground') {
+        try {
+          await FirebaseFirestore.instance
+              .collection('AdminIndex')
+              .doc(eventName)
+              .collection('days')
+              .doc(date)
+              .set({
+            "instructors": FieldValue.arrayUnion([instructorId]),
+            "groups": FieldValue.arrayUnion([groupNumber.toString()]),
+            "groupsAndInstructors": FieldValue.arrayUnion([{
+              'groupNumber': groupNumber.toString(),
+              'instructorId': instructorId.toString()
+            }])
+          }, SetOptions(merge: true))
+              .timeout(Duration(seconds: 5));
+        } catch (e) {
+          print('⚠️ Failed to update AdminIndex (non-critical): $e');
+        }
+        
+        try {
+          await FirebaseFirestore.instance.collection('AdminIndex')
+              .doc(eventName)
+              .set({'exists': true}, SetOptions(merge: true))
+              .timeout(Duration(seconds: 5));
+        } catch (e) {
+          print('⚠️ Failed to update AdminIndex doc (non-critical): $e');
+        }
       }
       print("✅ Event created successfully: $eventName - $date");
       return true;
