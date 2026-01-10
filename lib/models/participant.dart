@@ -23,6 +23,7 @@ class Participant {
   String name = '';
   int groupNumber = 0;
   String participantAIReport ='';
+  String? commentsSummary; // Cached summary of instructor comments
   List<int> meshulashPositions = [];
   List<int> sakimPositions = [];
   int? lastMeshulashIndex; // Stores the index in the round they left (for undo)
@@ -58,6 +59,7 @@ class Participant {
       'name': name,
       'groupNumber': groupNumber,
       'participantAIReport' : participantAIReport,
+      'commentsSummary': commentsSummary,
       'meshulashPositions': meshulashPositions,
       'sakimPositions': sakimPositions,
       'lastMeshulashIndex': lastMeshulashIndex,
@@ -93,6 +95,7 @@ class Participant {
       ..systemGrade = (json['systemGrade'] ?? 0).toDouble()
       ..groupNumber = json['groupNumber'] ?? 0
       ..participantAIReport = json['participantAIReport'] ?? json['participateAIReport'] ?? ''
+      ..commentsSummary = json['commentsSummary']
       ..meshulashPositions = List<int>.from(json['meshulashPositions'] ?? [])
       ..sakimPositions = List<int>.from(json['sakimPositions'] ?? [])
       ..lastMeshulashIndex = json['lastMeshulashIndex']
@@ -210,6 +213,100 @@ Provide a detailed **performance summary** do not include any future recommendat
       print("❌ Error in Vertex AI API: $e");
       return "Error generating summary.";
     }
+  }
+
+  /// Generate a one-paragraph summary based on all instructor comments
+  /// Returns cached summary if available, otherwise generates new one
+  /// Only generates if sakim grade is available (indicates sufficient data)
+  Future<String> generateCommentsSummary() async {
+    // Only generate summary if sakim grade is available (indicates sufficient data)
+    if (sakimGrade <= 0) {
+      return "סיכום הערות יופיע לאחר השלמת תרגיל השקים.";
+    }
+    
+    // Collect all instructor comments from all exercises
+    List<String> meshulashComments = meshulashInstructorComments;
+    List<String> alonkaComments = alonkaInstructorComments;
+    List<String> sakimComments = sakimInstructorComments;
+    List<String> leadershipComments = leadershipInstructorComments;
+    List<String> interviewComments = interviewInstructorComments;
+    List<String> genericComments = genericInstructorComments;
+    
+    // Get Bur comments from Bur model
+    List<String> burComments = [];
+    try {
+      int participantBurIndex = eventController.currentEvent.value.burGrades
+          .indexWhere((Bur bur) => bur.id == number);
+      if (participantBurIndex >= 0) {
+        burComments = eventController.currentEvent.value.burGrades[participantBurIndex].instructorComments;
+      }
+    } catch (e) {
+      print("⚠️ Error getting Bur comments: $e");
+    }
+    
+    // Count comments (excluding bur comments)
+    int commentCount = meshulashComments.length +
+        alonkaComments.length +
+        sakimComments.length +
+        leadershipComments.length +
+        interviewComments.length +
+        genericComments.length;
+    
+    // Need at least 3 comments (excluding bur) to generate summary
+    if (commentCount < 3) {
+      return "נדרשות לפחות 3 הערות (מלבד בור) ליצירת סיכום.";
+    }
+    
+    // Create focused prompt for comments-only summary
+    String prompt = _generateCommentsPrompt(
+      meshulashComments,
+      alonkaComments,
+      sakimComments,
+      burComments,
+      leadershipComments,
+      interviewComments,
+      genericComments,
+    );
+    
+    // Generate summary using VertexAI
+    String summary = await getVertexAISummary(prompt);
+    
+    // Cache the result
+    commentsSummary = summary;
+    
+    // Save to Firestore (async, don't wait)
+    try {
+      eventController.currentEvent.value.saveToFirestore();
+    } catch (e) {
+      print("⚠️ Error saving comments summary to Firestore: $e");
+    }
+    
+    return summary;
+  }
+  
+  /// Generate prompt for comments-only summary
+  String _generateCommentsPrompt(
+    List<String> meshulashComments,
+    List<String> alonkaComments,
+    List<String> sakimComments,
+    List<String> burComments,
+    List<String> leadershipComments,
+    List<String> interviewComments,
+    List<String> genericComments,
+  ) {
+    return """
+תבסס על ההערות הבאות של המדריך מתרגילים שונים, צור סיכום קצר של פסקה אחת בעברית שמתמצת את התובנות המרכזיות על משתתף זה. התמקד בנושאים, נקודות חוזק ואזורים שהוזכרו בהערות.
+
+הערות מתרגיל המשולש: ${meshulashComments.isEmpty ? 'אין הערות' : meshulashComments.join(', ')}
+הערות מתרגיל האלונקה: ${alonkaComments.isEmpty ? 'אין הערות' : alonkaComments.join(', ')}
+הערות מתרגיל השקים: ${sakimComments.isEmpty ? 'אין הערות' : sakimComments.join(', ')}
+הערות מתרגיל הבור: ${burComments.isEmpty ? 'אין הערות' : burComments.join(', ')}
+הערות ממנהיגות: ${leadershipComments.isEmpty ? 'אין הערות' : leadershipComments.join(', ')}
+הערות מראיון: ${interviewComments.isEmpty ? 'אין הערות' : interviewComments.join(', ')}
+הערות כלליות: ${genericComments.isEmpty ? 'אין הערות' : genericComments.join(', ')}
+
+צור סיכום של פסקה אחת בעברית (2-4 משפטים) שמסנתז את ההערות הללו. התמקד בנושאים המרכזיים, נקודות חוזק, ואזורים שדורשים תשומת לב שהוזכרו בהערות. כתוב בטון מקצועי ותמציתי.
+""";
   }
 
 }

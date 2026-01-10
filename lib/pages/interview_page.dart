@@ -25,6 +25,7 @@ class _InterviewPageState extends State<InterviewPage> with EventValidationMixin
   final eventController = Get.put(EventController());
   bool _floatingPttEnabled = false;
   bool _volumeButtonPttEnabled = false;
+  int? _loadingParticipantNumber;
 
   @override
   void initState() {
@@ -183,21 +184,38 @@ class _InterviewPageState extends State<InterviewPage> with EventValidationMixin
                                               .value
                                               .activeParticipants[index];
                                           
+                                          // Update UI immediately to show loading
+                                          setState(() {
+                                            _loadingParticipantNumber = participant.number;
+                                          });
+                                          
+                                          // Wait a frame to ensure UI updates
+                                          await Future.delayed(Duration(milliseconds: 50));
+                                          
                                           await Get.to(() => InterviewDetailPage(
                                             participantNumber: participant.number,
                                             commentsList: eventController.gradesData.listOfCommentsInterview,
                                             selectedComments: participant.interviewInstructorComments,
                                           ));
                                           
-                                          // Refresh the UI after returning from detail page
-                                          setState(() {});
+                                          // Reset loading state and refresh UI after returning from detail page
+                                          setState(() {
+                                            _loadingParticipantNumber = null;
+                                          });
                                         },
-                                        child: Text(eventController
-                                            .currentEvent
-                                            .value
-                                            .activeParticipants[index]
-                                            .number
-                                            .toString(),
+                                        child: Text(
+                                          _loadingParticipantNumber == eventController
+                                              .currentEvent
+                                              .value
+                                              .activeParticipants[index]
+                                              .number
+                                              ? 'טוען...'
+                                              : eventController
+                                                  .currentEvent
+                                                  .value
+                                                  .activeParticipants[index]
+                                                  .number
+                                                  .toString(),
                                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                         )),
                                   );

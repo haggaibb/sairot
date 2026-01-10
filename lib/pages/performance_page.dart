@@ -20,6 +20,94 @@ class PerformancePage extends StatefulWidget {
 }
 
 class _PerformancePageState extends State<PerformancePage> {
+  bool _isGeneratingCommentsSummary = false;
+  String? _commentsSummary;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load comments summary in background (non-blocking)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCommentsSummary();
+    });
+  }
+
+  Future<void> _loadCommentsSummary() async {
+    int number = int.parse(Get.parameters['number'] ?? '0');
+    Participant p = eventController.getParticipant(number);
+    
+    // Only generate summary if sakim grade is available (indicates sufficient data)
+    // If sakim grade not available, don't show anything (return without setting _commentsSummary)
+    if (p.sakimGrade <= 0) {
+      return;
+    }
+    
+    // Check if cached summary exists
+    if (p.commentsSummary != null && p.commentsSummary!.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _commentsSummary = p.commentsSummary;
+        });
+      }
+      return;
+    }
+    
+    // Count comments (excluding bur comments)
+    int commentCount = p.meshulashInstructorComments.length +
+        p.alonkaInstructorComments.length +
+        p.sakimInstructorComments.length +
+        p.leadershipInstructorComments.length +
+        p.interviewInstructorComments.length +
+        p.genericInstructorComments.length;
+    
+    // Need at least 3 comments (excluding bur) to generate summary
+    // If threshold not met, don't show anything (return without setting _commentsSummary)
+    if (commentCount < 3) {
+      return;
+    }
+    
+    // Generate summary in background
+    if (mounted) {
+      setState(() {
+        _isGeneratingCommentsSummary = true;
+      });
+    }
+    
+    try {
+      String summary = await p.generateCommentsSummary();
+      if (mounted) {
+        setState(() {
+          _commentsSummary = summary;
+          _isGeneratingCommentsSummary = false;
+        });
+      }
+    } catch (e) {
+      print("❌ Error generating comments summary: $e");
+      if (mounted) {
+        setState(() {
+          _commentsSummary = "שגיאה ביצירת סיכום הערות.";
+          _isGeneratingCommentsSummary = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshCommentsSummary() async {
+    int number = int.parse(Get.parameters['number'] ?? '0');
+    Participant p = eventController.getParticipant(number);
+    
+    // Only allow refresh if sakim grade is available
+    if (p.sakimGrade <= 0) {
+      return;
+    }
+    
+    // Clear cached summary to force regeneration
+    p.commentsSummary = null;
+    
+    // Regenerate
+    await _loadCommentsSummary();
+  }
+
   Future<String> GenAIReport(Participant p) async {
     var data = await p.fetchAndGenerateSummary(p.number.toString());
     if (data.isNotEmpty) {
@@ -169,6 +257,80 @@ class _PerformancePageState extends State<PerformancePage> {
                         fontSize: subtitleFontSize, fontWeight: FontWeight.bold),
                   ),
                 SizedBox(height: 10),
+                
+                // Comments Summary Section (AI-generated) - Only show if summary exists or is generating
+                if (_commentsSummary != null || _isGeneratingCommentsSummary) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.withOpacity(0.4), width: 2),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'סיכום הערות (AI):',
+                              style: TextStyle(
+                                fontSize: baseFontSize,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                            if (_commentsSummary != null && 
+                                _commentsSummary != "אין הערות זמינות לסיכום." &&
+                                _commentsSummary != "שגיאה ביצירת סיכום הערות." &&
+                                !_isGeneratingCommentsSummary)
+                              IconButton(
+                                icon: Icon(Icons.refresh, size: 20),
+                                onPressed: _refreshCommentsSummary,
+                                tooltip: 'רענן סיכום',
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints(),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (_isGeneratingCommentsSummary)
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'מייצר סיכום הערות...',
+                                style: TextStyle(
+                                  fontSize: subtitleFontSize,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          )
+                        else if (_commentsSummary != null)
+                          Text(
+                            _commentsSummary!,
+                            style: TextStyle(
+                              fontSize: subtitleFontSize,
+                              height: 1.5,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                ],
+                
                 // Show generic comments if available
                 if (p.genericInstructorComments.isNotEmpty) ...[
                   Container(
