@@ -16,6 +16,7 @@ import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
 import '../widgets/alonka_credit_panel.dart';
 import '../widgets/comments_dialog.dart';
+import 'exercise_grading_page.dart';
 
 class AlonkaPage extends StatefulWidget {
   const AlonkaPage({super.key});
@@ -1103,13 +1104,42 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
                     ),
                   );
                 } else if (_.currentEvent.value.alonkaEndTime != null) {
-                  return Text(
-                    '  התרגיל הסתיים  ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: isTablet ? 18 : 16,
-                      color: theme.colorScheme.onSurface,
-                    ),
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          minimumSize: isTablet ? Size(200, 60) : null,
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ExerciseGradingPage(exerciseType: 'alonka'),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.grade),
+                        label: Text(
+                          'ציון התרגיל',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: isTablet ? 18 : 16,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        '  התרגיל הסתיים  ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isTablet ? 18 : 16,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
                   );
                 }
                 return SizedBox.shrink();

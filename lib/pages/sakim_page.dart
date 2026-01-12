@@ -15,6 +15,7 @@ import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
 import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
+import 'exercise_grading_page.dart';
 
 class SakimPage extends StatefulWidget {
   const SakimPage({super.key});
@@ -273,6 +274,26 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                                                 ),
                                             iconAlignment: IconAlignment.start,
                                           ),
+                                    SizedBox(height: 20),
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.orange,
+                                        foregroundColor: Colors.white,
+                                        minimumSize: tablet ? Size(200, 60) : null,
+                                      ),
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ExerciseGradingPage(exerciseType: 'sakim'),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.grade),
+                                      label: Text('ציון התרגיל',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                      ),
+                                    ),
                                     SizedBox(height: 20),
                                     Text('  התרגיל הסתיים  ',
                                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),

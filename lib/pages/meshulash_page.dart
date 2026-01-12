@@ -15,6 +15,7 @@ import '../services/user_preferences_service.dart';
 import '../widgets/floating_ptt_button.dart';
 import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
+import 'exercise_grading_page.dart';
 
 class MeshulashPage extends StatefulWidget {
   const MeshulashPage({super.key});
@@ -269,6 +270,26 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                                             iconAlignment: IconAlignment.start,
                                           ),
                                     SizedBox(height: 20),
+                                    ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.orange,
+                                        foregroundColor: Colors.white,
+                                        minimumSize: tablet ? Size(200, 60) : null,
+                                      ),
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ExerciseGradingPage(exerciseType: 'meshulash'),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.grade),
+                                      label: Text('ציון התרגיל',
+                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                      ),
+                                    ),
+                                    SizedBox(height: 20),
                                     Text('  התרגיל הסתיים  ',
                                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                     ),
@@ -318,14 +339,16 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                                 Divider(
                                   thickness: dividerThickness,
                                 ),
-                                eventController.currentEvent.value
-                                            .meshulashEndTime ==
+                                SizedBox(
+                                  height: 20,
+                                ),
+                                eventController.currentEvent.value.meshulashEndTime ==
                                         null
-                                    ? Padding(
-                                        padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
-                                        child: Column(
-                                          children: [
-                                            ElevatedButton(
+                                    ? Column(
+                                      children: [
+                                        Padding(
+                                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
+                                            child: ElevatedButton(
                                                 style: ElevatedButton.styleFrom(
                                                   backgroundColor: Theme.of(context).colorScheme.primary,
                                                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -359,10 +382,10 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                                                 child: Text('סיום התרגיל',
                                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                                 )),
-                                            SizedBox(height: 50)
-                                          ],
-                                        ),
-                                      )
+                                          ),
+                                        SizedBox(height: 50,)
+                                      ],
+                                    )
                                     : Padding(
                                         padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
                                         child: Column(
@@ -388,9 +411,9 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                                                       });
                                                     },
                                                     icon: editModeOn
-                                                        ? const Icon(Icons.edit)
-                                                        : const Icon(Icons.save),
-                                                    label: !editModeOn
+                                                        ? const Icon(Icons.save)
+                                                        : const Icon(Icons.edit),
+                                                    label: editModeOn
                                                         ? Text('סיים',
                                                           style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
                                                         )
@@ -403,8 +426,28 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                                             SizedBox(
                                               height: 20,
                                             ),
+                                            ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.orange,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: tablet ? Size(200, 60) : null,
+                                              ),
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) => ExerciseGradingPage(exerciseType: 'meshulash'),
+                                                  ),
+                                                );
+                                              },
+                                              icon: const Icon(Icons.grade),
+                                              label: Text('ציון התרגיל',
+                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                              ),
+                                            ),
+                                            SizedBox(height: 20),
                                             Text('  התרגיל הסתיים  ',
-                                              style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
+                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                             ),
                                           ],
                                         ),
@@ -419,67 +462,13 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                           width: 100,
                           child: CircularProgressIndicator(),
                         )
-                      : Padding(
-                          padding: EdgeInsets.only(top: tablet ? 300 : 200),
-                          child: Column(
-                            children: [
-                              Obx(() => eventController.loading.value
-                                  ? SizedBox(
-                                      width: 100,
-                                      child: LinearProgressIndicator(),
-                                    )
-                                  : SizedBox.shrink()),
-                              Center(
-                                child: Obx(() => eventController.loading.value
-                                    ? SizedBox(
-                                        height: 100,
-                                        width: 100,
-                                        child: CircularProgressIndicator(),
-                                      )
-                                    : ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                          foregroundColor: Theme.of(context)
-                                              .colorScheme
-                                              .onPrimary,
-                                          minimumSize: tablet ? Size(200, 60) : null,
-                                        ),
-                                        onPressed: () async {
-                                          setState(() {
-                                            eventController.loading.value = true;
-                                            eventController.currentEvent.value
-                                                    .meshulashStartTime =
-                                                DateTime.now();
-                                            _.currentEvent.value.meshulashRounds
-                                                .add(MeshulashRound(
-                                                    round: 0,
-                                                    participantsInRound: _
-                                                        .currentEvent.value
-                                                        .getParticipantsByStatus(
-                                                            ParticipantStatus
-                                                                .Active)
-                                                        .map((participant) =>
-                                                            participant.number)
-                                                        .toList()));
-                                            eventController.loading.value = false;
-                                          });
-                                          _.currentEvent.value.saveToFirestore();
-                                        },
-                                        child: Text(
-                                          'תחילת תרגיל',
-                                          style: TextStyle(fontSize: tablet ? scaledFontSize - 5 : eventController.userFontSize.value - 5, fontWeight: FontWeight.bold ),
-                                        ))),
-                              ),
-                            ],
+                      : Center(
+                          child: Text('אין נתונים',
+                            style: TextStyle(fontSize: tablet ? 20 : 18),
                           ),
                         )),
             );
               }),
-            ],
-          ),
-        ),
           // Floating PTT Button - OUTSIDE Scaffold, on top of everything
           if (_floatingPttEnabled || _volumeButtonPttEnabled)
             FloatingPttButton(
@@ -487,6 +476,9 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
               enabled: _floatingPttEnabled || _volumeButtonPttEnabled,
               showButton: _floatingPttEnabled,
             ),
+        ],
+      ),
+          ),
         ],
       ),
     );

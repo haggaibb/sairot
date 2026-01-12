@@ -902,17 +902,26 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                   children: [
                   // Final grade cell (editable)
                   GestureDetector(
-                    // This GestureDetector will catch taps on the container area
-                    // but the TextField's onTap will handle taps on the TextField itself
+                    // Focus the TextField when clicking anywhere on the cell
                     onTap: () {
-                      // If clicking on the container (not the TextField), unfocus
-                      FocusScope.of(context).unfocus();
+                      if (!isFinalized) {
+                        _gradeFocusNodes[participant.number]?.requestFocus();
+                        // Select all text when focused
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted && gradeController.text.isNotEmpty) {
+                            gradeController.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: gradeController.text.length,
+                            );
+                          }
+                        });
+                      }
                     },
-                    behavior: HitTestBehavior.translucent,
+                    behavior: HitTestBehavior.opaque,
                     child: Container(
                       width: finalGradeWidth,
                       height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       decoration: BoxDecoration(
                         color: rowColor,
                         border: Border(
@@ -920,72 +929,67 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                           right: BorderSide(color: Colors.grey[300]!, width: 1),
                         ),
                       ),
-                      child: Center(
-                        child: isFinalized
-                            ? Text(
+                      child: isFinalized
+                          ? Center(
+                              child: Text(
                                 participant.instructorGrade.toStringAsFixed(participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2),
                                 style: const TextStyle(color: Colors.black),
-                              )
-                            : GestureDetector(
-                                // Prevent the parent GestureDetector from firing when clicking the TextField
-                                onTap: () {},
-                                child: SizedBox(
-                                  height: 20,
-                                  width: 60,
-                                  child: TextField(
-                                    controller: gradeController,
-                                    focusNode: _gradeFocusNodes[participant.number],
-                                    textAlign: TextAlign.center,
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    style: const TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 14,
-                                    ),
-                                    decoration: InputDecoration(
-                                      border: const OutlineInputBorder(),
-                                      contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                        vertical: 0,
-                                      ),
-                                      isDense: true,
-                                      // Show calculated grade as hint when field is empty or matches calculated
-                                      hintText: _getCalculatedGradeHint(participant),
-                                      hintStyle: TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      // Select all text when focused
-                                      // Use a post-frame callback to ensure selection happens after focus
-                                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                                        if (mounted && gradeController.text.isNotEmpty) {
-                                          gradeController.selection = TextSelection(
-                                            baseOffset: 0,
-                                            extentOffset: gradeController.text.length,
-                                          );
-                                        }
-                                      });
-                                      // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
-                                    },
-                                    onEditingComplete: () {
-                                      // Unfocus when editing is complete (Enter key)
-                                      FocusScope.of(context).unfocus();
-                                    },
-                                    onChanged: (value) {
-                                      // Parse as double, allowing up to 2 decimal places
-                                      final grade = double.tryParse(value) ?? 0.0;
-                                      // Round to 2 decimal places
-                                      final roundedGrade = double.parse(grade.toStringAsFixed(2));
-                                      widget.eventController.setParticipantsGrade(
-                                        participant.number,
-                                        roundedGrade,
-                                      );
-                                    },
-                                  ),
+                              ),
+                            )
+                          : TextField(
+                              controller: gradeController,
+                              focusNode: _gradeFocusNodes[participant.number],
+                              textAlign: TextAlign.center,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 14,
+                              ),
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 12,
+                                ),
+                                isDense: false,
+                                // Show calculated grade as hint when field is empty or matches calculated
+                                hintText: _getCalculatedGradeHint(participant),
+                                hintStyle: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 14,
                                 ),
                               ),
-                      ),
+                              onTap: () {
+                                // Select all text when focused
+                                // Use a post-frame callback to ensure selection happens after focus
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  if (mounted && gradeController.text.isNotEmpty) {
+                                    gradeController.selection = TextSelection(
+                                      baseOffset: 0,
+                                      extentOffset: gradeController.text.length,
+                                    );
+                                  }
+                                });
+                                // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
+                              },
+                              onEditingComplete: () {
+                                // Unfocus when editing is complete (Enter key)
+                                FocusScope.of(context).unfocus();
+                              },
+                              onChanged: (value) {
+                                // Parse as double, allowing up to 2 decimal places
+                                final grade = double.tryParse(value) ?? 0.0;
+                                // Round to 2 decimal places
+                                final roundedGrade = double.parse(grade.toStringAsFixed(2));
+                                widget.eventController.setParticipantsGrade(
+                                  participant.number,
+                                  roundedGrade,
+                                );
+                              },
+                            ),
                     ),
                   ),
                   // System grade cell
