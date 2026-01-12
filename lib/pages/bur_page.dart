@@ -26,7 +26,7 @@ class BurPage extends StatefulWidget {
 class _BurPageState extends State<BurPage> with EventValidationMixin {
   final eventController = Get.put(EventController());
   int runTime = 0;
-  late Timer _timer;
+  Timer? _timer;
   bool _floatingPttEnabled = false;
   bool _volumeButtonPttEnabled = false;
 
@@ -41,6 +41,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
     // Removed debug print of bur IDs
     runTime = eventController.currentEvent.value.getBurRunTime();
     if (eventController.currentEvent.value.burEndTime == null) {
+      _timer?.cancel();
       _timer = Timer.periodic(Duration(seconds: 30), (Timer timer) {
         setState(() {
           runTime = eventController.currentEvent.value.getBurRunTime();
@@ -66,8 +67,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
     // Clear exercise context when leaving page
     ExerciseContextService().clearExercise();
     
-    if (eventController.currentEvent.value.burEndTime == null)
-      _timer.cancel(); // Stop timer when widget is disposed
+    _timer?.cancel(); // Stop timer when widget is disposed
     
     // Restore portrait-only orientation when leaving
     SystemChrome.setPreferredOrientations([
@@ -205,7 +205,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                           burGrade != 0
                                                               ? Colors.green
                                                               : Theme.of(context).colorScheme.primary,),
-                                                  onPressed: () async {
+                                                  onPressed: eventController.currentEvent.value.burEndTime != null ? null : () async {
                                                     if (eventController
                                                         .currentEvent
                                                         .value
@@ -265,7 +265,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                             .burEndTime =
                                                             DateTime.now();
                                                       });
-                                                      _timer.cancel();
+                                                      _timer?.cancel();
                                                       eventController
                                                           .currentEvent.value
                                                           .saveToFirestore();
@@ -313,7 +313,51 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                             fontSize: scaledFontSize
                                                         ),
                                                       )
-                                                    : SizedBox.shrink()
+                                                    : SizedBox.shrink(),
+                                                SizedBox(
+                                                  height: 20,
+                                                ),
+                                                Padding(
+                                                  padding: EdgeInsets.all(buttonPadding),
+                                                  child: ElevatedButton(
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor: Colors.orange,
+                                                        foregroundColor: Colors.white,
+                                                        minimumSize: Size(200, 60),
+                                                      ),
+                                                      onPressed: () async {
+                                                        var res = await showDialog(
+                                                          context: context,
+                                                          builder:
+                                                              (BuildContext context) {
+                                                            return YesNoDialog();
+                                                          },
+                                                        );
+                                                        if (res) {
+                                                          eventController.loading.value =
+                                                          true;
+                                                          setState(() {
+                                                            _.currentEvent.value
+                                                                .burEndTime = null;
+                                                          });
+                                                          // Restart timer
+                                                          _timer?.cancel();
+                                                          _timer = Timer.periodic(Duration(seconds: 30), (Timer timer) {
+                                                            setState(() {
+                                                              runTime = eventController.currentEvent.value.getBurRunTime();
+                                                            });
+                                                          });
+                                                          eventController
+                                                              .currentEvent.value
+                                                              .saveToFirestore();
+                                                          eventController.loading.value =
+                                                          false;
+                                                        }
+                                                      },
+                                                      child: Text('פתיחה מחדש לעריכה',
+                                                        style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
+                                                      )),
+                                                ),
                                               ],
                                             ),
                                     ],
@@ -358,7 +402,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                         burGrade != 0
                                                             ? Colors.green
                                                             : Theme.of(context).colorScheme.primary,),
-                                                onPressed: () async {
+                                                onPressed: eventController.currentEvent.value.burEndTime != null ? null : () async {
                                                   if (eventController
                                                       .currentEvent
                                                       .value
@@ -416,7 +460,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                         .burEndTime =
                                                         DateTime.now();
                                                   });
-                                                  _timer.cancel();
+                                                  _timer?.cancel();
                                                   eventController
                                                       .currentEvent.value
                                                       .saveToFirestore();
@@ -464,7 +508,50 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                         fontSize: scaledFontSize
                                                     ),
                                                   )
-                                                : SizedBox.shrink()
+                                                : SizedBox.shrink(),
+                                            SizedBox(
+                                              height: 20,
+                                            ),
+                                            Padding(
+                                              padding: EdgeInsets.all(buttonPadding),
+                                              child: ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.orange,
+                                                    foregroundColor: Colors.white,
+                                                    minimumSize: Size(200, 60),
+                                                  ),
+                                                  onPressed: () async {
+                                                    var res = await showDialog(
+                                                      context: context,
+                                                      builder:
+                                                          (BuildContext context) {
+                                                        return YesNoDialog();
+                                                      },
+                                                    );
+                                                    if (res) {
+                                                      eventController.loading.value =
+                                                      true;
+                                                      setState(() {
+                                                        _.currentEvent.value
+                                                            .burEndTime = null;
+                                                      });
+                                                      // Restart timer
+                                                      _timer = Timer.periodic(Duration(seconds: 30), (Timer timer) {
+                                                        setState(() {
+                                                          runTime = eventController.currentEvent.value.getBurRunTime();
+                                                        });
+                                                      });
+                                                      eventController
+                                                          .currentEvent.value
+                                                          .saveToFirestore();
+                                                      eventController.loading.value =
+                                                      false;
+                                                    }
+                                                  },
+                                                  child: Text('פתיחה מחדש לעריכה',
+                                                    style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
+                                                  )),
+                                            ),
                                           ],
                                         ),
                                 ],
@@ -517,7 +604,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                               burGrade != 0
                                                                   ? Colors.green
                                                                   : Theme.of(context).colorScheme.primary,),
-                                                      onPressed: () async {
+                                                      onPressed: eventController.currentEvent.value.burEndTime != null ? null : () async {
                                                         if (eventController
                                                             .currentEvent
                                                             .value
@@ -576,7 +663,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                               .burEndTime =
                                                               DateTime.now();
                                                         });
-                                                        _timer.cancel();
+                                                        _timer?.cancel();
                                                         eventController
                                                             .currentEvent.value
                                                             .saveToFirestore();
@@ -624,7 +711,49 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                               fontSize: eventController.userFontSize.value
                                                           ),
                                                         )
-                                                      : SizedBox.shrink()
+                                                      : SizedBox.shrink(),
+                                                  SizedBox(
+                                                    height: 20,
+                                                  ),
+                                                  Padding(
+                                                    padding: EdgeInsets.all(buttonPadding),
+                                                    child: ElevatedButton(
+                                                        style: ElevatedButton.styleFrom(
+                                                          backgroundColor: Colors.orange,
+                                                          foregroundColor: Colors.white,
+                                                        ),
+                                                        onPressed: () async {
+                                                          var res = await showDialog(
+                                                            context: context,
+                                                            builder:
+                                                                (BuildContext context) {
+                                                              return YesNoDialog();
+                                                            },
+                                                          );
+                                                          if (res) {
+                                                            eventController.loading.value =
+                                                            true;
+                                                            setState(() {
+                                                              _.currentEvent.value
+                                                                  .burEndTime = null;
+                                                            });
+                                                            // Restart timer
+                                                            _timer = Timer.periodic(Duration(seconds: 30), (Timer timer) {
+                                                              setState(() {
+                                                                runTime = eventController.currentEvent.value.getBurRunTime();
+                                                              });
+                                                            });
+                                                            eventController
+                                                                .currentEvent.value
+                                                                .saveToFirestore();
+                                                            eventController.loading.value =
+                                                            false;
+                                                          }
+                                                        },
+                                                        child: Text('פתיחה מחדש לעריכה',
+                                                          style: TextStyle(fontWeight: FontWeight.bold,fontSize: eventController.userFontSize.value),
+                                                        )),
+                                                  ),
                                                 ],
                                               ),
                                       ],

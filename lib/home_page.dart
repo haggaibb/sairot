@@ -12,6 +12,7 @@ import 'git_version.dart';
 import 'widgets/guideWebView.dart';
 import 'utils/tablet_utils.dart';
 import 'services/platform_service.dart';
+import 'widgets/date_input_dialog.dart';
 
 
 
@@ -386,67 +387,18 @@ class _HomeState extends State<Home> {
                         foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       ),
                     onPressed: () async {
-                      // Define the allowed valid dates
-                      // Convert eventDays List<DateTime>
-                      var currentEventDays = await eventController.getCurrentEventDays();
-                      List<DateTime> validDates= currentEventDays.map<DateTime>((dateStr) {
-                        final parts = dateStr.split('-');
-                        final day = int.parse(parts[0]);
-                        final month = int.parse(parts[1]);
-                        final year = int.parse(parts[2]);
-                        return DateTime(year, month, day);
-                      }).toList();
-
-                      // Helper to compare just the date (ignores time)
-                      bool isSameDate(DateTime a, DateTime b) {
-                        return a.year == b.year && a.month == b.month && a.day == b.day;
-                      }
-
-                      // Sort to get the earliest valid date
-                      validDates.sort((a, b) => a.compareTo(b));
                       DateTime today = DateTime.now();
                       // Remove time component to compare only dates
                       today = DateTime(today.year, today.month, today.day);
-                      
-                      // Find today's date in valid dates, or use today if it's in the list
-                      // Otherwise use the earliest valid date that is today or in the future
-                      DateTime initialDate = today;
-                      if (!validDates.any((valid) => isSameDate(valid, today))) {
-                        // If today is not in valid dates, find the first future date
-                        var futureDates = validDates.where((date) => date.isAfter(today) || isSameDate(date, today)).toList();
-                        if (futureDates.isNotEmpty) {
-                          initialDate = futureDates.first;
-                        } else {
-                          initialDate = validDates.first; // Fallback to earliest if no future dates
-                        }
-                      }
-                      
-                      // Set firstDate to today or the earliest valid date, whichever is later
-                      DateTime firstSelectableDate = today.isBefore(validDates.first) 
-                          ? today 
-                          : validDates.first;
 
-                      DateTime? pickedDate = await showDatePicker(
+                      String? formattedDate = await showDialog<String>(
                         context: context,
-                        initialDate: initialDate,
-                        firstDate: firstSelectableDate,
-                        lastDate: DateTime(2101),
-                        locale: const Locale('he', 'IL'),
-
-                        // Only allow specific valid dates that are today or in the future
-                        selectableDayPredicate: (DateTime day) {
-                          // Remove time component for comparison
-                          DateTime dayOnly = DateTime(day.year, day.month, day.day);
-                          // Check if it's a valid date AND not in the past
-                          bool isValidDate = validDates.any((valid) => isSameDate(valid, day));
-                          bool isNotPast = dayOnly.isAfter(today) || isSameDate(dayOnly, today);
-                          return isValidDate && isNotPast;
+                        builder: (BuildContext context) {
+                          return DateInputDialog(initialDate: today);
                         },
                       );
 
-                      if (pickedDate != null) {
-                        String formattedDate =
-                            "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
+                      if (formattedDate != null) {
                         Get.toNamed('/event_settings/$formattedDate');
                       }
                     },

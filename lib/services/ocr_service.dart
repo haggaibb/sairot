@@ -200,12 +200,12 @@ class OCRService {
         }
       }
 
-      // Strategy 2: Row-based format - Each row has ID (9 digits), Group (1-25, identical), Shirt ID (1-600, unique)
+      // Strategy 2: Row-based format - Each row has ID (9 digits), Group (1-25, identical), Shirt ID (1-600, max 3 digits, unique)
       // Extract ONLY numbers from all lines - clean everything
       List<String> allNumbers = []; // All numbers found, in order
       List<String> idNumbers = []; // 9 digit numbers
       List<String> groupNumbers = []; // 1-25 numbers
-      List<String> shirtIds = []; // 1-600 numbers (excluding group number)
+      List<String> shirtIds = []; // 1-600 numbers, max 3 digits (excluding group number)
       
       // Extract all numbers from all lines, cleaning out all non-numeric characters
       Set<String> processedNumbers = {}; // Track numbers we've already processed to avoid duplicates
@@ -298,13 +298,15 @@ class OCRService {
             allNumbers.add(num);
             // Also add to shirtIds if not already processed (numbers 1-25 can be both group numbers AND shirt IDs)
             // The group number will be filtered out later, but other 1-25 numbers should be kept as shirt IDs
-            if (!processedNumbers.contains(num)) {
+            // Shirt IDs must be at most 3 digits (1-25 are 1-2 digits, so they're valid)
+            if (!processedNumbers.contains(num) && num.length <= 3) {
               shirtIds.add(num);
               processedNumbers.add(num); // Mark as processed for shirtIds to avoid duplicates
             }
             // Don't add group number to processedNumbers for group counting - we want to count all occurrences
-          } else if (numValue >= 1 && numValue <= 600) {
-            // Shirt ID (1-600) - skip if already processed (avoid duplicates)
+          } else if (numValue >= 1 && numValue <= 600 && num.length <= 3) {
+            // Shirt ID (1-600, max 3 digits) - skip if already processed (avoid duplicates)
+            // IMPORTANT: Shirt IDs cannot be more than 3 digits, so 9-digit IDs won't be misclassified
             if (processedNumbers.contains(num)) continue;
             shirtIds.add(num);
             processedNumbers.add(num);
@@ -371,6 +373,7 @@ class OCRService {
       }
       
       // Match by position: row 1 = ID[0], Group[0], ShirtID[0], etc.
+      bool successfullyMatched = false;
       if (uniqueShirtIds.length >= expectedRows && expectedRows > 0) {
         // Take exactly as many shirt IDs as we have IDs
         List<String> matchedShirtIds = uniqueShirtIds.take(expectedRows).toList();
@@ -387,6 +390,7 @@ class OCRService {
           });
           print("✅ Found participant (row ${i + 1}): רץ=$shirtId, ת.ז=$idNum, קבוצה=$groupNumber");
         }
+        successfullyMatched = true;
       } else {
         print("❌ Cannot match: Need $expectedRows rows but found ${uniqueShirtIds.length} shirt IDs");
         if (uniqueShirtIds.length < expectedRows) {
@@ -394,9 +398,11 @@ class OCRService {
         }
       }
       
-      // Strategy 2b: Table format - lines with just numbers (recruit number, ID on same line)
-      // Look for lines that contain only numbers (2-3 numbers per line)
-      for (String line in allLines) {
+      // Only run fallback strategies if we didn't successfully match by position
+      if (!successfullyMatched) {
+        // Strategy 2b: Table format - lines with just numbers (recruit number, ID on same line)
+        // Look for lines that contain only numbers (2-3 numbers per line)
+        for (String line in allLines) {
         line = line.trim();
         if (line.isEmpty) continue;
         
@@ -413,8 +419,12 @@ class OCRService {
           final recruitNum = numbers[0];
           final idNum = numbers[1];
           
-          // Basic validation: ID should be longer than recruit number
-          if (idNum.length >= recruitNum.length && idNum.length >= 6) {
+          // Basic validation: ID should be longer than recruit number, recruit number max 3 digits
+          int? recruitNumInt = int.tryParse(recruitNum);
+          bool isValidRecruitNum = recruitNumInt != null && recruitNumInt >= 1 && recruitNumInt <= 600 && recruitNum.length <= 3;
+          bool isValidId = idNum.length >= 6 && idNum.length <= 9;
+          
+          if (idNum.length >= recruitNum.length && isValidRecruitNum && isValidId) {
             // Check if we already have this recruit number
             bool exists = participants.any((p) => p['מספר רץ'] == recruitNum);
             if (!exists) {
@@ -426,32 +436,41 @@ class OCRService {
             }
           }
         }
+        }
       }
 
       // Strategy 3: Look for pairs of numbers in blocks (more flexible)
-      for (TextBlock block in recognizedText.blocks) {
-        String blockText = block.text;
-        
-        // Extract all numbers from block
-        final numbers = RegExp(r'\d+').allMatches(blockText).map((m) => m.group(0)!).toList();
-        
-        // If block has multiple numbers and contains relevant keywords
-        if (numbers.length >= 2 && 
-            (blockText.contains(RegExp(r'[רץ|זהות|מספר|ת\.?ז]', caseSensitive: false)))) {
-          // Try to pair numbers: assume first is recruit, second is ID
-          for (int i = 0; i < numbers.length - 1; i++) {
-            final recruitNum = numbers[i];
-            final idNum = numbers[i + 1];
-            
-            // Basic validation
-            if (idNum.length >= recruitNum.length) {
-              bool exists = participants.any((p) => p['מספר רץ'] == recruitNum);
-              if (!exists) {
-                participants.add({
-                  'מספר רץ': recruitNum,
-                  'תעודת זהות': idNum,
-                });
-                print("✅ Found participant (block format): רץ=$recruitNum, ת.ז=$idNum");
+      // Only run if we didn't successfully match by position
+      if (!successfullyMatched) {
+        for (TextBlock block in recognizedText.blocks) {
+          String blockText = block.text;
+          
+          // Extract all numbers from block
+          final numbers = RegExp(r'\d+').allMatches(blockText).map((m) => m.group(0)!).toList();
+          
+          // If block has multiple numbers and contains relevant keywords
+          if (numbers.length >= 2 && 
+              (blockText.contains(RegExp(r'[רץ|זהות|מספר|ת\.?ז]', caseSensitive: false)))) {
+            // Try to pair numbers: assume first is recruit, second is ID
+            for (int i = 0; i < numbers.length - 1; i++) {
+              final recruitNum = numbers[i];
+              final idNum = numbers[i + 1];
+              
+              // Validate: recruit number should be 1-600, max 3 digits; ID should be 9 digits
+              int? recruitNumInt = int.tryParse(recruitNum);
+              bool isValidRecruitNum = recruitNumInt != null && recruitNumInt >= 1 && recruitNumInt <= 600 && recruitNum.length <= 3;
+              bool isValidId = idNum.length == 9;
+              
+              // Basic validation: ID should be longer than recruit number AND recruit number must be in valid range
+              if (idNum.length >= recruitNum.length && isValidRecruitNum && isValidId) {
+                bool exists = participants.any((p) => p['מספר רץ'] == recruitNum || p['תעודת זהות'] == idNum);
+                if (!exists) {
+                  participants.add({
+                    'מספר רץ': recruitNum,
+                    'תעודת זהות': idNum,
+                  });
+                  print("✅ Found participant (block format): רץ=$recruitNum, ת.ז=$idNum");
+                }
               }
             }
           }

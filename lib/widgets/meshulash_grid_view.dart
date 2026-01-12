@@ -102,7 +102,7 @@ class MeshulashGridView extends StatelessWidget {
                 if (_.meshulashEditModeOn.value && currentRound > 0) {
                   _.loading.value = true;
                   
-                  // Get the stored original index
+                  // Pop the last stored index from stack (for undo)
                   final originalIndex = _.getLastMeshulashIndex(participantNumber);
                   
                   // Remove the last position from the array
@@ -111,16 +111,13 @@ class MeshulashGridView extends StatelessWidget {
                   // Remove participant from current round
                   _.currentEvent.value.meshulashRounds[currentRound].participantsInRound.remove(participantNumber);
                   
-                  // Insert participant at original index in previous round (or add to end if no index stored)
+                  // Insert participant at original index in previous round (or add to end if stack is empty)
                   final previousRound = _.currentEvent.value.meshulashRounds[currentRound - 1];
                   if (originalIndex != null && originalIndex >= 0 && originalIndex <= previousRound.participantsInRound.length) {
                     previousRound.participantsInRound.insert(originalIndex, participantNumber);
                   } else {
                     previousRound.participantsInRound.add(participantNumber);
                   }
-                  
-                  // Clear the stored index
-                  _.setLastMeshulashIndex(participantNumber, null);
                   
                   _.update();
                   _.currentEvent.value.saveToFirestore();

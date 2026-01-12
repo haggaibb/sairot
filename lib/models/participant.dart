@@ -26,8 +26,8 @@ class Participant {
   String? commentsSummary; // Cached summary of instructor comments
   List<int> meshulashPositions = [];
   List<int> sakimPositions = [];
-  int? lastMeshulashIndex; // Stores the index in the round they left (for undo)
-  int? lastSakimIndex; // Stores the index in the round they left (for undo)
+  List<int> lastMeshulashIndexStack = []; // Stack of indices for undo (most recent last)
+  List<int> lastSakimIndexStack = []; // Stack of indices for undo (most recent last)
   List<String> meshulashInstructorComments = [];
   List<String> alonkaInstructorComments = [];
   List<String> sakimInstructorComments = [];
@@ -62,8 +62,8 @@ class Participant {
       'commentsSummary': commentsSummary,
       'meshulashPositions': meshulashPositions,
       'sakimPositions': sakimPositions,
-      'lastMeshulashIndex': lastMeshulashIndex,
-      'lastSakimIndex': lastSakimIndex,
+      'lastMeshulashIndexStack': lastMeshulashIndexStack,
+      'lastSakimIndexStack': lastSakimIndexStack,
       'meshulashInstructorComments': meshulashInstructorComments,
       'alonkaInstructorComments': alonkaInstructorComments,
       'sakimInstructorComments': sakimInstructorComments,
@@ -71,6 +71,19 @@ class Participant {
       'interviewInstructorComments': interviewInstructorComments,
       'genericInstructorComments': genericInstructorComments,
     };
+  }
+
+  /// Helper method to parse index stack with backward compatibility
+  /// If new stack format exists, use it; otherwise convert old int? to list
+  static List<int> _parseIndexStack(dynamic stackValue, dynamic oldIndexValue) {
+    if (stackValue != null && stackValue is List) {
+      return List<int>.from(stackValue);
+    }
+    // Backward compatibility: convert old int? to list
+    if (oldIndexValue != null && oldIndexValue is int) {
+      return [oldIndexValue];
+    }
+    return [];
   }
 
   /// Create an instance of Participant from JSON
@@ -98,8 +111,8 @@ class Participant {
       ..commentsSummary = json['commentsSummary']
       ..meshulashPositions = List<int>.from(json['meshulashPositions'] ?? [])
       ..sakimPositions = List<int>.from(json['sakimPositions'] ?? [])
-      ..lastMeshulashIndex = json['lastMeshulashIndex']
-      ..lastSakimIndex = json['lastSakimIndex']
+      ..lastMeshulashIndexStack = _parseIndexStack(json['lastMeshulashIndexStack'], json['lastMeshulashIndex'])
+      ..lastSakimIndexStack = _parseIndexStack(json['lastSakimIndexStack'], json['lastSakimIndex'])
       ..meshulashInstructorComments =
           List<String>.from(json['meshulashInstructorComments'] ?? [])
       ..alonkaInstructorComments =

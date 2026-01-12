@@ -116,7 +116,7 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                       eventController.loading.value = true;
                                       final participantNumber = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index];
                                       
-                                      // Get the stored original index
+                                      // Pop the last stored index from stack (for undo)
                                       final originalIndex = eventController.getLastMeshulashIndex(participantNumber);
                                       
                                       // Remove the last position from the array
@@ -125,16 +125,13 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                       // Remove participant from current round
                                       widget.round.participantsInRound.remove(participantNumber);
                                       
-                                      // Insert participant at original index in previous round (or add to end if no index stored)
+                                      // Insert participant at original index in previous round (or add to end if stack is empty)
                                       final previousRound = eventController.currentEvent.value.meshulashRounds[widget.round.round-1];
                                       if (originalIndex != null && originalIndex >= 0 && originalIndex <= previousRound.participantsInRound.length) {
                                         previousRound.participantsInRound.insert(originalIndex, participantNumber);
                                       } else {
                                         previousRound.participantsInRound.add(participantNumber);
                                       }
-                                      
-                                      // Clear the stored index
-                                      eventController.setLastMeshulashIndex(participantNumber, null);
                                       
                                       eventController.update();
                                       eventController.currentEvent.value.saveToFirestore();

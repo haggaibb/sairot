@@ -1084,23 +1084,43 @@ class EventController extends GetxController {
     }
   }
 
-  /// Set the last sakim index (for undo tracking)
+  /// Push index to sakim stack (for undo tracking)
+  /// If index is null, clears the stack
   void setLastSakimIndex(int number, int? index) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex != -1) {
-      currentEvent.value.participants[participantIndex].lastSakimIndex = index;
+      if (index == null) {
+        // Clear the stack
+        currentEvent.value.participants[participantIndex].lastSakimIndexStack.clear();
+      } else {
+        // Push index to stack
+        currentEvent.value.participants[participantIndex].lastSakimIndexStack.add(index);
+      }
     }
   }
 
-  /// Get the last sakim index (for undo tracking)
+  /// Pop and return the last sakim index from stack (for undo tracking)
+  /// Returns null if stack is empty
   int? getLastSakimIndex(int number) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex != -1) {
-      return currentEvent.value.participants[participantIndex].lastSakimIndex;
+      final stack = currentEvent.value.participants[participantIndex].lastSakimIndexStack;
+      if (stack.isNotEmpty) {
+        return stack.removeLast(); // Pop from stack
+      }
     }
     return null;
+  }
+
+  /// Clear the entire sakim index stack for a participant
+  void clearSakimIndexStack(int number) {
+    int participantIndex = currentEvent.value.participants
+        .indexWhere((Participant p) => p.number == number);
+    if (participantIndex != -1) {
+      currentEvent.value.participants[participantIndex].lastSakimIndexStack.clear();
+    }
   }
   void addSakimComments(List<String> comments, int participantNumber) {
     // Find the index of the participant by their number.
@@ -1138,23 +1158,43 @@ class EventController extends GetxController {
     }
   }
 
-  /// Set the last meshulash index (for undo tracking)
+  /// Push index to meshulash stack (for undo tracking)
+  /// If index is null, clears the stack
   void setLastMeshulashIndex(int number, int? index) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex != -1) {
-      currentEvent.value.participants[participantIndex].lastMeshulashIndex = index;
+      if (index == null) {
+        // Clear the stack
+        currentEvent.value.participants[participantIndex].lastMeshulashIndexStack.clear();
+      } else {
+        // Push index to stack
+        currentEvent.value.participants[participantIndex].lastMeshulashIndexStack.add(index);
+      }
     }
   }
 
-  /// Get the last meshulash index (for undo tracking)
+  /// Pop and return the last meshulash index from stack (for undo tracking)
+  /// Returns null if stack is empty
   int? getLastMeshulashIndex(int number) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex != -1) {
-      return currentEvent.value.participants[participantIndex].lastMeshulashIndex;
+      final stack = currentEvent.value.participants[participantIndex].lastMeshulashIndexStack;
+      if (stack.isNotEmpty) {
+        return stack.removeLast(); // Pop from stack
+      }
     }
     return null;
+  }
+
+  /// Clear the entire meshulash index stack for a participant
+  void clearMeshulashIndexStack(int number) {
+    int participantIndex = currentEvent.value.participants
+        .indexWhere((Participant p) => p.number == number);
+    if (participantIndex != -1) {
+      currentEvent.value.participants[participantIndex].lastMeshulashIndexStack.clear();
+    }
   }
   void addMeshulashComments(List<String> comments, int participantNumber) {
     // Find the index of the participant by their number.
