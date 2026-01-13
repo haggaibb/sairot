@@ -338,10 +338,10 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
       param2: adjustedAlonka,
       param3: adjustedSakim,
       param4: burGrade,
-      weight1: gradesData.weighted['meshulash'],
-      weight2: gradesData.weighted['alonka'],
-      weight3: gradesData.weighted['sakim'],
-      weight4: gradesData.weighted['bur'],
+      weight1: (gradesData.weighted['meshulash'] as num?)?.toDouble() ?? 0.25,
+      weight2: (gradesData.weighted['alonka'] as num?)?.toDouble() ?? 0.25,
+      weight3: (gradesData.weighted['sakim'] as num?)?.toDouble() ?? 0.25,
+      weight4: (gradesData.weighted['bur'] as num?)?.toDouble() ?? 0.25,
     );
   }
 
@@ -514,11 +514,11 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
       onTap: () {
         FocusScope.of(context).unfocus();
       },
-      behavior: HitTestBehavior.translucent,
+      behavior: HitTestBehavior.opaque,
       child: Container(
         width: width,
         height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         decoration: BoxDecoration(
           color: backgroundColor,
           border: Border(
@@ -526,85 +526,89 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
             right: BorderSide(color: Colors.grey[300]!, width: 1),
           ),
         ),
-        child: Center(
-          child: isFinalized
-              ? Text(
+        child: isFinalized
+            ? Center(
+                child: Text(
                   controller.text,
                   style: const TextStyle(color: Colors.black),
-                )
-              : GestureDetector(
-                  onTap: () {},
-                  child: SizedBox(
-                    height: 20,
-                    width: 60,
-                    child: TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      textAlign: TextAlign.center,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 14,
-                      ),
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 0,
-                        ),
-                        isDense: true,
-                      ),
-                      onTap: () {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted && controller.text.isNotEmpty) {
-                            controller.selection = TextSelection(
-                              baseOffset: 0,
-                              extentOffset: controller.text.length,
-                            );
-                          }
-                        });
-                        // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
-                      },
-                      onEditingComplete: () {
-                        FocusScope.of(context).unfocus();
-                      },
-                      onChanged: (value) {
-                        // All instructor grades support doubles with up to 2 decimal places
-                        final grade = double.tryParse(value) ?? 0.0;
-                        // Round to 2 decimal places
-                        final roundedGrade = double.parse(grade.toStringAsFixed(2));
-                        widget.eventController.setParticipantExerciseGrade(
-                          participantNumber,
-                          exercise,
-                          roundedGrade,
-                        );
-                        // Update final grade hint after calculation (don't overwrite manual values)
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) {
-                            final participant = widget.eventController.currentEvent.value.participants
-                                .firstWhere((p) => p.number == participantNumber);
-                            final finalGradeController = _gradeControllers[participantNumber];
-                            if (finalGradeController != null && 
-                                !_gradeFocusNodes[participantNumber]!.hasFocus) {
-                              // Always show saved instructorGrade if it exists
-                              String displayText = '';
-                              if (participant.instructorGrade > 0.0) {
-                                displayText = participant.instructorGrade.toStringAsFixed(
-                                  participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2
-                                );
-                              }
-                              // Only update if text changed
-                              if (finalGradeController.text != displayText) {
-                                finalGradeController.text = displayText;
-                              }
-                            }
-                          }
-                        });
-                      },
-                    ),
+                ),
+              )
+            : TextField(
+                controller: controller,
+                focusNode: focusNode,
+                textAlign: TextAlign.center,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 14,
+                ),
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 12,
+                  ),
+                  isDense: false,
+                  hintText: '-',
+                  hintStyle: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
                   ),
                 ),
-        ),
+                onTap: () {
+                  // Select all text when focused
+                  // Use a post-frame callback to ensure selection happens after focus
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted && controller.text.isNotEmpty) {
+                      controller.selection = TextSelection(
+                        baseOffset: 0,
+                        extentOffset: controller.text.length,
+                      );
+                    }
+                  });
+                  // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
+                },
+                onEditingComplete: () {
+                  // Unfocus when editing is complete (Enter key)
+                  FocusScope.of(context).unfocus();
+                },
+                onChanged: (value) {
+                  // All instructor grades support doubles with up to 2 decimal places
+                  final grade = double.tryParse(value) ?? 0.0;
+                  // Round to 2 decimal places
+                  final roundedGrade = double.parse(grade.toStringAsFixed(2));
+                  widget.eventController.setParticipantExerciseGrade(
+                    participantNumber,
+                    exercise,
+                    roundedGrade,
+                  );
+                  // Update final grade hint after calculation (don't overwrite manual values)
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      final participant = widget.eventController.currentEvent.value.participants
+                          .firstWhere((p) => p.number == participantNumber);
+                      final finalGradeController = _gradeControllers[participantNumber];
+                      if (finalGradeController != null && 
+                          !_gradeFocusNodes[participantNumber]!.hasFocus) {
+                        // Always show saved instructorGrade if it exists
+                        String displayText = '';
+                        if (participant.instructorGrade > 0.0) {
+                          displayText = participant.instructorGrade.toStringAsFixed(
+                            participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2
+                          );
+                        }
+                        // Only update if text changed
+                        if (finalGradeController.text != displayText) {
+                          finalGradeController.text = displayText;
+                        }
+                      }
+                    }
+                  });
+                },
+              ),
       ),
     );
   }

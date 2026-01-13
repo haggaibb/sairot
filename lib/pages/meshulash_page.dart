@@ -4,6 +4,8 @@ import '../event_controller.dart';
 import 'package:get/get.dart';
 import '../widgets/meshulash_round_panel.dart';
 import '../widgets/meshulash_grid_view.dart';
+import '../models/meshulash_round.dart';
+import '../models/types.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
@@ -50,6 +52,24 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('meshulash');
     _loadSttPreferences();
+    
+    // Initialize meshulashRounds if empty but participants exist
+    // This fixes the issue where going offline/online causes rounds to be empty
+    if (eventController.currentEvent.value.meshulashRounds.isEmpty) {
+      final activeParticipants = eventController.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
+      if (activeParticipants.isNotEmpty) {
+        // Initialize with round 0 containing all active participants
+        eventController.currentEvent.value.meshulashRounds.add(
+          MeshulashRound(
+            round: 0,
+            participantsInRound: activeParticipants.map((p) => p.number).toList(),
+          ),
+        );
+        // Save the updated event
+        eventController.saveEventWithOfflineSupport(eventController.currentEvent.value);
+        print('✅ Initialized meshulashRounds with ${activeParticipants.length} participants');
+      }
+    }
     
     if (eventController.currentEvent.value.meshulashEndTime != null) {
       eventController.meshulashEditModeOn.value = false;

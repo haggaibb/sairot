@@ -106,24 +106,44 @@ class UnfinalizedPanel extends StatelessWidget {
                       },
                     );
                     if (res) {
-                      eventController
-                          .unfinalizedLoading
-                          .value = true;
-                      await eventController.delEvent(event);
-                      eventController
-                          .unfinalizedEvents
-                          .clear();
-                      await eventController
-                          .getUnfinalizedEvents();
+                      try {
+                        eventController
+                            .unfinalizedLoading
+                            .value = true;
+                        
+                        // Clear currentEvent if it's the event being deleted (delEvent will also do this, but do it early)
+                        if (eventController.currentEvent.value.eventName == event.eventName &&
+                            eventController.currentEvent.value.date == event.date) {
+                          eventController.currentEvent.value = Event(date: '', instructorId: '', eventName: '');
+                          eventController.currentEvent.refresh();
+                        }
+                        
+                        await eventController.delEvent(event);
+                        
+                        // Clear and reload unfinalized events
+                        eventController
+                            .unfinalizedEvents
+                            .clear();
+                        await eventController
+                            .getUnfinalizedEvents();
+                      } catch (e) {
+                        print('❌ Error during event deletion: $e');
+                        // Show error to user
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('שגיאה במחיקת האירוע: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      } finally {
+                        eventController.loading.value = false;
+                        eventController
+                            .unfinalizedLoading
+                            .value = false;
+                      }
                     } else {
-
+                      eventController.loading.value = false;
                     }
-                    eventController.loading.value =
-                    false;
-                    eventController.currentEvent.value = Event(date: '', instructorId: '', eventName: '');
-                    eventController
-                        .unfinalizedLoading
-                        .value = false;
                   },
                   child: const Text('מחק',
                     style: TextStyle(fontWeight: FontWeight.bold),

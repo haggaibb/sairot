@@ -611,16 +611,146 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
 
   void addParticipant() {
     if (participantNumber.text.isNotEmpty) {
+      final number = int.tryParse(participantNumber.text);
+      if (number == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('מספר חולצה חייב להיות מספר'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      final name = participantName.text.trim();
+      
+      // Check for duplicate shirt ID (number)
+      if (participants.any((p) => p.number == number)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('מספר חולצה $number כבר קיים'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      
+      // Check for duplicate name/ID (if name is provided)
+      if (name.isNotEmpty && participants.any((p) => p.name == name)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('שם/ת.ז. "$name" כבר קיים'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+      
       setState(() {
         participants.add(Participant(
-            number: int.parse(participantNumber.text),
-            name: participantName.text
+            number: number,
+            name: name
         ));
         participants.sort((a, b) => a.number.compareTo(b.number));
       });
       participantNumber.clear();
       participantName.clear();
     }
+  }
+  
+  void editParticipant(Participant participant, int originalNumber) {
+    final nameController = TextEditingController(text: participant.name);
+    final numberController = TextEditingController(text: participant.number.toString());
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('ערוך מתאמן'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'שם או ת.ז.',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                controller: numberController,
+                decoration: InputDecoration(
+                  labelText: 'מספר חולצה',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('ביטול'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final newNumber = int.tryParse(numberController.text);
+                if (newNumber == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('מספר חולצה חייב להיות מספר'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                
+                final newName = nameController.text.trim();
+                
+                // Check for duplicate shirt ID (number) - but allow if it's the same participant
+                if (newNumber != originalNumber && participants.any((p) => p.number == newNumber)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('מספר חולצה $newNumber כבר קיים'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+                
+                // Check for duplicate name/ID (if name is provided) - but allow if it's the same participant
+                if (newName.isNotEmpty && 
+                    newName != participant.name && 
+                    participants.any((p) => p.name == newName)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('שם/ת.ז. "$newName" כבר קיים'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+                
+                setState(() {
+                  final index = participants.indexWhere((p) => p.number == originalNumber);
+                  if (index != -1) {
+                    participants[index] = Participant(
+                      number: newNumber,
+                      name: newName,
+                    );
+                    participants.sort((a, b) => a.number.compareTo(b.number));
+                  }
+                });
+                
+                Navigator.of(context).pop();
+              },
+              child: Text('שמור'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -841,7 +971,15 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                                               ),
                                             ),
                                           ),
-                                          const DataColumn(label: SizedBox.shrink()),
+                                          DataColumn(
+                                            label: SizedBox(
+                                              width: 100,
+                                              child: Text(
+                                                'פעולות',
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                          ),
                                         ],
                                         rows: participants.asMap().entries.map(
                                           (entry) => DataRow(
@@ -892,28 +1030,39 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                                                 ),
                                               ), // ✅ Contact Number
                                               DataCell(
-                                                SizedBox(
-                                                  width: 40,
-                                                  child: IconButton(
-                                                    icon: Icon(Icons.delete),
-                                                    onPressed: () async {
-                                                      var res = await showDialog(
-                                                        context: context,
-                                                        builder:
-                                                            (BuildContext context) {
-                                                          return YesNoDialog();
-                                                        },
-                                                      );
-                                                      if (res) {
-                                                        setState(() {
-                                                          participants.removeWhere((participant) => participant.number == entry.value.number);
-                                                        });
-                                                      }
-                                                    },
-                                                    splashColor: Colors.red,
-                                                  ),
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    IconButton(
+                                                      icon: Icon(Icons.edit, size: 20),
+                                                      onPressed: () {
+                                                        editParticipant(entry.value, entry.value.number);
+                                                      },
+                                                      splashColor: Colors.blue,
+                                                      tooltip: 'ערוך',
+                                                    ),
+                                                    IconButton(
+                                                      icon: Icon(Icons.delete, size: 20),
+                                                      onPressed: () async {
+                                                        var res = await showDialog(
+                                                          context: context,
+                                                          builder:
+                                                              (BuildContext context) {
+                                                            return YesNoDialog();
+                                                          },
+                                                        );
+                                                        if (res) {
+                                                          setState(() {
+                                                            participants.removeWhere((participant) => participant.number == entry.value.number);
+                                                          });
+                                                        }
+                                                      },
+                                                      splashColor: Colors.red,
+                                                      tooltip: 'מחק',
+                                                    ),
+                                                  ],
                                                 ),
-                                              ), // ✅ Delete button
+                                              ), // ✅ Edit and Delete buttons
                                             ],
                                           ),
                                         ).toList(),

@@ -403,14 +403,40 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                           ? SizedBox.shrink()
                           : IconButton(
                               onPressed: () {
-                                for (int participant
-                                    in widget.round.participationCredits) {
-                                  widget.round.activeParticipants
-                                      .add(participant);
+                                print('🔧 Edit button clicked for round ${widget.round.round + 1}');
+                                final participationCount = widget.round.participationCredits.length;
+                                print('   Participation credits: ${widget.round.participationCredits}');
+                                print('   Alonka credits: ${widget.round.alonkaCredits}');
+                                print('   Gerikan credits: ${widget.round.gerikanCredits}');
+                                print('   Run credits: ${widget.round.runCredits}');
+                                
+                                // Restore participants from participation credits only
+                                // This restores those who didn't get any credit yet, preserving existing credits
+                                if (widget.round.participationCredits.isNotEmpty) {
+                                  for (int participant
+                                      in widget.round.participationCredits) {
+                                    widget.round.activeParticipants
+                                        .add(participant);
+                                  }
+                                  setState(() {
+                                    widget.round.participationCredits = [];
+                                  });
+                                  
+                                  print('✅ Restored $participationCount participants from participation credits');
+                                  
+                                  // Save the updated round
+                                  eventController.currentEvent.value
+                                      .alonkaSprints[widget.round.round] = widget.round;
+                                  // Use non-blocking save to prevent delays when offline
+                                  eventController.saveEventWithOfflineSupport(
+                                    eventController.currentEvent.value
+                                  );
+                                  
+                                  // Force UI update
+                                  eventController.currentEvent.refresh();
+                                } else {
+                                  print('⚠️ No participation credits to restore for round ${widget.round.round + 1}');
                                 }
-                                setState(() {
-                                  widget.round.participationCredits = [];
-                                });
                               },
                               icon: Icon(Icons.edit)),
                       Text('אלונקה מקצה ${widget.round.round + 1}',

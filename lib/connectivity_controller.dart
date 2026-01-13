@@ -8,6 +8,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 import 'event_controller.dart';
 import 'services/sync_queue_service.dart';
+import 'services/local_storage_service.dart';
 import 'models/event.dart';
 
 class ConnectivityController extends GetxController {
@@ -15,6 +16,7 @@ class ConnectivityController extends GetxController {
   bool isLiveBackupDone = false; // 🔒 Prevents multiple backups per interval
   Timer? periodicTimer; // Timer for periodic internet checks
   Timer? checkInternetTimer;
+  bool _isProcessingSyncQueue = false; // 🔒 Prevents concurrent sync queue processing
 
   final FirebaseStorage _storage = FirebaseStorage.instance;
   // Use Get.find() to avoid circular dependency - EventController should already be initialized
@@ -99,23 +101,35 @@ class ConnectivityController extends GetxController {
   }
 
   /// Process sync queue when internet becomes available
-  Future<void> processSyncQueue() async {
+  /// [force] - If true, processes queue even if already processing
+  Future<void> processSyncQueue({bool force = false}) async {
     if (!isConnected.value) {
       print("⚠️ Cannot process sync queue: no internet connection");
       return;
     }
 
+    // Prevent concurrent processing
+    if (_isProcessingSyncQueue && !force) {
+      print("⏸️ Sync queue already processing, skipping...");
+      return;
+    }
+
     try {
+      _isProcessingSyncQueue = true;
       await SyncQueueService.instance.initialize();
       final pendingOperations = await SyncQueueService.instance.getPendingOperations();
       
       if (pendingOperations.isEmpty) {
         print("✅ Sync queue is empty");
+        _isProcessingSyncQueue = false;
         return;
       }
 
       print("🔄 Processing ${pendingOperations.length} pending operations...");
 
+      // Process operations and collect successfully synced events
+      final List<String> syncedEventKeys = [];
+      
       for (var operation in pendingOperations) {
         try {
           final key = '${operation.timestamp.millisecondsSinceEpoch}_${operation.operationType}';
@@ -127,6 +141,7 @@ class ConnectivityController extends GetxController {
               final success = await event.saveToFirestore(skipLocalSave: true);
               if (success) {
                 await SyncQueueService.instance.removeOperation(key);
+                syncedEventKeys.add('${event.eventName}/${event.date}');
                 print("✅ Synced event: ${event.eventName} - ${event.date}");
               } else {
                 await SyncQueueService.instance.incrementRetryCount(operation);
@@ -140,6 +155,7 @@ class ConnectivityController extends GetxController {
               final success = await event.createFirestoreEvent(skipLocalSave: true);
               if (success) {
                 await SyncQueueService.instance.removeOperation(key);
+                syncedEventKeys.add('${event.eventName}/${event.date}');
                 print("✅ Synced event creation: ${event.eventName} - ${event.date}");
               } else {
                 await SyncQueueService.instance.incrementRetryCount(operation);
@@ -170,9 +186,33 @@ class ConnectivityController extends GetxController {
         }
       }
 
+      // Update local events with isBackedUp flag after successful sync
+      // This prevents them from being queued again
+      if (syncedEventKeys.isNotEmpty) {
+        try {
+          for (var eventKey in syncedEventKeys) {
+            final parts = eventKey.split('/');
+            if (parts.length == 2) {
+              final eventName = parts[0];
+              final date = parts[1];
+              final localEvent = await LocalStorageService.instance.loadEventLocally(eventName, date);
+              if (localEvent != null) {
+                localEvent.isBackedUp = true;
+                await localEvent.saveToLocal();
+                print('✅ Updated isBackedUp flag for: $eventKey');
+              }
+            }
+          }
+        } catch (e) {
+          print('⚠️ Error updating isBackedUp flags: $e');
+        }
+      }
+
       print("✅ Sync queue processing completed");
+      _isProcessingSyncQueue = false;
     } catch (e) {
       print("❌ Error processing sync queue: $e");
+      _isProcessingSyncQueue = false;
     }
   }
 

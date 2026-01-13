@@ -45,10 +45,10 @@ class SystemGradeBreakdownDialog extends StatelessWidget {
       param2: adjustedAlonka,
       param3: adjustedSakim,
       param4: burGrade,
-      weight1: gradesData.weighted['meshulash'],
-      weight2: gradesData.weighted['alonka'],
-      weight3: gradesData.weighted['sakim'],
-      weight4: gradesData.weighted['bur'],
+      weight1: (gradesData.weighted['meshulash'] as num?)?.toDouble() ?? 0.25,
+      weight2: (gradesData.weighted['alonka'] as num?)?.toDouble() ?? 0.25,
+      weight3: (gradesData.weighted['sakim'] as num?)?.toDouble() ?? 0.25,
+      weight4: (gradesData.weighted['bur'] as num?)?.toDouble() ?? 0.25,
     );
   }
 
