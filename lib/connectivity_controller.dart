@@ -123,7 +123,8 @@ class ConnectivityController extends GetxController {
           switch (operation.operationType) {
             case 'saveEvent':
               final event = Event.fromJson(operation.data);
-              final success = await event.saveToFirestore();
+              // Skip local save when called from sync queue to prevent loop
+              final success = await event.saveToFirestore(skipLocalSave: true);
               if (success) {
                 await SyncQueueService.instance.removeOperation(key);
                 print("✅ Synced event: ${event.eventName} - ${event.date}");
@@ -135,7 +136,8 @@ class ConnectivityController extends GetxController {
 
             case 'createEvent':
               final event = Event.fromJson(operation.data);
-              final success = await event.createFirestoreEvent();
+              // Skip local save when called from sync queue to prevent loop
+              final success = await event.createFirestoreEvent(skipLocalSave: true);
               if (success) {
                 await SyncQueueService.instance.removeOperation(key);
                 print("✅ Synced event creation: ${event.eventName} - ${event.date}");

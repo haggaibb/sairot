@@ -170,12 +170,14 @@ class Event {
   /// Save Event instance to Firestore (always saves locally first)
   /// Note: This method should be called through EventController.saveEventWithOfflineSupport()
   /// for proper offline support, but can be called directly if needed
-  Future<bool> saveToFirestore() async {
+  /// [skipLocalSave] - If true, skips the local saves (used when called from sync queue to prevent loops)
+  Future<bool> saveToFirestore({bool skipLocalSave = false}) async {
     try {
-      lastUpdate = DateTime.now();
-      
-      // Always save locally first (immediate, works offline)
-      await saveToLocal();
+      if (!skipLocalSave) {
+        lastUpdate = DateTime.now();
+        // Always save locally first (immediate, works offline)
+        await saveToLocal();
+      }
       
       // Debug: Verify instructorGrade values are present before saving
       if (finalized) {
@@ -242,6 +244,13 @@ class Event {
         rethrow;
       }
       
+      // Mark as backed up after successful save
+      isBackedUp = true;
+      // Save locally with updated isBackedUp flag (unless called from sync queue)
+      if (!skipLocalSave) {
+        await saveToLocal();
+      }
+      
       print('✅ Event saved successfully: $eventName - $date (finalized: $finalized)');
       return true;
     } catch (e) {
@@ -258,7 +267,8 @@ class Event {
   }
 
   /// Save Event instance to Firestore (always saves locally first)
-  Future<bool> createFirestoreEvent() async {
+  /// [skipLocalSave] - If true, skips the local save after Firestore save (used when called from sync queue)
+  Future<bool> createFirestoreEvent({bool skipLocalSave = false}) async {
     try {
       // Always save locally first
       await saveToLocal();
@@ -336,6 +346,13 @@ class Event {
           print('⚠️ Failed to update AdminIndex doc (non-critical): $e');
         }
       }
+      // Mark as backed up after successful creation
+      isBackedUp = true;
+      // Save locally with updated isBackedUp flag (unless called from sync queue)
+      if (!skipLocalSave) {
+        await saveToLocal();
+      }
+      
       print("✅ Event created successfully: $eventName - $date");
       return true;
     } catch (e) {

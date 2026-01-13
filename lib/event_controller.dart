@@ -80,6 +80,10 @@ class EventController extends GetxController {
   /// Instructor custom comments (exercise type -> list of comments)
   RxMap<String, List<String>> instructorCustomComments = <String, List<String>>{}.obs;
   
+  /// Retention period for finalized events in local cache (days)
+  /// Default: 30 days - finalized events older than this will be cleaned up
+  static const int finalizedEventRetentionDays = 30;
+  
   /// Get sorted list of active participants based on current sort settings
   List<Participant> getSortedActiveParticipants() {
     final participants = List<Participant>.from(
@@ -243,6 +247,12 @@ class EventController extends GetxController {
         // This is done here after connectivity check to avoid showing stale data
         // Don't await - function returns immediately with local events, Firebase fetch happens in background
         getUnfinalizedEvents();
+        
+        // Cleanup old finalized events from local cache (non-blocking)
+        // Run after loading events to ensure we don't delete currently loaded events
+        cleanupOldFinalizedEvents().catchError((e) {
+          print('⚠️ Error during cleanup of old finalized events (non-critical): $e');
+        });
         
         // Refresh events from network in background if online (non-blocking)
         if (isConnected.value) {
@@ -1041,6 +1051,7 @@ class EventController extends GetxController {
           final firestoreSuccess = await event.createFirestoreEvent();
           if (firestoreSuccess) {
             print('✅ Event created and saved to Firestore');
+            // Note: isBackedUp flag is set in createFirestoreEvent() method
           } else {
             // Queue for retry
             await SyncQueueService.instance.queueFirestoreOperation('createEvent', event.toJson());
@@ -1050,6 +1061,7 @@ class EventController extends GetxController {
           final firestoreSuccess = await event.saveToFirestore();
           if (firestoreSuccess) {
             print('✅ Event saved to Firestore');
+            // Note: isBackedUp flag is set in saveToFirestore() method
           } else {
             // Queue for retry
             await SyncQueueService.instance.queueFirestoreOperation('saveEvent', event.toJson());
@@ -1103,14 +1115,12 @@ class EventController extends GetxController {
           .doc(event.date);
       await eventRef.delete();
       
-      // 🔥 Step 2: Delete from Events collection (this is what getCurrentEventDays() reads from)
-      DocumentReference eventsRef = firestore.collection('Events')
-          .doc(event.eventName)
-          .collection('days')
-          .doc(event.date);
-      await eventsRef.delete();
+      // ❌ NOTE: We do NOT delete from Events collection
+      // The Events collection is read-only and managed by admin system/Cloud Functions
+      // It may contain data from other instructors and shouldn't be deleted by instructors
+      // getCurrentEventDays() reads from Events collection for reference only
       
-      // 🔥 Step 3: Update AdminIndex (remove instructor/group references)
+      // 🔥 Step 2: Update AdminIndex (remove instructor/group references)
       eventRef = firestore.collection('AdminIndex')
           .doc(event.eventName)
           .collection('days')
@@ -1132,10 +1142,10 @@ class EventController extends GetxController {
         await eventRef.update({'groupsAndInstructors': groupsArray});
       }
       
-      // 🔥 Step 4: Delete from local storage
+      // 🔥 Step 3: Delete from local storage
       await LocalStorageService.instance.deleteEventLocally(event.eventName, event.date);
       
-      // 🔥 Step 5: Refresh eventDays cache for this event
+      // 🔥 Step 4: Refresh eventDays cache for this event
       if (eventDays.containsKey(event.eventName)) {
         eventDays[event.eventName]?.remove(event.date);
         if (eventDays[event.eventName]!.isEmpty) {
@@ -2695,6 +2705,41 @@ class EventController extends GetxController {
     } catch (e) {
       print('❌ Error getting instructor custom comments for exercise: $e');
       return [];
+    }
+  }
+
+  /// Cleanup old finalized events from local cache
+  /// This is called on app initialization and after event finalization
+  /// Excludes currently loaded events for safety
+  Future<void> cleanupOldFinalizedEvents() async {
+    try {
+      // Build list of event keys to exclude (currently loaded events)
+      List<String> excludeKeys = [];
+      
+      // Exclude currently loaded event if it exists
+      if (currentEvent.value.eventName.isNotEmpty && 
+          currentEvent.value.date.isNotEmpty) {
+        excludeKeys.add('${currentEvent.value.eventName}/${currentEvent.value.date}');
+      }
+      
+      // Exclude all unfinalized events (they should never be deleted)
+      for (var event in unfinalizedEvents) {
+        if (event.eventName.isNotEmpty && event.date.isNotEmpty) {
+          excludeKeys.add('${event.eventName}/${event.date}');
+        }
+      }
+      
+      // Run cleanup with safety exclusions
+      final deletedCount = await LocalStorageService.instance.cleanupOldFinalizedEvents(
+        retentionDays: finalizedEventRetentionDays,
+        excludeEventKeys: excludeKeys,
+      );
+      
+      if (deletedCount > 0) {
+        print('🧹 Cleaned up $deletedCount old finalized event(s) from local cache');
+      }
+    } catch (e) {
+      print('❌ Error in cleanupOldFinalizedEvents: $e');
     }
   }
 }

@@ -167,6 +167,106 @@ class LocalStorageService {
     }
   }
 
+  /// Cleanup old finalized events from local storage
+  /// Deletes finalized events that are backed up and older than retention period
+  /// [retentionDays] - Number of days to keep finalized events (default: 30)
+  /// [excludeEventKeys] - List of event keys to exclude from deletion (e.g., currently loaded events)
+  /// Returns count of deleted events
+  Future<int> cleanupOldFinalizedEvents({
+    int retentionDays = 30,
+    List<String> excludeEventKeys = const [],
+  }) async {
+    try {
+      if (_eventsBox == null) await initialize();
+      
+      int deletedCount = 0;
+      final now = DateTime.now();
+      final retentionThreshold = now.subtract(Duration(days: retentionDays));
+      
+      print('🧹 Starting cleanup of finalized events older than $retentionDays days...');
+      
+      // Get all keys from events box
+      final allKeys = _eventsBox!.keys.toList();
+      
+      for (var key in allKeys) {
+        try {
+          // Skip if this event should be excluded (e.g., currently loaded)
+          if (excludeEventKeys.contains(key)) {
+            continue;
+          }
+          
+          final eventData = _eventsBox!.get(key);
+          if (eventData == null) continue;
+          
+          final eventJson = jsonDecode(eventData as String) as Map<String, dynamic>;
+          final event = Event.fromJson(eventJson);
+          
+          // Only delete finalized events
+          if (!event.finalized) {
+            continue;
+          }
+          
+          // Only delete if backed up (or assume true if finalized and successfully saved)
+          // For safety, we'll check isBackedUp flag, but if it's finalized we assume it's backed up
+          if (!event.isBackedUp && event.finalized) {
+            // If finalized but not explicitly marked as backed up, we'll still consider it
+            // as potentially backed up (might be from older version without the flag)
+            // But to be safe, we'll skip it if isBackedUp is explicitly false
+            print('⚠️ Skipping finalized event $key - isBackedUp flag is false');
+            continue;
+          }
+          
+          // Calculate age using lastUpdate or use a default if null
+          DateTime eventDate;
+          if (event.lastUpdate != null) {
+            eventDate = event.lastUpdate!;
+          } else {
+            // If no lastUpdate, try to parse from date string or use current time
+            try {
+              // Try to parse date string (format: DD-MM-YYYY)
+              final dateParts = event.date.split('-');
+              if (dateParts.length == 3) {
+                eventDate = DateTime(
+                  int.parse(dateParts[2]), // year
+                  int.parse(dateParts[1]), // month
+                  int.parse(dateParts[0]), // day
+                );
+              } else {
+                // Fallback to current time (will not delete)
+                eventDate = now;
+              }
+            } catch (e) {
+              // Fallback to current time (will not delete)
+              eventDate = now;
+            }
+          }
+          
+          // Check if event is older than retention period
+          if (eventDate.isBefore(retentionThreshold)) {
+            // Delete the event
+            await deleteEventLocally(event.eventName, event.date);
+            deletedCount++;
+            print('🗑️ Deleted old finalized event: $key (age: ${now.difference(eventDate).inDays} days)');
+          }
+        } catch (e) {
+          print('❌ Error processing event $key during cleanup: $e');
+          continue;
+        }
+      }
+      
+      if (deletedCount > 0) {
+        print('✅ Cleanup completed: Deleted $deletedCount old finalized event(s)');
+      } else {
+        print('✅ Cleanup completed: No events to delete');
+      }
+      
+      return deletedCount;
+    } catch (e) {
+      print('❌ Error during cleanup of old finalized events: $e');
+      return 0;
+    }
+  }
+
   /// Save instructors list to local storage
   Future<bool> saveInstructorsLocally(List<Instructor> instructors) async {
     try {

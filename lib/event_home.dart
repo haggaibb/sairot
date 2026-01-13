@@ -418,6 +418,10 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                                   eventController.saveEventWithOfflineSupport(
                                     eventController.currentEvent.value
                                   );
+                                  // Trigger cleanup of old finalized events (non-blocking)
+                                  eventController.cleanupOldFinalizedEvents().catchError((e) {
+                                    print('⚠️ Error during cleanup after finalization (non-critical): $e');
+                                  });
                                 } else {
                                   showCustomMessageAlert(context, "תקלה",
                                       "שגיאה בשמירת האירוע", Icons.error);
