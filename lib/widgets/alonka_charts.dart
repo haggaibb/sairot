@@ -22,11 +22,12 @@ class AlonkaCharts extends StatelessWidget {
     final eventController = Get.put(EventController());
     final toggleController = Get.put(ChartToggleController());
 
-    // Filter out round 0 - only show rounds starting from 1
+    // Include all rounds including round 0 (first round)
     final List<int> rounds = eventController.currentEvent.value.alonkaSprints
-        .where((AlonkaSprint sprint) => sprint.round > 0)
+        .where((AlonkaSprint sprint) => sprint.round >= 0)
         .map((AlonkaSprint sprint) => sprint.round)
-        .toList();
+        .toList()
+      ..sort(); // Sort to ensure rounds are in order
     
     
     Participant p = eventController.getParticipant(number);
@@ -95,8 +96,9 @@ class AlonkaCharts extends StatelessWidget {
                   return LayoutBuilder(
                     builder: (context, constraints) {
                       bool tablet = isTablet(context);
-                      final yAxisWidth = tablet ? 50.0 : 55.0; // Original values
-                      final rightPadding = tablet ? 25.0 : 35.0; // Space for labels on the right to prevent clipping
+                      // Reduced for embedded view in exercise grading page
+                      final yAxisWidth = tablet ? 35.0 : 40.0; // Reduced to make chart wider
+                      final rightPadding = tablet ? 18.0 : 25.0; // Reduced space for labels on the right
                       final bottomAxisHeight = 15.0; // Minimized to maximize chart height
                       final chartWidth = constraints.maxWidth - yAxisWidth - rightPadding;
                       final chartHeight = constraints.maxHeight - bottomAxisHeight;
@@ -115,10 +117,10 @@ class AlonkaCharts extends StatelessWidget {
                                     int index = entry.key;
                                     int round = entry.value;
                                     int position = positions[index];
-                                    // Only include points where participant has a position and round > 0
+                                    // Only include points where participant has a position
                                     // Invert Y: position 1 should be at top (maxY), higher positions at bottom
-                                    // Use round number directly (already filtered to > 0)
-                                    if (round > 0 && position > 0) {
+                                    // Use round number directly (including round 0)
+                                    if (position > 0) {
                                       return FlSpot(round.toDouble(), maxY - position.toDouble() + 1);
                                     }
                                     return null;
@@ -164,13 +166,16 @@ class AlonkaCharts extends StatelessWidget {
                                     showTitles: true,
                                     interval: 1,
                                     getTitlesWidget: (value, meta) {
-                                      // Show only interval numbers (round numbers, not indices)
+                                      // Show round numbers + 1 for display (round 0 shows as "1", round 1 shows as "2", etc.)
                                       if (value % 1 == 0 && rounds.isNotEmpty && 
                                           value >= rounds.first.toDouble() && value <= rounds.last.toDouble()) {
-                                        return Text(
-                                          value.toInt().toString(),
-                                          style: const TextStyle(color: Colors.white),
-                                        );
+                                        // Check if this value corresponds to an actual round
+                                        if (rounds.contains(value.toInt())) {
+                                          return Text(
+                                            (value.toInt() + 1).toString(),
+                                            style: const TextStyle(color: Colors.white),
+                                          );
+                                        }
                                       }
                                       return const SizedBox.shrink();
                                     },
@@ -186,22 +191,22 @@ class AlonkaCharts extends StatelessWidget {
                               ),
                               gridData: FlGridData(show: true),
                               borderData: FlBorderData(show: false),
-                              minX: rounds.isNotEmpty ? rounds.first.toDouble() - 0.5 : 0.5,
+                              minX: rounds.isNotEmpty ? (rounds.first.toDouble() - 0.5).clamp(0.0, double.infinity) : 0.5,
                               maxX: rounds.isNotEmpty ? rounds.last.toDouble() + 0.5 : 1.5,
                               minY: 1,
                               maxY: maxY,
                             ),
                             ),
                           ),
-                          // Labels showing element icon and position at each point (exclude round 0)
+                          // Labels showing element icon and position at each point
                           ...rounds.asMap().entries.map((entry) {
                             int index = entry.key;
                             int round = entry.value;
                             int position = positions[index];
                             double baseCredit = baseCredits[index];
                             
-                            // Exclude round 0 and positions that are 0
-                            if (round == 0 || position == 0) return const SizedBox.shrink();
+                            // Exclude positions that are 0
+                            if (position == 0) return const SizedBox.shrink();
                             
                             // Determine element icon
                             String iconPath;
@@ -296,16 +301,26 @@ class AlonkaCharts extends StatelessWidget {
             )
                 : SizedBox.shrink(),
             Container(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: p.alonkaInstructorComments.map((comment) {
-                  return Chip(
-                    label: Text(comment),
-                    backgroundColor: Colors.grey.shade200,
-                    labelStyle: TextStyle(color: Colors.black),
-                  );
-                }).toList(),
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  children: p.alonkaInstructorComments.map((comment) {
+                    return Chip(
+                      label: Text(
+                        comment,
+                        textAlign: TextAlign.right,
+                        softWrap: true,
+                        maxLines: null,
+                        overflow: TextOverflow.visible,
+                      ),
+                      backgroundColor: Colors.grey.shade200,
+                      labelStyle: TextStyle(color: Colors.black),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
           ],

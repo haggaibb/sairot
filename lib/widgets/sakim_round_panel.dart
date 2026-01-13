@@ -136,7 +136,10 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                 }
                                 
                                 eventController.update();
-                                eventController.currentEvent.value.saveToFirestore();
+                                // Use non-blocking save to prevent delays when offline
+                                eventController.saveEventWithOfflineSupport(
+                                  eventController.currentEvent.value
+                                );
                                 eventController.loading.value = false;
                               },
                               child: Stack(
@@ -173,7 +176,10 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                           widget.round.participantsInRound.remove(participantNumber);
                                           //});
                                           eventController.loading.value = false;
-                                          eventController.currentEvent.value.saveToFirestore();
+                                          // Use non-blocking save to prevent delays when offline
+                                          eventController.saveEventWithOfflineSupport(
+                                            eventController.currentEvent.value
+                                          );
                                         }
                                       },
                                       onLongPress: () async {

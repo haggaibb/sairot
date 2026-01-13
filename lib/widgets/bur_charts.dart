@@ -64,13 +64,28 @@ class BurCharts extends StatelessWidget {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
             eventController.currentEvent.value.burGrades.isNotEmpty
                 ? Container(
-              child: Wrap(
-                spacing: 12,
-                children:  eventController.currentEvent.value.burGrades.firstWhere((bur)=> bur.id == number).instructorComments.map((comment) {
-                  return Chip(
-                    label: Text(comment),
-                  );
-                }).toList(),
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.end,
+                    children: eventController.currentEvent.value.burGrades.firstWhere((bur)=> bur.id == number).instructorComments.map((comment) {
+                      return Chip(
+                        label: Text(
+                          comment,
+                          textAlign: TextAlign.right,
+                          softWrap: true,
+                          maxLines: null,
+                          overflow: TextOverflow.visible,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             )
                  : SizedBox.shrink(            ),

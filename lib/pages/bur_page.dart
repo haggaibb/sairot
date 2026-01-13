@@ -266,9 +266,10 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                             DateTime.now();
                                                       });
                                                       _timer?.cancel();
-                                                      eventController
-                                                          .currentEvent.value
-                                                          .saveToFirestore();
+                                                      // Use non-blocking save to prevent delays when offline
+                                                      eventController.saveEventWithOfflineSupport(
+                                                        eventController.currentEvent.value
+                                                      );
                                                       eventController.loading.value =
                                                       false;
                                                     }
@@ -541,9 +542,10 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                           runTime = eventController.currentEvent.value.getBurRunTime();
                                                         });
                                                       });
-                                                      eventController
-                                                          .currentEvent.value
-                                                          .saveToFirestore();
+                                                      // Use non-blocking save to prevent delays when offline
+                                                      eventController.saveEventWithOfflineSupport(
+                                                        eventController.currentEvent.value
+                                                      );
                                                       eventController.loading.value =
                                                       false;
                                                     }
@@ -790,7 +792,10 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                       }
                                       _.currentEvent.value.burStartTime =
                                           DateTime.now();
-                                      _.currentEvent.value.saveToFirestore();
+                                      // Use non-blocking save to prevent delays when offline
+                                      eventController.saveEventWithOfflineSupport(
+                                        _.currentEvent.value
+                                      );
                                       _.currentEvent.refresh();
                                       _.loading.value = false;
                                       //});

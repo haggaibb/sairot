@@ -120,7 +120,8 @@ class MeshulashGridView extends StatelessWidget {
                   }
                   
                   _.update();
-                  _.currentEvent.value.saveToFirestore();
+                  // Use non-blocking save to prevent delays when offline
+                  eventController.saveEventWithOfflineSupport(_.currentEvent.value);
                   _.loading.value = false;
                 }
               },
@@ -160,7 +161,8 @@ class MeshulashGridView extends StatelessWidget {
                         }
                         _.currentEvent.value.meshulashRounds[currentRound].participantsInRound.remove(participantNumber);
                         _.update();
-                        _.currentEvent.value.saveToFirestore();
+                        // Use non-blocking save to prevent delays when offline
+                        eventController.saveEventWithOfflineSupport(_.currentEvent.value);
                         _.loading.value = false;
                       }
                     },

@@ -353,18 +353,23 @@ class _PerformancePageState extends State<PerformancePage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: p.genericInstructorComments.map((comment) {
-                            return Chip(
-                              label: Text(
-                                comment,
-                                style: TextStyle(fontSize: subtitleFontSize),
-                              ),
-                              backgroundColor: Colors.white.withOpacity(0.3),
-                            );
-                          }).toList(),
+                        Directionality(
+                          textDirection: TextDirection.rtl,
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.end,
+                            children: p.genericInstructorComments.map((comment) {
+                              return Chip(
+                                label: Text(
+                                  comment,
+                                  style: TextStyle(fontSize: subtitleFontSize),
+                                  textAlign: TextAlign.right,
+                                ),
+                                backgroundColor: Colors.white.withOpacity(0.3),
+                              );
+                            }).toList(),
+                          ),
                         ),
                       ],
                     ),

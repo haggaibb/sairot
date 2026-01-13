@@ -291,7 +291,8 @@ class MeshulashCharts extends StatelessWidget {
     int participantsCount = eventController.currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active).length;
     bool tablet = isTablet(context);
     // Adjust reserved size for Y-axis based on device type - need more space on mobile
-    final leftAxisReservedSize = tablet ? 40.0 : 10.0; // Further reduced on mobile to make chart wider
+    // Reduced for embedded view in exercise grading page
+    final leftAxisReservedSize = tablet ? 30.0 : 8.0; // Reduced to make chart wider
     
     return Scaffold(
       body: SafeArea(
@@ -311,7 +312,8 @@ class MeshulashCharts extends StatelessWidget {
                       : participantsCount.toDouble();
                   
                   // Chart dimensions - reduce on mobile to make chart wider
-                  final rightAxisReservedSize = tablet ? 60.0 : 15.0; // Further reduced on mobile to make chart wider
+                  // Reduced for embedded view in exercise grading page
+                  final rightAxisReservedSize = tablet ? 45.0 : 12.0; // Reduced to make chart wider
                   final topPadding = 20.0;
                   final bottomPadding = 50.0;
                   
@@ -324,7 +326,7 @@ class MeshulashCharts extends StatelessWidget {
                       /// Line Chart with Dual Y-Axes
                       Positioned(
                         left: leftAxisReservedSize,
-                        right: tablet ? (rightAxisReservedSize + 20) : rightAxisReservedSize, // Remove extra 20px on mobile
+                        right: tablet ? (rightAxisReservedSize + 10) : rightAxisReservedSize, // Reduced extra padding for embedded view
                         top: topPadding,
                         bottom: bottomPadding,
                         child: LineChart(
@@ -512,7 +514,7 @@ class MeshulashCharts extends StatelessWidget {
                       /// Custom Bars Overlay (same position as LineChart)
                       Positioned(
                         left: leftAxisReservedSize,
-                        right: tablet ? (rightAxisReservedSize + 20) : rightAxisReservedSize, // Remove extra 20px on mobile
+                        right: tablet ? (rightAxisReservedSize + 10) : rightAxisReservedSize, // Reduced extra padding for embedded view
                         top: topPadding,
                         bottom: bottomPadding,
                         child: GestureDetector(
@@ -528,7 +530,7 @@ class MeshulashCharts extends StatelessWidget {
                               if (count == 0) continue;
                               
                               // Calculate bar position (same logic as BarPainter)
-                              final actualWidth = constraints.maxWidth - leftAxisReservedSize - rightAxisReservedSize - 20;
+                              final actualWidth = constraints.maxWidth - leftAxisReservedSize - rightAxisReservedSize - 10;
                               final xRatio = (maxX - minX) > 0 
                                   ? (round.toDouble() - minX) / (maxX - minX)
                                   : 0.0;
@@ -674,7 +676,7 @@ class MeshulashCharts extends StatelessWidget {
                               minY: 1.0, // Use LineChart's coordinate system
                               maxY: participantsCount.toDouble(), // Use LineChart's coordinate system
                               maxCount: maxCount, // Right axis max for scaling
-                              labelChartWidth: constraints.maxWidth - leftAxisReservedSize - (tablet ? (rightAxisReservedSize + 20) : rightAxisReservedSize),
+                              labelChartWidth: constraints.maxWidth - leftAxisReservedSize - (tablet ? (rightAxisReservedSize + 10) : rightAxisReservedSize),
                               barWidth: tablet ? 20.0 : 16.0,
                               isMobile: !tablet, // Pass mobile flag
                             ),
@@ -694,16 +696,26 @@ class MeshulashCharts extends StatelessWidget {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ):SizedBox.shrink(),
             Container(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: p.meshulashInstructorComments.map((comment) {
-                  return Chip(
-                    label: Text(comment),
-                    backgroundColor: Colors.grey.shade200,
-                    labelStyle: TextStyle(color: Colors.black),
-                  );
-                }).toList(),
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  children: p.meshulashInstructorComments.map((comment) {
+                    return Chip(
+                      label: Text(
+                        comment,
+                        textAlign: TextAlign.right,
+                        softWrap: true,
+                        maxLines: null,
+                        overflow: TextOverflow.visible,
+                      ),
+                      backgroundColor: Colors.grey.shade200,
+                      labelStyle: TextStyle(color: Colors.black),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
           ],

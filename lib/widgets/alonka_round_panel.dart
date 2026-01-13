@@ -189,8 +189,10 @@ class _AlonkaRoundPanelState extends State<AlonkaRoundPanel> {
                               eventController.currentEvent.value
                                       .alonkaSprints[widget.round.round] =
                                   widget.round;
-                              //await eventController.currentEvent.value.saveToFirestore();
-                              eventController.currentEvent.value.saveToFirestore();
+                              // Use non-blocking save to prevent delays when offline
+                              eventController.saveEventWithOfflineSupport(
+                                eventController.currentEvent.value
+                              );
                               setState(() {
                                 eventController.widgetLoading.value = false;
                               });

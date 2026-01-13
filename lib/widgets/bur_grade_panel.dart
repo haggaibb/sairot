@@ -155,7 +155,8 @@ class _BurGradePanelState extends State<BurGradePanel> {
   void saveToFirestore() {
     widget.bur.instructorComments = List.from(instructorComments);
     eventController.currentEvent.value.burGrades[burIndex] = widget.bur;
-    eventController.currentEvent.value.saveToFirestore();
+    // Use non-blocking save to prevent delays when offline
+    eventController.saveEventWithOfflineSupport(eventController.currentEvent.value);
   }
 
   @override
@@ -310,7 +311,10 @@ class _BurGradePanelState extends State<BurGradePanel> {
                               // Trigger refresh so grid updates
                               eventController.currentEvent.refresh();
                               eventController.update();
-                              eventController.currentEvent.value.saveToFirestore();
+                              // Use non-blocking save to prevent delays when offline
+                              eventController.saveEventWithOfflineSupport(
+                                eventController.currentEvent.value
+                              );
                               eventController.update();
                             },
                             textAlign: TextAlign.center,

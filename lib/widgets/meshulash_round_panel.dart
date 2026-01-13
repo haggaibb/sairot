@@ -134,7 +134,10 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                       }
                                       
                                       eventController.update();
-                                      eventController.currentEvent.value.saveToFirestore();
+                                      // Use non-blocking save to prevent delays when offline
+                                      eventController.saveEventWithOfflineSupport(
+                                        eventController.currentEvent.value
+                                      );
                                       eventController.loading.value = false;
                                     }
                                   },
@@ -171,7 +174,10 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                               eventController.currentEvent.value.meshulashRounds[widget.round.round] = widget.round;
                                               widget.round.participantsInRound.remove(participantNumber);
                                               eventController.update();
-                                              eventController.currentEvent.value.saveToFirestore();
+                                              // Use non-blocking save to prevent delays when offline
+                                              eventController.saveEventWithOfflineSupport(
+                                                eventController.currentEvent.value
+                                              );
                                               //setState(() {
                                               //});
                                               eventController.loading.value = false;

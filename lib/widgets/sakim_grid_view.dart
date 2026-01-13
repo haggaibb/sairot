@@ -120,7 +120,8 @@ class SakimGridView extends StatelessWidget {
                   }
                   
                   _.update();
-                  _.currentEvent.value.saveToFirestore();
+                  // Use non-blocking save to prevent delays when offline
+                  eventController.saveEventWithOfflineSupport(_.currentEvent.value);
                   _.loading.value = false;
                 }
               },
@@ -160,7 +161,8 @@ class SakimGridView extends StatelessWidget {
                         }
                         _.currentEvent.value.sakimRounds[currentRound].participantsInRound.remove(participantNumber);
                         _.loading.value = false;
-                        _.currentEvent.value.saveToFirestore();
+                        // Use non-blocking save to prevent delays when offline
+                        eventController.saveEventWithOfflineSupport(_.currentEvent.value);
                       }
                     },
                     onLongPress: () async {

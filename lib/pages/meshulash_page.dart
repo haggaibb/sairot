@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../models/types.dart';
 import '../event_controller.dart';
 import 'package:get/get.dart';
-import '../models/meshulash_round.dart';
 import '../widgets/meshulash_round_panel.dart';
 import '../widgets/meshulash_grid_view.dart';
 import 'dart:async';
@@ -232,7 +230,10 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                                     _timer.cancel();
                                     _.meshulashEditModeOn.value = false;
                                     editModeOn = _.meshulashEditModeOn.value;
-                                    eventController.currentEvent.value.saveToFirestore();
+                                    // Use non-blocking save to prevent delays when offline
+                                    eventController.saveEventWithOfflineSupport(
+                                      eventController.currentEvent.value
+                                    );
                                   });
                                 }
                               },
@@ -250,7 +251,10 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                                         : TextButton.icon(
                                             onPressed: () {
                                               if (editModeOn) {
-                                                eventController.currentEvent.value.saveToFirestore();
+                                                // Use non-blocking save to prevent delays when offline
+                                                eventController.saveEventWithOfflineSupport(
+                                                  eventController.currentEvent.value
+                                                );
                                               } else {}
                                               _.meshulashEditModeOn.value = !_.meshulashEditModeOn.value;
                                               setState(() {
@@ -369,9 +373,10 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                                                               .meshulashEndTime =
                                                           DateTime.now();
                                                     });
-                                                    await eventController
-                                                        .currentEvent.value
-                                                        .saveToFirestore();
+                                                    // Use non-blocking save to prevent delays when offline
+                                                    eventController.saveEventWithOfflineSupport(
+                                                      eventController.currentEvent.value
+                                                    );
                                                     _timer.cancel();
                                                     _.meshulashEditModeOn.value =
                                                         false;
@@ -397,9 +402,10 @@ class _MeshulashPageState extends State<MeshulashPage> with EventValidationMixin
                                                     onPressed: () async {
                                                       if (editModeOn) {
                                                         ///save
-                                                        await eventController
-                                                            .currentEvent.value
-                                                            .saveToFirestore();
+                                                        // Use non-blocking save to prevent delays when offline
+                                                        eventController.saveEventWithOfflineSupport(
+                                                          eventController.currentEvent.value
+                                                        );
                                                       } else {}
                                                       _.meshulashEditModeOn.value =
                                                           !_.meshulashEditModeOn

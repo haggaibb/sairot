@@ -211,37 +211,67 @@ class EventController extends GetxController {
         isConnected.value = false;
       }
       
-      // Load network-dependent data in background
-      await gradesUpdate();
-      await getSystemSettings(); // Syncs if online
-      await getCurrentEventName(); // Syncs if online
-      await getUpdatedInstructorsList(); // Syncs if online
+      // Load network-dependent data in background (non-blocking when offline)
+      // Only do Firestore operations if online to avoid blocking
+      if (isConnected.value) {
+        gradesUpdate().catchError((e) {
+          print('⚠️ Error updating grades (non-critical): $e');
+        });
+        getSystemSettings().catchError((e) {
+          print('⚠️ Error getting system settings (non-critical): $e');
+        });
+        getCurrentEventName().catchError((e) {
+          print('⚠️ Error getting current event name (non-critical): $e');
+        });
+        getUpdatedInstructorsList().catchError((e) {
+          print('⚠️ Error getting instructors list (non-critical): $e');
+        });
+      } else {
+        // If offline, load from local cache only (fast, non-blocking)
+        getSystemSettings(); // Loads from local cache
+        getCurrentEventName(); // Loads from local cache
+        getUpdatedInstructorsList(); // Loads from local cache
+      }
       
       if (loggedIn.value) {
-        // Load instructor's custom comments
-        await loadInstructorCustomComments();
+        // Load instructor's custom comments (non-blocking - fire and forget)
+        loadInstructorCustomComments().catchError((e) {
+          print('⚠️ Error loading custom comments (non-critical): $e');
+        });
+        
         // Load unfinalized events (from Firestore if online, local if offline)
         // This is done here after connectivity check to avoid showing stale data
-        await getUnfinalizedEvents();
+        // Don't await - function returns immediately with local events, Firebase fetch happens in background
+        getUnfinalizedEvents();
         
-        // Refresh events from network in background if online
+        // Refresh events from network in background if online (non-blocking)
         if (isConnected.value) {
-          await fetchInstructorEvents(); // Syncs if online
-          
-          // After syncing, restore and load cached event if it's still valid
-          // This ensures we only load events that exist after sync
-          await restoreSelectedEventAndDay();
+          fetchInstructorEvents().then((_) {
+            // After syncing, restore and load cached event if it's still valid
+            restoreSelectedEventAndDay().catchError((e) {
+              print('⚠️ Error restoring selected event (non-critical): $e');
+            });
+          }).catchError((e) {
+            print('⚠️ Error fetching instructor events (non-critical): $e');
+          });
         } else {
-          // If offline, load from local and restore cached event
-          await fetchInstructorEvents(); // Loads from local
-          await restoreSelectedEventAndDay();
+          // If offline, load from local and restore cached event (non-blocking)
+          fetchInstructorEvents().then((_) {
+            restoreSelectedEventAndDay().catchError((e) {
+              print('⚠️ Error restoring selected event (non-critical): $e');
+            });
+          }).catchError((e) {
+            print('⚠️ Error fetching instructor events from local (non-critical): $e');
+          });
         }
         
-        // Process sync queue in background
+        // Process sync queue in background (non-blocking)
         if (isConnected.value) {
           final connectivityController = Get.put(ConnectivityController());
           connectivityController.isConnected.value = isConnected.value;
-          await connectivityController.processSyncQueue();
+          connectivityController.processSyncQueue().catchError((e) {
+            print('⚠️ Error processing sync queue (non-critical): $e');
+          });
         }
       }
     } catch (e) {
@@ -441,18 +471,62 @@ class EventController extends GetxController {
       // Otherwise, load only events for the current event name
       final shouldLoadAllEvents = currentEventName == 'playground' || currentEventName.isEmpty;
       
-      // If online, prioritize Firestore to avoid showing stale local data
-      // Only load from local storage if offline or if Firestore sync fails
+      // LOCAL-FIRST STRATEGY: Load from local storage first
+      final localEvents = await LocalStorageService.instance.getLocalUnfinalizedEvents();
+      // Filter by current instructor, exclude playground
+      List<Event> filteredLocalEvents;
+      if (shouldLoadAllEvents) {
+        // Load all unfinalized events for this instructor (excluding playground)
+        filteredLocalEvents = localEvents.where((e) => 
+          e.instructorId == currentInstructor.id && 
+          e.eventName != 'playground'
+        ).toList();
+      } else {
+        // Load only events for current event name
+        filteredLocalEvents = localEvents.where((e) => 
+          e.instructorId == currentInstructor.id && 
+          e.eventName == currentEventName &&
+          e.eventName != 'playground'
+        ).toList();
+      }
+      
+      // Start with local events (these are the most up-to-date)
+      if (filteredLocalEvents.isNotEmpty) {
+        unfinalizedEvents.addAll(filteredLocalEvents);
+        print('✅ Loaded ${filteredLocalEvents.length} unfinalized events from local cache');
+      }
+      
+      // Return immediately with local events to avoid blocking UI
+      // Firebase fetch will happen in background if online
+      unfinalizedLoading.value = false;
+      
+      // If online, also fetch from Firebase to catch any events that might not be in local cache
+      // But don't overwrite local events (local is source of truth)
+      // Do this in background (non-blocking) with timeout to prevent delays when offline
+      // IMPORTANT: Start this in background but don't await - return immediately
       if (isConnected.value) {
-        try {
-          if (shouldLoadAllEvents) {
+        // Fire and forget - don't await, let it run in background
+        unawaited(Future(() async {
+          try {
+            // Add timeout to prevent blocking when offline but connectivity check says online
+            await Future.any([
+              Future(() async {
+                if (shouldLoadAllEvents) {
             // Load all unfinalized events across all event names for this instructor
             QuerySnapshot eventsSnapshot = await firestore.collection('Results')
                 .doc(currentInstructor.id)
                 .collection('events')
                 .get();
             
-            unfinalizedEvents.clear(); // Clear local events, use Firestore data
+            // Merge Firebase events with local (don't overwrite local events)
+            // Use a map to track events by key to avoid duplicates
+            final Map<String, Event> eventMap = {};
+            // First, add all local events to the map (these take priority)
+            for (var localEvent in filteredLocalEvents) {
+              final key = '${localEvent.eventName}/${localEvent.date}';
+              eventMap[key] = localEvent;
+            }
+            
             for (var eventDoc in eventsSnapshot.docs) {
               if (eventDoc.id == 'playground') continue; // Skip playground
               
@@ -469,15 +543,21 @@ class EventController extends GetxController {
                 final event = Event.fromJson(docData);
                 // Exclude playground events
                 if (event.eventName != 'playground') {
-                  unfinalizedEvents.add(event);
-                  
-                  // Save to local storage
-                  await LocalStorageService.instance.saveEventLocally(event);
+                  final key = '${event.eventName}/${event.date}';
+                  // Only add if not already in map (local events take priority)
+                  if (!eventMap.containsKey(key)) {
+                    eventMap[key] = event;
+                    // Save to local storage for future loads
+                    await LocalStorageService.instance.saveEventLocally(event);
+                  }
                 }
               }
-            }
-            print('✅ Synced ${unfinalizedEvents.length} unfinalized events from Firestore (all events)');
-          } else {
+                }
+                // Update unfinalizedEvents with merged results
+                unfinalizedEvents.clear();
+                unfinalizedEvents.addAll(eventMap.values);
+                print('✅ Merged ${unfinalizedEvents.length} unfinalized events (local-first, Firebase fallback)');
+              } else {
             // Load only for current event name
             QuerySnapshot unfinalizedSnapshot = await firestore.collection('Results')
                 .doc(currentInstructor.id)
@@ -488,62 +568,76 @@ class EventController extends GetxController {
                 .get();
             
             if (unfinalizedSnapshot.docs.isNotEmpty) {
-              unfinalizedEvents.clear(); // Clear local events, use Firestore data
+              // Merge Firebase events with local (don't overwrite local events)
+              // Use a map to track events by key to avoid duplicates
+              final Map<String, Event> eventMap = {};
+              // First, add all local events to the map (these take priority)
+              for (var localEvent in filteredLocalEvents) {
+                final key = '${localEvent.eventName}/${localEvent.date}';
+                eventMap[key] = localEvent;
+              }
+              
               for (var doc in unfinalizedSnapshot.docs) {
                 Map<String, dynamic> docData = doc.data() as Map<String, dynamic>;
                 final event = Event.fromJson(docData);
                 // Exclude playground events
                 if (event.eventName != 'playground') {
-                  unfinalizedEvents.add(event);
-                  
-                  // Save to local storage
-                  await LocalStorageService.instance.saveEventLocally(event);
+                  final key = '${event.eventName}/${event.date}';
+                  // Only add if not already in map (local events take priority)
+                  if (!eventMap.containsKey(key)) {
+                    eventMap[key] = event;
+                    // Save to local storage for future loads
+                    await LocalStorageService.instance.saveEventLocally(event);
+                  }
+                }
+                }
+                  // Update unfinalizedEvents with merged results
+                  unfinalizedEvents.clear();
+                  unfinalizedEvents.addAll(eventMap.values);
+                  print('✅ Merged ${unfinalizedEvents.length} unfinalized events (local-first, Firebase fallback)');
                 }
               }
-              print('✅ Synced ${unfinalizedEvents.length} unfinalized events from Firestore');
+              }),
+              Future.delayed(Duration(seconds: 2), () {
+                print('⏱️ Firebase fetch timeout - using local events only');
+                throw TimeoutException('Firebase fetch timeout');
+              })
+            ]);
+          } catch (e) {
+            if (e is TimeoutException) {
+              print("⏱️ Firebase fetch timed out - using local events");
+            } else {
+              print("⚠️ Error fetching unfinalized events from Firestore: $e");
             }
+            // Fall through to use local events
           }
-        } catch (e) {
-          print("⚠️ Error fetching unfinalized events from Firestore: $e");
-          // Fall through to load from local storage if Firestore fetch fails
+        }).catchError((e) {
+          print("⚠️ Background Firebase fetch error: $e");
+        }));
+      }
+      
+      // Return immediately - don't wait for Firebase fetch
+      // If offline or no events loaded yet, ensure we have local events
+      if (!isConnected.value && unfinalizedEvents.isEmpty) {
+        // Already loaded local events above, but if we're offline and nothing was loaded, use local
+        if (filteredLocalEvents.isNotEmpty) {
+          unfinalizedEvents.addAll(filteredLocalEvents);
+          print('📴 Using local unfinalized events (offline mode): ${filteredLocalEvents.length} events');
         }
       }
       
-      // If offline or Firestore fetch failed/returned empty, load from local storage
-      if (!isConnected.value || unfinalizedEvents.isEmpty) {
-        final localEvents = await LocalStorageService.instance.getLocalUnfinalizedEvents();
-        // Filter by current instructor, exclude playground
-        List<Event> filteredLocalEvents;
-        if (shouldLoadAllEvents) {
-          // Load all unfinalized events for this instructor (excluding playground)
-          filteredLocalEvents = localEvents.where((e) => 
-            e.instructorId == currentInstructor.id && 
-            e.eventName != 'playground'
-          ).toList();
-        } else {
-          // Load only events for current event name
-          filteredLocalEvents = localEvents.where((e) => 
-            e.instructorId == currentInstructor.id && 
-            e.eventName == currentEventName &&
-            e.eventName != 'playground'
-          ).toList();
-        }
-        
-        if (filteredLocalEvents.isNotEmpty) {
-          unfinalizedEvents.clear(); // Clear any partial Firestore data
-          unfinalizedEvents.addAll(filteredLocalEvents);
-          print('✅ Loaded ${filteredLocalEvents.length} unfinalized events from local storage');
-        }
-        
-        if (!isConnected.value) {
-          print('📴 Using local unfinalized events (offline mode)');
-        }
+      // Final check: if still empty and we have local events, use them
+      if (unfinalizedEvents.isEmpty && filteredLocalEvents.isNotEmpty) {
+        unfinalizedEvents.addAll(filteredLocalEvents);
+        print('✅ Using local unfinalized events as fallback: ${filteredLocalEvents.length} events');
       }
     } catch (e) {
       unfinalizedLoading.value=false;
       print("❌ Error in getUnfinalizedEvents: $e");
     }
+    // Ensure loading is false (already set above, but ensure it's set on error paths)
     unfinalizedLoading.value=false;
+    // Return immediately - function completes here, Firebase fetch continues in background
     return unfinalizedEvents;
   }
 
@@ -647,7 +741,8 @@ class EventController extends GetxController {
     pastEventsLoading.value = false;
   }
 
-  /// 📥 Load Selected Event for the Instructor from firestore (works offline)
+  /// 📥 Load Selected Event for the Instructor (works offline, local-first)
+  /// Always prioritizes local cache to prevent stale cloud data from overwriting fresh local data
   Future<void> loadInstructorEvent(String eventName, String day) async {
     pastEventsLoading.value = true;
     try {
@@ -657,7 +752,17 @@ class EventController extends GetxController {
         currentEvent.value = Event(date: '', instructorId: '', eventName: '');
       }
       
-      // If online, try Firestore first to avoid showing stale cached data
+      // LOCAL-FIRST STRATEGY: Always try local cache first
+      // This prevents stale Firebase data from overwriting fresh local data
+      final localEvent = await LocalStorageService.instance.loadEventLocally(eventName, day);
+      if (localEvent != null) {
+        currentEvent.value = localEvent;
+        print('✅ Loaded event from local cache (local-first): $eventName - $day');
+        pastEventsLoading.value = false;
+        return; // Successfully loaded from local cache, exit early
+      }
+      
+      // If local cache doesn't exist or failed, try Firebase as fallback
       if (isConnected.value) {
         try {
           DocumentSnapshot eventSnapshot = await firestore.collection('Results')
@@ -671,26 +776,20 @@ class EventController extends GetxController {
             Map<String, dynamic> eventData = eventSnapshot.data() as Map<String, dynamic>;
             currentEvent.value = Event.fromJson(eventData);
             
-            // Update local cache
+            // Update local cache for future loads
             await LocalStorageService.instance.saveEventLocally(currentEvent.value);
-            print('✅ Synced event from Firestore: $eventName - $day');
+            print('✅ Loaded event from Firebase (fallback, cached locally): $eventName - $day');
             pastEventsLoading.value = false;
-            return; // Successfully loaded from Firestore, exit early
+            return; // Successfully loaded from Firebase, exit early
           }
         } catch (e) {
           print("⚠️ Error loading event from Firestore: $e");
-          // Fall through to try local storage
+          // Fall through to error message
         }
       }
       
-      // If offline or Firestore fetch failed, try local storage
-      final localEvent = await LocalStorageService.instance.loadEventLocally(eventName, day);
-      if (localEvent != null) {
-        currentEvent.value = localEvent;
-        print('✅ Loaded event from local storage: $eventName - $day');
-      } else {
-        print('⚠️ Event not found in local storage (offline mode): $eventName - $day');
-      }
+      // Neither local nor Firebase had the event
+      print('⚠️ Event not found in local cache or Firebase: $eventName - $day');
     } catch (e) {
       pastEventsLoading.value = false;
       print("❌ Error in loadInstructorEvent: $e");
@@ -1055,7 +1154,8 @@ class EventController extends GetxController {
     int index = currentEvent.value.participants
         .indexWhere((participant) => participant.number == id);
     currentEvent.value.participants[index].status = newStatus;
-    currentEvent.value.saveToFirestore();
+    // Use non-blocking save to prevent delays when offline
+    saveEventWithOfflineSupport(currentEvent.value);
   }
 
   Participant getParticipant(int number) {
@@ -1135,7 +1235,8 @@ class EventController extends GetxController {
       // ✅ Update the participant's comment list.
       currentEvent.value.participants[index].sakimInstructorComments = existingComments;
       print("✅ Comments merged successfully: ${existingComments}");
-      currentEvent.value.saveToFirestore();
+      // Use non-blocking save to prevent delays when offline
+      saveEventWithOfflineSupport(currentEvent.value);
     } else {
       print("❌ Participant not found with number: $participantNumber");
     }
@@ -1209,7 +1310,8 @@ class EventController extends GetxController {
       // ✅ Update the participant's comment list.
       currentEvent.value.participants[index].meshulashInstructorComments = comments;
       print("✅ Comments saved successfully: ${comments}");
-      currentEvent.value.saveToFirestore();
+      // Use non-blocking save to prevent delays when offline
+      saveEventWithOfflineSupport(currentEvent.value);
     } else {
       print("❌ Participant not found with number: $participantNumber");
     }
@@ -1229,7 +1331,8 @@ class EventController extends GetxController {
       // ✅ Update the participant's comment list.
       currentEvent.value.participants[index].alonkaInstructorComments = comments;
       print("✅ Comments to save : ${comments}");
-      currentEvent.value.saveToFirestore();
+      // Use non-blocking save to prevent delays when offline
+      saveEventWithOfflineSupport(currentEvent.value);
     } else {
       print("❌ Participant not found with number: $participantNumber");
     }
@@ -1250,7 +1353,8 @@ class EventController extends GetxController {
       // ✅ Update the participant's comment list.
       currentEvent.value.participants[index].interviewInstructorComments = comments;
       print("✅ Comments saved successfully: ${comments}");
-      currentEvent.value.saveToFirestore();
+      // Use non-blocking save to prevent delays when offline
+      saveEventWithOfflineSupport(currentEvent.value);
       currentEvent.refresh();
     } else {
       print("❌ Participant not found with number: $participantNumber");
@@ -1267,7 +1371,8 @@ class EventController extends GetxController {
       // ✅ Update the participant's generic comment list.
       currentEvent.value.participants[index].genericInstructorComments = comments;
       print("✅ Generic comments saved successfully: ${comments}");
-      currentEvent.value.saveToFirestore();
+      // Use non-blocking save to prevent delays when offline
+      saveEventWithOfflineSupport(currentEvent.value);
       currentEvent.refresh();
     } else {
       print("❌ Participant not found with number: $participantNumber");
@@ -1305,7 +1410,8 @@ class EventController extends GetxController {
       // ✅ Update the participant's comment list.
       currentEvent.value.participants[index].leadershipInstructorComments = comments;
       print("✅ Comments to save: ${comments}");
-      currentEvent.value.saveToFirestore();
+      // Use non-blocking save to prevent delays when offline
+      saveEventWithOfflineSupport(currentEvent.value);
       currentEvent.refresh();
     } else {
       print("❌ Participant not found with number: $participantNumber");
@@ -1326,7 +1432,8 @@ class EventController extends GetxController {
         existingComments.add(comment);
         currentEvent.value.burGrades[burIndex].instructorComments = existingComments;
         print("✅ Bur comment added successfully to participant $participantNumber: $comment");
-        currentEvent.value.saveToFirestore();
+        // Use non-blocking save to prevent delays when offline
+        saveEventWithOfflineSupport(currentEvent.value);
         currentEvent.refresh();
       } else {
         print("⚠️ Bur comment already exists for participant $participantNumber: $comment");
@@ -1743,7 +1850,8 @@ class EventController extends GetxController {
       currentEvent.refresh();
       update();
       
-      if (!currentEvent.value.finalized) currentEvent.value.saveToFirestore();
+      // Use non-blocking save to prevent delays when offline
+      if (!currentEvent.value.finalized) saveEventWithOfflineSupport(currentEvent.value);
     }
   }
 
@@ -1797,7 +1905,8 @@ class EventController extends GetxController {
     double gradeValue = grade is double ? grade : (grade as num).toDouble();
     currentEvent.value.participants[participantIndex].instructorGrade = 
         double.parse(gradeValue.toStringAsFixed(2));
-    currentEvent.value.saveToFirestore();
+    // Use non-blocking save to prevent delays when offline
+    saveEventWithOfflineSupport(currentEvent.value);
     // Trigger refresh to update UI
     currentEvent.refresh();
     update();
@@ -1872,7 +1981,8 @@ class EventController extends GetxController {
       calculateGrades();
     }
     
-    currentEvent.value.saveToFirestore();
+    // Use non-blocking save to prevent delays when offline
+    saveEventWithOfflineSupport(currentEvent.value);
   }
 
   /// Get rank information for a participant in a specific exercise
@@ -1928,7 +2038,8 @@ class EventController extends GetxController {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     currentEvent.value.participants[participantIndex].participantAIReport = report;
-    currentEvent.value.saveToFirestore();
+    // Use non-blocking save to prevent delays when offline
+    saveEventWithOfflineSupport(currentEvent.value);
   }
 
   /// Cloud
@@ -1981,11 +2092,11 @@ class EventController extends GetxController {
         print("⚠️ HTTP check failed: $e");
       }
       
-      // If HTTP check failed but we have network connectivity, still allow Firestore operations
-      // (Firestore might work even if HTTP check fails)
-      print("⚠️ HTTP check failed, but network connectivity exists.");
-      print("⚠️ Will attempt Firestore operations anyway (they might still work).");
-      isConnected.value = true; // Allow Firestore operations
+      // If HTTP check failed, we're actually offline - don't allow Firestore operations
+      // This prevents blocking operations when offline
+      print("⚠️ HTTP check failed - device is offline.");
+      print("⚠️ Skipping Firestore operations to prevent blocking.");
+      isConnected.value = false; // Mark as offline to prevent blocking operations
       
     } catch (e) {
       print("❌ Connectivity check error: $e");

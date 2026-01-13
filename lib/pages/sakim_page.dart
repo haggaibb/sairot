@@ -237,7 +237,10 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                                         _timer.cancel();
                                         _.sakimEditModeOn.value = false;
                                         editModeOn = _.sakimEditModeOn.value;
-                                        eventController.currentEvent.value.saveToFirestore();
+                                        // Use non-blocking save to prevent delays when offline
+                                        eventController.saveEventWithOfflineSupport(
+                                          eventController.currentEvent.value
+                                        );
                                       });
                                     }
                                   },
@@ -255,7 +258,10 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                                         : TextButton.icon(
                                             onPressed: () {
                                               if (editModeOn) {
-                                                eventController.currentEvent.value.saveToFirestore();
+                                                // Use non-blocking save to prevent delays when offline
+                                                eventController.saveEventWithOfflineSupport(
+                                                  eventController.currentEvent.value
+                                                );
                                               } else {}
                                               _.sakimEditModeOn.value = !_.sakimEditModeOn.value;
                                               setState(() {
@@ -375,8 +381,10 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                                                       _.sakimEditModeOn.value = false;
                                                       editModeOn =
                                                           _.sakimEditModeOn.value;
-                                                      eventController.currentEvent.value
-                                                          .saveToFirestore();
+                                                      // Use non-blocking save to prevent delays when offline
+                                                      eventController.saveEventWithOfflineSupport(
+                                                        eventController.currentEvent.value
+                                                      );
                                                     });
                                                   }
                                                 },
@@ -399,9 +407,10 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                                                     onPressed: () {
                                                       if (editModeOn) {
                                                         ///save
-                                                        eventController
-                                                            .currentEvent.value
-                                                            .saveToFirestore();
+                                                        // Use non-blocking save to prevent delays when offline
+                                                        eventController.saveEventWithOfflineSupport(
+                                                          eventController.currentEvent.value
+                                                        );
                                                       } else {}
                                                       _.sakimEditModeOn.value =
                                                           !_.sakimEditModeOn.value;
@@ -423,9 +432,27 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                                                     iconAlignment:
                                                         IconAlignment.start,
                                                   ),
-                                            SizedBox(
-                                              height: 20,
+                                            SizedBox(height: 20),
+                                            ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.orange,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: tablet ? Size(200, 60) : null,
+                                              ),
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) => ExerciseGradingPage(exerciseType: 'sakim'),
+                                                  ),
+                                                );
+                                              },
+                                              icon: const Icon(Icons.grade),
+                                              label: Text('ציון התרגיל',
+                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                              ),
                                             ),
+                                            SizedBox(height: 20),
                                             Text('  התרגיל הסתיים  ',
                                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
                                             ),
@@ -469,8 +496,10 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                                                           participant.number)
                                                       .toList()));
                                         });
-                                        await _.currentEvent.value
-                                            .saveToFirestore();
+                                        // Use non-blocking save to prevent delays when offline
+                                        eventController.saveEventWithOfflineSupport(
+                                          _.currentEvent.value
+                                        );
                                       },
                                       child: Text(
                                         'תחילת תרגיל',

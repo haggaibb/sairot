@@ -8,6 +8,10 @@ import '../mixins/event_validation_mixin.dart';
 import '../models/types.dart';
 import '../models/participant.dart';
 import '../widgets/custom_grades_table.dart';
+import '../widgets/exercise_ranking_dialog.dart';
+import '../widgets/meshulash_charts.dart';
+import '../widgets/alonka_charts.dart';
+import '../widgets/sakim_charts.dart';
 
 class ExerciseGradingPage extends StatefulWidget {
   final String exerciseType; // 'meshulash', 'alonka', or 'sakim'
@@ -22,6 +26,7 @@ class _ExerciseGradingPageState extends State<ExerciseGradingPage> with EventVal
   final eventController = Get.put(EventController());
   bool _showSystemGrades = true;
   bool _showInstructorGrades = true;
+  int? _selectedParticipantNumber;
 
   @override
   void initState() {
@@ -123,20 +128,269 @@ class _ExerciseGradingPageState extends State<ExerciseGradingPage> with EventVal
           ],
         ),
         body: Container(
-          color: Colors.white,
-          padding: const EdgeInsets.all(8),
-          child: SingleChildScrollView(
-            child: _ExerciseGradingTable(
-              eventController: eventController,
-              isTablet: tablet,
-              exerciseType: widget.exerciseType,
-              showSystemGrades: _showSystemGrades,
-              showInstructorGrades: _showInstructorGrades,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blueAccent, Color.fromARGB(255, 0, 66, 136)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+          ),
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            textDirection: TextDirection.ltr,
+            children: [
+              // Left panel for graph and comments
+              if (_selectedParticipantNumber != null)
+                SizedBox(
+                  width: tablet ? 350 : 295,
+                  child: Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: EdgeInsets.zero,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: _buildParticipantPanel(_selectedParticipantNumber!),
+                  ),
+                ),
+              // Table
+              Expanded(
+                child: SingleChildScrollView(
+                  child: _ExerciseGradingTable(
+                    eventController: eventController,
+                    isTablet: tablet,
+                    exerciseType: widget.exerciseType,
+                    showSystemGrades: _showSystemGrades,
+                    showInstructorGrades: _showInstructorGrades,
+                    onParticipantSelected: (int? participantNumber) {
+                      setState(() {
+                        _selectedParticipantNumber = participantNumber;
+                      });
+                    },
+                    selectedParticipantNumber: _selectedParticipantNumber,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildParticipantPanel(int participantNumber) {
+    final bool tablet = isTablet(context);
+    final participant = eventController.currentEvent.value.participants.firstWhere(
+      (p) => p.number == participantNumber,
+      orElse: () => eventController.currentEvent.value.participants.first,
+    );
+
+    // Get comments for this exercise
+    List<String> comments = [];
+    switch (widget.exerciseType) {
+      case 'alonka':
+        comments = participant.alonkaInstructorComments;
+        break;
+      case 'meshulash':
+        comments = participant.meshulashInstructorComments;
+        break;
+      case 'sakim':
+        comments = participant.sakimInstructorComments;
+        break;
+    }
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[100],
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      'משתתף $participantNumber - ${_getExerciseName()}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () {
+                      setState(() {
+                        _selectedParticipantNumber = null;
+                      });
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+            // Rank info section
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey[300]!, width: 1),
+                ),
+              ),
+              child: _buildRankInfo(participantNumber),
+            ),
+            // Graph section
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SizedBox(
+                  width: constraints.maxWidth,
+                  height: tablet ? 400 : 300,
+                  child: ClipRect(
+                    child: _buildChartWidget(participantNumber),
+                  ),
+                );
+              },
+            ),
+            // Comments section
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                border: Border(
+                  top: BorderSide(color: Colors.grey[300]!, width: 1),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'הערות המדריך:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  comments.isNotEmpty
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: comments.map((comment) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                '• $comment',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        )
+                      : const Text(
+                          'לא ניתנו הערות',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  double _getSystemGradeForExercise(Participant participant) {
+    final groupStrength = eventController.currentEvent.value.groupStrength;
+    switch (widget.exerciseType) {
+      case 'meshulash':
+        return getAdjustedSystemGrade(participant.meshulashGrade, groupStrength);
+      case 'alonka':
+        return getAdjustedSystemGrade(participant.alonkaGrade, groupStrength);
+      case 'sakim':
+        return getAdjustedSystemGrade(participant.sakimGrade, groupStrength);
+      default:
+        return 0.0;
+    }
+  }
+
+  Widget _buildRankInfo(int participantNumber) {
+    final participant = eventController.currentEvent.value.participants.firstWhere(
+      (p) => p.number == participantNumber,
+      orElse: () => eventController.currentEvent.value.participants.first,
+    );
+    final rankInfo = eventController.getExerciseRank(participantNumber, widget.exerciseType);
+    final rank = rankInfo['rank'] ?? 0;
+    final total = rankInfo['total'] ?? 0;
+    final systemGrade = _getSystemGradeForExercise(participant);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          'ציון: ${systemGrade.toStringAsFixed(2)}',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.blue[700],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            'מקום $rank מתוך $total',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChartWidget(int participantNumber) {
+    switch (widget.exerciseType) {
+      case 'meshulash':
+        return MeshulashCharts(number: participantNumber);
+      case 'alonka':
+        return AlonkaCharts(number: participantNumber);
+      case 'sakim':
+        return SakimCharts(number: participantNumber);
+      default:
+        return const Center(child: Text('תרגיל לא מזוהה'));
+    }
   }
 }
 
@@ -146,6 +400,8 @@ class _ExerciseGradingTable extends StatefulWidget {
   final String exerciseType;
   final bool showSystemGrades;
   final bool showInstructorGrades;
+  final Function(int?)? onParticipantSelected;
+  final int? selectedParticipantNumber;
 
   const _ExerciseGradingTable({
     required this.eventController,
@@ -153,6 +409,8 @@ class _ExerciseGradingTable extends StatefulWidget {
     required this.exerciseType,
     required this.showSystemGrades,
     required this.showInstructorGrades,
+    this.onParticipantSelected,
+    this.selectedParticipantNumber,
   });
 
   @override
@@ -162,6 +420,8 @@ class _ExerciseGradingTable extends StatefulWidget {
 class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
   final Map<int, TextEditingController> _gradeControllers = {};
   final Map<int, FocusNode> _gradeFocusNodes = {};
+  SortColumn? _sortColumn;
+  SortDirection _sortDirection = SortDirection.none;
 
   @override
   void initState() {
@@ -270,6 +530,105 @@ class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
     }
   }
 
+  Color _getRowColor(Participant participant) {
+    // If row is selected, highlight it
+    if (widget.selectedParticipantNumber == participant.number) {
+      return Colors.blue[100]!;
+    }
+    
+    final exerciseInstructorGrade = _getInstructorGrade(participant);
+    final exerciseSystemGrade = _getSystemGrade(participant);
+
+    // Color green if exercise instructor grade meets threshold (>= 5)
+    if (exerciseInstructorGrade >= 5) {
+      return Colors.green[100]!; // Light green background
+    } else if (exerciseSystemGrade >= 5 && exerciseInstructorGrade < 1) {
+      // If system grade meets threshold but no instructor grade set yet
+      return Colors.green[100]!;
+    } else {
+      return Colors.white;
+    }
+  }
+
+  bool _hasExerciseComment(Participant participant) {
+    switch (widget.exerciseType) {
+      case 'alonka':
+        return participant.alonkaInstructorComments.isNotEmpty;
+      case 'meshulash':
+        return participant.meshulashInstructorComments.isNotEmpty;
+      case 'sakim':
+        return participant.sakimInstructorComments.isNotEmpty;
+      default:
+        return false;
+    }
+  }
+
+  void _handleSort(SortColumn column) {
+    setState(() {
+      if (_sortColumn == column) {
+        // Cycle through: ascending -> descending -> none -> ascending
+        switch (_sortDirection) {
+          case SortDirection.ascending:
+            _sortDirection = SortDirection.descending;
+            break;
+          case SortDirection.descending:
+            _sortDirection = SortDirection.none;
+            _sortColumn = null;
+            break;
+          case SortDirection.none:
+            _sortDirection = SortDirection.ascending;
+            _sortColumn = column;
+            break;
+        }
+      } else {
+        _sortColumn = column;
+        _sortDirection = SortDirection.ascending;
+      }
+    });
+  }
+
+  Widget _buildSortIcon(SortColumn column) {
+    if (_sortColumn != column || _sortDirection == SortDirection.none) {
+      return const SizedBox(width: 16);
+    }
+    return Icon(
+      _sortDirection == SortDirection.ascending
+          ? Icons.arrow_upward
+          : Icons.arrow_downward,
+      size: 16,
+      color: Colors.black87,
+    );
+  }
+
+  List<Participant> _getSortedParticipants(List<Participant> participants) {
+    if (_sortColumn == null || _sortDirection == SortDirection.none) {
+      return participants;
+    }
+
+    final sorted = List<Participant>.from(participants);
+    sorted.sort((a, b) {
+      int comparison = 0;
+      switch (_sortColumn!) {
+        case SortColumn.number:
+          comparison = a.number.compareTo(b.number);
+          break;
+        case SortColumn.meshulash:
+        case SortColumn.alonka:
+        case SortColumn.sakim:
+          // For exercise-specific columns, use the system grade for that exercise
+          final gradeA = _getSystemGrade(a);
+          final gradeB = _getSystemGrade(b);
+          comparison = gradeA.compareTo(gradeB);
+          break;
+        default:
+          comparison = 0;
+      }
+      return _sortDirection == SortDirection.ascending ? comparison : -comparison;
+    });
+
+    return sorted;
+  }
+
   @override
   Widget build(BuildContext context) {
     final participants = widget.eventController.currentEvent.value
@@ -284,83 +643,128 @@ class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
     }
 
     final exerciseWidth = widget.isTablet ? 100.0 : 90.0;
-    final recruitNumberWidth = widget.isTablet ? 120.0 : 100.0;
+    final recruitNumberWidth = widget.isTablet ? 85.0 : 75.0;
 
     return GetX<EventController>(
       builder: (_) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-              // Header row
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Recruit number header
-                  _buildHeaderCell('מספר רץ', recruitNumberWidth),
-                  // Exercise grade headers
-                  if (widget.showSystemGrades)
-                    _buildHeaderCell('מערכת', exerciseWidth),
-                  if (widget.showInstructorGrades)
-                    _buildHeaderCell('מדריך', exerciseWidth),
-                ],
-              ),
-              // Data rows
-              ...participants.map((participant) {
-                final rowColor = participant.number % 2 == 0
-                    ? Colors.grey[100]!
-                    : Colors.white;
-                final systemGrade = _getSystemGrade(participant);
-                final controller = _gradeControllers[participant.number]!;
-                final focusNode = _gradeFocusNodes[participant.number]!;
-                final isFinalized = widget.eventController.currentEvent.value.finalized;
-
-                return Row(
+        final sortedParticipants = _getSortedParticipants(participants);
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // Recruit number cell
-                    _buildCell(
-                      width: recruitNumberWidth,
-                      backgroundColor: rowColor,
-                      child: Center(
-                        child: Text(
-                          participant.number.toString(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
+                    // Header row
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // Recruit number header
+                        _buildHeaderCell('חולצה', SortColumn.number, recruitNumberWidth),
+                        // Exercise grade headers
+                        if (widget.showSystemGrades)
+                          _buildHeaderCell('מערכת', _getExerciseSortColumn(), exerciseWidth),
+                        if (widget.showInstructorGrades)
+                          _buildHeaderCell('מדריך', null, exerciseWidth),
+                      ],
                     ),
-                    // System grade cell
-                    if (widget.showSystemGrades)
-                      _buildCell(
-                        width: exerciseWidth,
-                        backgroundColor: rowColor,
-                        child: Center(
-                          child: Text(
-                            systemGrade.toStringAsFixed(2),
-                            style: const TextStyle(color: Colors.black),
+                    // Data rows
+                    ...sortedParticipants.map((participant) {
+                      final rowColor = _getRowColor(participant);
+                      final systemGrade = _getSystemGrade(participant);
+                      final controller = _gradeControllers[participant.number]!;
+                      final focusNode = _gradeFocusNodes[participant.number]!;
+                      final isFinalized = widget.eventController.currentEvent.value.finalized;
+
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          // Recruit number cell
+                          _buildCell(
+                            width: recruitNumberWidth,
+                            backgroundColor: rowColor,
+                            onTap: () {
+                              if (widget.onParticipantSelected != null) {
+                                // Toggle selection - if already selected, deselect
+                                if (widget.selectedParticipantNumber == participant.number) {
+                                  widget.onParticipantSelected!(null);
+                                } else {
+                                  widget.onParticipantSelected!(participant.number);
+                                }
+                              }
+                            },
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    participant.number.toString(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  if (_hasExerciseComment(participant))
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 4),
+                                      child: Icon(
+                                        Icons.comment,
+                                        size: 16,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    // Instructor grade cell (editable)
-                    if (widget.showInstructorGrades)
-                      _buildEditableGradeCell(
-                        participant: participant,
-                        controller: controller,
-                        focusNode: focusNode,
-                        width: exerciseWidth,
-                        backgroundColor: rowColor,
-                        isFinalized: isFinalized,
-                      ),
+                          // System grade cell
+                          if (widget.showSystemGrades)
+                            _buildCell(
+                              width: exerciseWidth,
+                              backgroundColor: rowColor,
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => ExerciseRankingDialog(
+                                    participantNumber: participant.number,
+                                    exerciseName: widget.exerciseType,
+                                    exerciseNameHebrew: _getExerciseNameHebrew(),
+                                    grade: systemGrade,
+                                  ),
+                                );
+                              },
+                              child: Center(
+                                child: Text(
+                                  systemGrade.toStringAsFixed(2),
+                                  style: const TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            ),
+                          // Instructor grade cell (editable)
+                          if (widget.showInstructorGrades)
+                            _buildEditableGradeCell(
+                              participant: participant,
+                              controller: controller,
+                              focusNode: focusNode,
+                              width: exerciseWidth,
+                              backgroundColor: rowColor,
+                              isFinalized: isFinalized,
+                            ),
+                        ],
+                      );
+                    }),
                   ],
-                );
-              }),
-            ],
+                ),
+              ),
             ),
           ),
         );
@@ -368,8 +772,34 @@ class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
     );
   }
 
-  Widget _buildHeaderCell(String title, double width) {
-    return Container(
+  String _getExerciseNameHebrew() {
+    switch (widget.exerciseType) {
+      case 'meshulash':
+        return 'משולש';
+      case 'alonka':
+        return 'אלונקה';
+      case 'sakim':
+        return 'שקים';
+      default:
+        return '';
+    }
+  }
+
+  SortColumn? _getExerciseSortColumn() {
+    switch (widget.exerciseType) {
+      case 'meshulash':
+        return SortColumn.meshulash;
+      case 'alonka':
+        return SortColumn.alonka;
+      case 'sakim':
+        return SortColumn.sakim;
+      default:
+        return null;
+    }
+  }
+
+  Widget _buildHeaderCell(String title, SortColumn? column, double width) {
+    Widget headerContent = Container(
       width: width,
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -380,26 +810,48 @@ class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
         ),
         color: Colors.grey[300],
       ),
-      child: Center(
-        child: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            color: Colors.black87,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.visible,
+              softWrap: true,
+            ),
           ),
-          textAlign: TextAlign.center,
-        ),
+          if (column != null) ...[
+            const SizedBox(width: 2),
+            _buildSortIcon(column),
+          ],
+        ],
       ),
     );
+
+    if (column != null) {
+      return GestureDetector(
+        onTap: () => _handleSort(column),
+        child: headerContent,
+      );
+    }
+
+    return headerContent;
   }
 
   Widget _buildCell({
     required double width,
     required Color backgroundColor,
     required Widget child,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    Widget cellContent = Container(
       width: width,
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -412,6 +864,16 @@ class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
       ),
       child: child,
     );
+
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: cellContent,
+      );
+    }
+
+    return cellContent;
   }
 
   Widget _buildEditableGradeCell({

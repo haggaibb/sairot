@@ -95,7 +95,10 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
                       eventController.currentEvent.value.groupStrength = value;
                       eventController.currentEvent.refresh();
                       eventController.update();
-                      eventController.currentEvent.value.saveToFirestore();
+                      // Use non-blocking save to prevent delays when offline
+                      eventController.saveEventWithOfflineSupport(
+                        eventController.currentEvent.value
+                      );
                       Navigator.of(context).pop();
                     }
                   },
@@ -119,7 +122,10 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
                       eventController.currentEvent.value.groupStrength = value;
                       eventController.currentEvent.refresh();
                       eventController.update();
-                      eventController.currentEvent.value.saveToFirestore();
+                      // Use non-blocking save to prevent delays when offline
+                      eventController.saveEventWithOfflineSupport(
+                        eventController.currentEvent.value
+                      );
                       Navigator.of(context).pop();
                     }
                   },
@@ -143,7 +149,10 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
                       eventController.currentEvent.value.groupStrength = value;
                       eventController.currentEvent.refresh();
                       eventController.update();
-                      eventController.currentEvent.value.saveToFirestore();
+                      // Use non-blocking save to prevent delays when offline
+                      eventController.saveEventWithOfflineSupport(
+                        eventController.currentEvent.value
+                      );
                       Navigator.of(context).pop();
                     }
                   },

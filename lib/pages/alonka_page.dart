@@ -314,7 +314,8 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
                                   activeParticipants: activeList));
                           _.loading.value = false;
                           _scrollToEnd();
-                          _.currentEvent.value.saveToFirestore();
+                          // Use non-blocking save to prevent delays when offline
+                          eventController.saveEventWithOfflineSupport(_.currentEvent.value);
                           //})
                         },
                         child: Text(
@@ -375,7 +376,8 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
                                           activeParticipants: activeList));
                                   _.loading.value = false;
                                   _scrollToEnd();
-                                  _.currentEvent.value.saveToFirestore();
+                                  // Use non-blocking save to prevent delays when offline
+                                  eventController.saveEventWithOfflineSupport(_.currentEvent.value);
                                   //})
                                 },
                                 child: Text(
@@ -412,8 +414,10 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
                                       DateTime.now();
                                 });
                                 _timer.cancel();
-                                await eventController.currentEvent.value
-                                    .saveToFirestore();
+                                // Use non-blocking save to prevent delays when offline
+                                eventController.saveEventWithOfflineSupport(
+                                  eventController.currentEvent.value
+                                );
                               }
                             },
                             //eventController.currentEvent.value.save();
@@ -424,11 +428,40 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
                                   fontSize: scaledFontSize),
                             ))
                         : _.currentEvent.value.alonkaEndTime != null
-                            ? Text(
-                                '  התרגיל הסתיים  ',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: scaledFontSize),
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                      minimumSize: tablet ? Size(200, 60) : null,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ExerciseGradingPage(exerciseType: 'alonka'),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.grade),
+                                    label: Text(
+                                      'ציון התרגיל',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: tablet ? 18 : 16,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    '  התרגיל הסתיים  ',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: scaledFontSize),
+                                  ),
+                                ],
                               )
                             : SizedBox.shrink(),
                     SizedBox(
@@ -577,7 +610,8 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
             break;
         }
       });
-      eventController.currentEvent.value.saveToFirestore();
+      // Use non-blocking save to prevent delays when offline
+      eventController.saveEventWithOfflineSupport(eventController.currentEvent.value);
     }
   }
 
@@ -600,7 +634,8 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
         sprint.activeParticipants.add(participantNumber);
       }
     });
-    eventController.currentEvent.value.saveToFirestore();
+    // Use non-blocking save to prevent delays when offline
+    eventController.saveEventWithOfflineSupport(eventController.currentEvent.value);
   }
 
   Future<void> _handleRecruitLongPress(int participantNumber) async {
@@ -640,7 +675,8 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
     });
     
     eventController.currentEvent.value.alonkaSprints[sprint.round] = sprint;
-    await eventController.currentEvent.value.saveToFirestore();
+    // Use non-blocking save to prevent delays when offline
+    eventController.saveEventWithOfflineSupport(eventController.currentEvent.value);
     eventController.widgetLoading.value = false;
     
     // Scroll to show the new placeholder column if it appears (scroll to max extent for RTL - left side)
@@ -679,7 +715,8 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
     });
     
     eventController.loading.value = false;
-    await eventController.currentEvent.value.saveToFirestore();
+    // Use non-blocking save to prevent delays when offline
+    eventController.saveEventWithOfflineSupport(eventController.currentEvent.value);
     
     // Scroll to show the new column (scroll to max extent for RTL - left side where new columns appear)
     _scrollToNewColumn();
@@ -1092,7 +1129,8 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
                         });
                         // Cancel timer - need to access parent's timer
                         // The timer is managed in the parent widget, so we'll let it handle cancellation
-                        await _.currentEvent.value.saveToFirestore();
+                        // Use non-blocking save to prevent delays when offline
+                        eventController.saveEventWithOfflineSupport(_.currentEvent.value);
                       }
                     },
                     child: Text(

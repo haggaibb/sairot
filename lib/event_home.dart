@@ -300,8 +300,11 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                   ),
                   onTap: () async {
                     // Save playground normally when going back to main menu (don't delete it)
+                    // Use non-blocking save to prevent delay when offline
                     if (!eventController.currentEvent.value.finalized) {
-                      eventController.currentEvent.value.saveToFirestore();
+                      eventController.saveEventWithOfflineSupport(
+                        eventController.currentEvent.value
+                      );
                     }
                     await eventController.getUnfinalizedEvents();
                     Get.toNamed('/home');
@@ -405,9 +408,19 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                                 }
                                 
                                 // Save the event with finalized flag AND all instructorGrade values
-                                if(await eventController.currentEvent.value.saveToFirestore()) {
+                                // Save locally first (immediate), then try Firebase in background
+                                final localSuccess = await eventController.currentEvent.value.saveToLocal();
+                                if (localSuccess) {
+                                  // Show success immediately after local save
                                   showCustomMessageAlert(context, "הצלחה",
                                       "הארוע נסגר בהצלחה", Icons.check);
+                                  // Try Firebase in background (non-blocking)
+                                  eventController.saveEventWithOfflineSupport(
+                                    eventController.currentEvent.value
+                                  );
+                                } else {
+                                  showCustomMessageAlert(context, "תקלה",
+                                      "שגיאה בשמירת האירוע", Icons.error);
                                 }
                               } else {
 
