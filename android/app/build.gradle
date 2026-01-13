@@ -41,6 +41,15 @@ android {
         targetSdk = 35
         versionCode = flutter.versionCode
         versionName = "${flutter.versionName} (${getGitVersion()})"
+        
+        // RT9 build: Only include arm64-v8a architecture for OUKITEL RT9 tablet
+        // This reduces APK size from ~100MB to ~50-60MB
+        if (System.getenv("BUILD_RT9") == "true") {
+            ndk {
+                abiFilters 'arm64-v8a'
+            }
+            println "📱 RT9 build: Building only for arm64-v8a architecture"
+        }
     }
 
     signingConfigs {

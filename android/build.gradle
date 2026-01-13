@@ -43,6 +43,15 @@ allprojects {
             }
         }
     }
+    
+    // Ensure all projects use compileSdk 36 to fix lStar attribute issue
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                compileSdkVersion 36
+            }
+        }
+    }
 }
 
 rootProject.buildDir = "../build"
@@ -52,15 +61,6 @@ subprojects {
     project.evaluationDependsOn(":app")
     configurations.all { config ->
         config.exclude group: 'org.bouncycastle', module: 'bcprov-jdk18on'
-    }
-    
-    // Ensure all subprojects use compileSdk 36 to fix lStar attribute issue
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            project.android {
-                compileSdkVersion 36
-            }
-        }
     }
 }
 
