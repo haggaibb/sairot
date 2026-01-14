@@ -571,6 +571,12 @@ class EventController extends GetxController {
                 // Exclude playground events
                 if (event.eventName != 'playground') {
                   final key = '${event.eventName}/${event.date}';
+                  // Check if event was deleted locally (don't restore deleted events)
+                  final isDeleted = await LocalStorageService.instance.isEventDeleted(event.eventName, event.date);
+                  if (isDeleted) {
+                    print('⚠️ Skipping deleted event from Firebase: $key');
+                    continue;
+                  }
                   // Only add if not already in map (local events take priority)
                   if (!eventMap.containsKey(key)) {
                     eventMap[key] = event;
@@ -610,6 +616,12 @@ class EventController extends GetxController {
                 // Exclude playground events
                 if (event.eventName != 'playground') {
                   final key = '${event.eventName}/${event.date}';
+                  // Check if event was deleted locally (don't restore deleted events)
+                  final isDeleted = await LocalStorageService.instance.isEventDeleted(event.eventName, event.date);
+                  if (isDeleted) {
+                    print('⚠️ Skipping deleted event from Firebase: $key');
+                    continue;
+                  }
                   // Only add if not already in map (local events take priority)
                   if (!eventMap.containsKey(key)) {
                     eventMap[key] = event;
@@ -1141,78 +1153,111 @@ class EventController extends GetxController {
         }
       }
       
-      // 🔥 Step 3: Delete from Firestore in background (non-blocking, with timeout)
+      // 🔥 Step 3: Delete from Firestore (queue if offline, execute if online)
       if (isConnected.value) {
+        // Online: Delete from Firestore immediately
         Future(() async {
           try {
-            FirebaseFirestore firestore = FirebaseFirestore.instance;
-            
-            // Delete from Results collection (with timeout)
-            try {
-              DocumentReference eventRef = firestore.collection('Results')
-                  .doc(event.instructorId)
-                  .collection('events')
-                  .doc(event.eventName)
-                  .collection('days')
-                  .doc(event.date);
-              await eventRef.delete().timeout(
-                Duration(seconds: 5),
-                onTimeout: () {
-                  print('⚠️ Firestore delete timed out for Results collection');
-                  throw TimeoutException('Firestore delete operation timed out');
-                },
-              );
-            } catch (e) {
-              print('⚠️ Error deleting from Results collection: $e');
-            }
-            
-            // ❌ NOTE: We do NOT delete from Events collection
-            // The Events collection is read-only and managed by admin system/Cloud Functions
-            // It may contain data from other instructors and shouldn't be deleted by instructors
-            // getCurrentEventDays() reads from Events collection for reference only
-            
-            // Update AdminIndex (remove instructor/group references) - non-critical
-            try {
-              DocumentReference adminRef = firestore.collection('AdminIndex')
-                  .doc(event.eventName)
-                  .collection('days')
-                  .doc(event.date);
-              await adminRef.update({
-                "groups": FieldValue.arrayRemove([event.groupNumber.toString()]),
-              }).timeout(Duration(seconds: 3));
-              await adminRef.update({
-                "instructors": FieldValue.arrayRemove([event.instructorId]),
-              }).timeout(Duration(seconds: 3));
-              
-              // Get the document snapshot and update groupsAndInstructors
-              final snapshot = await adminRef.get().timeout(Duration(seconds: 3));
-              if (snapshot.exists) {
-                final data = snapshot.data() as Map<String, dynamic>?;
-                List<dynamic> groupsArray = data?['groupsAndInstructors'] ?? [];
-                // Remove any map where instructorId matches
-                groupsArray.removeWhere((item) =>
-                item is Map<String, dynamic> && item['instructorId'] == event.instructorId);
-                await adminRef.update({'groupsAndInstructors': groupsArray}).timeout(Duration(seconds: 3));
-              }
-            } catch (e) {
-              print('⚠️ Error updating AdminIndex (non-critical): $e');
-            }
-            
+            await deleteEventFromFirestore(event);
+            // Unmark as deleted after successful Firebase deletion
+            await LocalStorageService.instance.unmarkEventAsDeleted(event.eventName, event.date);
             print("✅ Event '${event.date}' deleted successfully from Firestore.");
           } catch (e) {
             print("❌ Error deleting event from Firestore: $e");
+            // If Firestore delete fails, queue it for retry
+            await SyncQueueService.instance.queueFirestoreOperation(
+              'deleteEvent',
+              {
+                'eventName': event.eventName,
+                'date': event.date,
+                'instructorId': event.instructorId,
+                'groupNumber': event.groupNumber,
+              }
+            );
+            // Keep it marked as deleted until Firebase deletion succeeds
           }
         }).catchError((e) {
           print('❌ Error in background Firestore delete: $e');
         });
       } else {
-        print('📴 Offline: Event deleted locally, Firestore delete will be skipped');
+        // Offline: Queue deletion for sync when online
+        print('📴 Offline: Event deleted locally, queuing Firestore delete for sync');
+        await SyncQueueService.instance.queueFirestoreOperation(
+          'deleteEvent',
+          {
+            'eventName': event.eventName,
+            'date': event.date,
+            'instructorId': event.instructorId,
+            'groupNumber': event.groupNumber,
+          }
+        );
+        
+        // Track deleted event locally to prevent restoration from Firebase
+        await LocalStorageService.instance.markEventAsDeleted(event.eventName, event.date);
       }
       
       print("✅ Event '${event.date}' deleted successfully from local storage.");
     } catch (e) {
       print("❌ Error deleting event: $e");
       rethrow; // Re-throw to let caller know deletion failed
+    }
+  }
+
+  /// Delete event from Firestore (extracted for reuse)
+  Future<void> deleteEventFromFirestore(Event event) async {
+    FirebaseFirestore firestore = FirebaseFirestore.instance;
+    
+    // Delete from Results collection (with timeout)
+    try {
+      DocumentReference eventRef = firestore.collection('Results')
+          .doc(event.instructorId)
+          .collection('events')
+          .doc(event.eventName)
+          .collection('days')
+          .doc(event.date);
+      await eventRef.delete().timeout(
+        Duration(seconds: 5),
+        onTimeout: () {
+          print('⚠️ Firestore delete timed out for Results collection');
+          throw TimeoutException('Firestore delete operation timed out');
+        },
+      );
+    } catch (e) {
+      print('⚠️ Error deleting from Results collection: $e');
+      rethrow;
+    }
+    
+    // ❌ NOTE: We do NOT delete from Events collection
+    // The Events collection is read-only and managed by admin system/Cloud Functions
+    // It may contain data from other instructors and shouldn't be deleted by instructors
+    // getCurrentEventDays() reads from Events collection for reference only
+    
+    // Update AdminIndex (remove instructor/group references) - non-critical
+    try {
+      DocumentReference adminRef = firestore.collection('AdminIndex')
+          .doc(event.eventName)
+          .collection('days')
+          .doc(event.date);
+      await adminRef.update({
+        "groups": FieldValue.arrayRemove([event.groupNumber.toString()]),
+      }).timeout(Duration(seconds: 3));
+      await adminRef.update({
+        "instructors": FieldValue.arrayRemove([event.instructorId]),
+      }).timeout(Duration(seconds: 3));
+      
+      // Get the document snapshot and update groupsAndInstructors
+      final snapshot = await adminRef.get().timeout(Duration(seconds: 3));
+      if (snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>?;
+        List<dynamic> groupsArray = data?['groupsAndInstructors'] ?? [];
+        // Remove any map where instructorId matches
+        groupsArray.removeWhere((item) =>
+        item is Map<String, dynamic> && item['instructorId'] == event.instructorId);
+        await adminRef.update({'groupsAndInstructors': groupsArray}).timeout(Duration(seconds: 3));
+      }
+    } catch (e) {
+      print('⚠️ Error updating AdminIndex (non-critical): $e');
+      // Don't rethrow - AdminIndex update is non-critical
     }
   }
 

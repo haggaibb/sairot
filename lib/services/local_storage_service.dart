@@ -18,6 +18,7 @@ class LocalStorageService {
   Box<dynamic>? _eventsBox;
   Box<Instructor>? _instructorsBox;
   Box<dynamic>? _eventListBox;
+  Box<dynamic>? _deletedEventsBox;
 
   /// Initialize Hive boxes for local storage
   Future<void> initialize() async {
@@ -33,11 +34,13 @@ class LocalStorageService {
         _eventsBox = await Hive.openBox('events');
         _instructorsBox = await Hive.openBox<Instructor>('instructors');
         _eventListBox = await Hive.openBox('event_list');
+        _deletedEventsBox = await Hive.openBox('deleted_events');
       } else {
         var dir = await getApplicationDocumentsDirectory();
         _eventsBox = await Hive.openBox('events', path: dir.path);
         _instructorsBox = await Hive.openBox<Instructor>('instructors', path: dir.path);
         _eventListBox = await Hive.openBox('event_list', path: dir.path);
+        _deletedEventsBox = await Hive.openBox('deleted_events', path: dir.path);
       }
     } catch (e) {
       print('❌ Error initializing LocalStorageService: $e');
@@ -163,6 +166,52 @@ class LocalStorageService {
       return true;
     } catch (e) {
       print('❌ Error deleting event locally: $e');
+      return false;
+    }
+  }
+
+  /// Mark event as deleted to prevent restoration from Firebase
+  Future<bool> markEventAsDeleted(String eventName, String date) async {
+    try {
+      if (_deletedEventsBox == null) await initialize();
+      
+      final key = '$eventName/$date';
+      await _deletedEventsBox!.put(key, true);
+      
+      print('✅ Event marked as deleted: $key');
+      return true;
+    } catch (e) {
+      print('❌ Error marking event as deleted: $e');
+      return false;
+    }
+  }
+
+  /// Check if event is marked as deleted
+  Future<bool> isEventDeleted(String eventName, String date) async {
+    try {
+      if (_deletedEventsBox == null) await initialize();
+      
+      final key = '$eventName/$date';
+      final isDeleted = _deletedEventsBox!.get(key, defaultValue: false) as bool;
+      return isDeleted;
+    } catch (e) {
+      print('❌ Error checking if event is deleted: $e');
+      return false;
+    }
+  }
+
+  /// Remove event from deleted events list (after successful Firebase deletion)
+  Future<bool> unmarkEventAsDeleted(String eventName, String date) async {
+    try {
+      if (_deletedEventsBox == null) await initialize();
+      
+      final key = '$eventName/$date';
+      await _deletedEventsBox!.delete(key);
+      
+      print('✅ Event unmarked as deleted: $key');
+      return true;
+    } catch (e) {
+      print('❌ Error unmarking event as deleted: $e');
       return false;
     }
   }

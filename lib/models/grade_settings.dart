@@ -13,8 +13,8 @@ class GradeSettings {
   List<String> listOfCommentsMeshulash = ['מרים אגן','מחפף','אגרסיבי','שומר כוח','זוחל יפה','משקיע'];
   List<String> listOfCommentsAlonka = ['אגרסיבי','שומר כוח','משקיע','מחפף'];
   List<String> listOfCommentsSakim = ['מחפף','אגרסיבי','שומר כוח','משקיע'];
-  List<String> listOfCommentsLeadership= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן נעט','התאמן הרבה','ספורטאי'];
-  List<String> listOfCommentsInterview= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן נעט','התאמן הרבה','ספורטאי'];
+  List<String> listOfCommentsLeadership= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן מעט','התאמן הרבה','ספורטאי'];
+  List<String> listOfCommentsInterview= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן מעט','התאמן הרבה','ספורטאי'];
   double systemGradeFactor = 0.7;
 
   /// Convert to JSON

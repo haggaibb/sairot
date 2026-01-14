@@ -176,6 +176,36 @@ class ConnectivityController extends GetxController {
               await SyncQueueService.instance.removeOperation(key);
               break;
 
+            case 'deleteEvent':
+              // Delete event from Firestore
+              try {
+                final eventName = operation.data['eventName'] as String;
+                final date = operation.data['date'] as String;
+                final instructorId = operation.data['instructorId'] as String;
+                final groupNumber = operation.data['groupNumber'] as int;
+                
+                // Create a minimal Event object for deletion
+                final event = Event(
+                  eventName: eventName,
+                  date: date,
+                  instructorId: instructorId,
+                );
+                event.groupNumber = groupNumber;
+                
+                await eventController.deleteEventFromFirestore(event);
+                
+                // Unmark as deleted after successful Firebase deletion
+                await LocalStorageService.instance.unmarkEventAsDeleted(eventName, date);
+                
+                await SyncQueueService.instance.removeOperation(key);
+                print("✅ Synced event deletion: $eventName - $date");
+              } catch (e) {
+                print("❌ Error syncing event deletion: $e");
+                await SyncQueueService.instance.incrementRetryCount(operation);
+                print("⚠️ Failed to sync event deletion, will retry");
+              }
+              break;
+
             default:
               print("⚠️ Unknown operation type: ${operation.operationType}");
               await SyncQueueService.instance.removeOperation(key);
