@@ -36,8 +36,8 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
     final inOrderOfArrival = widget.inOrderOfArrival;
     
     return GetX<EventController>(builder: (eventController) {
-      var h = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound.length / 3 + 2;
-      if (eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound.isEmpty) return SizedBox();
+      final participantsCount = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound.length;
+      var h = participantsCount > 0 ? participantsCount / 3 + 2 : 2;
       double heightMultiplier = tablet ? 1.3 : 1.0;
       return SizedBox(
           height: h < 2 ? (tablet ? 156 : 120) : (h * 55 * heightMultiplier),

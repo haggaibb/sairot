@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../models/sakim_round.dart';
 import '../widgets/sakim_round_panel.dart';
 import '../widgets/sakim_grid_view.dart';
+import '../widgets/exercise_leaderboard.dart';
 import 'dart:async';
 import '../widgets/yes_no.dart';
 import '../widgets/guideWebView.dart';
@@ -214,15 +215,22 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                               key: ValueKey('sakim_grid_$inOrderOfArrival'),
                               inOrderOfArrival: inOrderOfArrival,
                             ),
-                            SizedBox(height: tablet ? 60.0 : 40.0), // Increased gap between grid and button
+                            SizedBox(height: tablet ? 8.0 : 6.0),
+                            // Leaderboard
+                            ExerciseLeaderboard(
+                              exerciseType: 'sakim',
+                              inOrderOfArrival: inOrderOfArrival,
+                            ),
+                            SizedBox(height: tablet ? 8.0 : 6.0), // Compact gap between leaderboard and button
                             if (eventController.currentEvent.value.sakimEndTime == null)
                               Padding(
-                                padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
+                                padding: EdgeInsets.fromLTRB(buttonPadding, 8, buttonPadding, 8),
                                 child: ElevatedButton(
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Theme.of(context).colorScheme.primary,
                                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                    minimumSize: tablet ? Size(200, 60) : null,
+                                    minimumSize: tablet ? Size(180, 45) : Size(150, 40),
+                                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                   ),
                                   onPressed: () async {
                                     var res = await showDialog(
@@ -245,7 +253,7 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                                     }
                                   },
                                   child: Text('סיום התרגיל',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: tablet ? scaledFontSize - 1 : scaledFontSize - 2),
                                   )),
                                 )
                             else
@@ -330,22 +338,73 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
                                 ),
                                 Column(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: List.generate(
-                                        eventController.currentEvent.value.sakimRounds.length,
-                                      (index) {
-                                    return Padding(
-                                      padding: const EdgeInsets.all(5.0),
-                                      child:
-                                          Obx(() => eventController.loading.value
-                                              ? CircularProgressIndicator()
-                                              : SakimRoundPanel(
-                                                    key: ValueKey('sakim_round_${eventController.currentEvent.value.sakimRounds[index].round}_$inOrderOfArrival'),
-                                                    round: eventController.currentEvent.value
-                                                      .sakimRounds[index],
-                                                    inOrderOfArrival: inOrderOfArrival,
-                                                )),
-                                    );
-                                  }),
+                                  children: () {
+                                    // Filter rounds: show from first round with participants to last round with participants
+                                    // This includes empty rounds in between (that participants passed through)
+                                    // but excludes empty rounds before the first and after the last
+                                    final allRounds = List.from(eventController.currentEvent.value.sakimRounds);
+                                    
+                                    if (allRounds.isEmpty) {
+                                      return <Widget>[];
+                                    }
+                                    
+                                    // Sort rounds by round number to ensure proper order
+                                    allRounds.sort((a, b) => a.round.compareTo(b.round));
+                                    
+                                    // Find the first round index that has participants
+                                    int firstRoundWithParticipants = -1;
+                                    for (int i = 0; i < allRounds.length; i++) {
+                                      if (allRounds[i].participantsInRound.isNotEmpty) {
+                                        firstRoundWithParticipants = i;
+                                        break;
+                                      }
+                                    }
+                                    
+                                    // Find the last round index that has participants
+                                    int lastRoundWithParticipants = -1;
+                                    for (int i = allRounds.length - 1; i >= 0; i--) {
+                                      if (allRounds[i].participantsInRound.isNotEmpty) {
+                                        lastRoundWithParticipants = i;
+                                        break;
+                                      }
+                                    }
+                                    
+                                    // If no rounds with participants found, show only round 0 if it exists
+                                    if (firstRoundWithParticipants == -1 || lastRoundWithParticipants == -1) {
+                                      if (allRounds.isNotEmpty && allRounds[0].round == 0) {
+                                        return [
+                                          Padding(
+                                            padding: const EdgeInsets.all(5.0),
+                                            child: Obx(() => eventController.loading.value
+                                                ? CircularProgressIndicator()
+                                                : SakimRoundPanel(
+                                                      key: ValueKey('sakim_round_${allRounds[0].round}_$inOrderOfArrival'),
+                                                      round: allRounds[0],
+                                                      inOrderOfArrival: inOrderOfArrival,
+                                                  )),
+                                          )
+                                        ];
+                                      }
+                                      return <Widget>[];
+                                    }
+                                    
+                                    // Show rounds from first to last (including empty rounds in between)
+                                    // This excludes empty rounds before the first and after the last
+                                    final roundsToShow = allRounds.sublist(firstRoundWithParticipants, lastRoundWithParticipants + 1);
+                                    print('🔍 Sakim: Showing rounds ${allRounds[firstRoundWithParticipants].round} to ${allRounds[lastRoundWithParticipants].round} (${roundsToShow.length} rounds)');
+                                    return roundsToShow.map((round) {
+                                      return Padding(
+                                        padding: const EdgeInsets.all(5.0),
+                                        child: Obx(() => eventController.loading.value
+                                            ? CircularProgressIndicator()
+                                            : SakimRoundPanel(
+                                                  key: ValueKey('sakim_round_${round.round}_$inOrderOfArrival'),
+                                                  round: round,
+                                                  inOrderOfArrival: inOrderOfArrival,
+                                              )),
+                                      );
+                                    }).toList();
+                                  }(),
                                 ),
                                 Divider(
                                   thickness: dividerThickness,
