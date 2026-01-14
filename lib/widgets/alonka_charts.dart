@@ -14,8 +14,9 @@ class ChartToggleController extends GetxController {
 
 class AlonkaCharts extends StatelessWidget {
   final int number;
+  final bool hideComments; // Hide comments section when used in exercise grading page
 
-  AlonkaCharts({super.key, required this.number});
+  AlonkaCharts({super.key, required this.number, this.hideComments = false});
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +49,7 @@ class AlonkaCharts extends StatelessWidget {
                 Obx(() => IconButton(
                   icon: Icon(
                     toggleController.showMatrix.value ? Icons.bar_chart : Icons.grid_on,
-                    color: Colors.white,
+                    color: Colors.black87,
                   ),
                   onPressed: () {
                     toggleController.showMatrix.value = !toggleController.showMatrix.value;
@@ -60,14 +61,14 @@ class AlonkaCharts extends StatelessWidget {
                     ? Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('קווי', style: TextStyle(fontSize: 12)),
+                          Text('קווי', style: TextStyle(fontSize: 12, color: Colors.black87)),
                           Switch(
                             value: toggleController.showPieChart.value,
                             onChanged: (value) {
                               toggleController.showPieChart.value = value;
                             },
                           ),
-                          Text('עוגה', style: TextStyle(fontSize: 12)),
+                          Text('עוגה', style: TextStyle(fontSize: 12, color: Colors.black87)),
                         ],
                       )
                     : SizedBox.shrink()),
@@ -149,9 +150,9 @@ class AlonkaCharts extends StatelessWidget {
                                           child: Text(
                                             invertedPosition.toString(),
                                             style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: tablet ? 14 : 12, // Increased from 12/10 for better clarity
-                                              fontWeight: FontWeight.w500, // Slightly bolder for better visibility
+                                              color: Colors.black87,
+                                              fontSize: tablet ? 14 : 12,
+                                              fontWeight: FontWeight.w500,
                                             ),
                                             textAlign: TextAlign.right,
                                           ),
@@ -173,7 +174,10 @@ class AlonkaCharts extends StatelessWidget {
                                         if (rounds.contains(value.toInt())) {
                                           return Text(
                                             (value.toInt() + 1).toString(),
-                                            style: const TextStyle(color: Colors.white),
+                                            style: const TextStyle(
+                                              color: Colors.black87,
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                           );
                                         }
                                       }
@@ -189,7 +193,19 @@ class AlonkaCharts extends StatelessWidget {
                                   sideTitles: SideTitles(showTitles: false),
                                 ),
                               ),
-                              gridData: FlGridData(show: true),
+                              gridData: FlGridData(
+                                show: true,
+                                drawHorizontalLine: true,
+                                drawVerticalLine: true,
+                                getDrawingHorizontalLine: (value) => FlLine(
+                                  color: Colors.grey[700]!.withValues(alpha: 0.6),
+                                  strokeWidth: 1,
+                                ),
+                                getDrawingVerticalLine: (value) => FlLine(
+                                  color: Colors.grey[700]!.withValues(alpha: 0.6),
+                                  strokeWidth: 1,
+                                ),
+                              ),
                               borderData: FlBorderData(show: false),
                               minX: rounds.isNotEmpty ? (rounds.first.toDouble() - 0.5).clamp(0.0, double.infinity) : 0.5,
                               maxX: rounds.isNotEmpty ? rounds.last.toDouble() + 0.5 : 1.5,
@@ -292,37 +308,39 @@ class AlonkaCharts extends StatelessWidget {
                 }
               }),
             ),
-            const SizedBox(height: 4), // Minimal spacing to maximize chart height
-            /// 📃 Instructor Comments Section
-            p.alonkaInstructorComments.isNotEmpty
-                ? const Text(
-              'הערות המדריך',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            )
-                : SizedBox.shrink(),
-            Container(
-              child: Directionality(
-                textDirection: TextDirection.rtl,
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.end,
-                  children: p.alonkaInstructorComments.map((comment) {
-                    return Chip(
-                      label: Text(
-                        comment,
-                        textAlign: TextAlign.right,
-                        softWrap: true,
-                        maxLines: null,
-                        overflow: TextOverflow.visible,
-                      ),
-                      backgroundColor: Colors.grey.shade200,
-                      labelStyle: TextStyle(color: Colors.black),
-                    );
-                  }).toList(),
+            if (!hideComments) ...[
+              const SizedBox(height: 4), // Minimal spacing to maximize chart height
+              /// 📃 Instructor Comments Section
+              p.alonkaInstructorComments.isNotEmpty
+                  ? const Text(
+                'הערות המדריך',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              )
+                  : SizedBox.shrink(),
+              Container(
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.end,
+                    children: p.alonkaInstructorComments.map((comment) {
+                      return Chip(
+                        label: Text(
+                          comment,
+                          textAlign: TextAlign.right,
+                          softWrap: true,
+                          maxLines: null,
+                          overflow: TextOverflow.visible,
+                        ),
+                          backgroundColor: Colors.grey.shade200,
+                        labelStyle: TextStyle(color: Colors.black),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
         ),
@@ -541,7 +559,7 @@ class SprintCreditPieChart extends StatelessWidget {
         title: '${alonkaPercentage.toStringAsFixed(1)}% אלונקה',
         color: Colors.red,
         radius: 70,
-        titleStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+        titleStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
       ));
     }
     if (gerikanCount > 0) {
@@ -550,7 +568,7 @@ class SprintCreditPieChart extends StatelessWidget {
         title: '${gerikanPercentage.toStringAsFixed(1)}% גריקן',
         color: Colors.blue,
         radius: 70,
-        titleStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+        titleStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
       ));
     }
     if (runnerCount > 0) {
@@ -559,7 +577,7 @@ class SprintCreditPieChart extends StatelessWidget {
         title: '${runnerPercentage.toStringAsFixed(1)}% רץ',
         color: Colors.green,
         radius: 70,
-        titleStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+        titleStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
       ));
     }
     if (noCreditCount > 0) {
@@ -568,7 +586,7 @@ class SprintCreditPieChart extends StatelessWidget {
         title: '${noCreditPercentage.toStringAsFixed(1)}% ללא ניקוד',
         color: Colors.grey,
         radius: 70,
-        titleStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+        titleStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
       ));
     }
 

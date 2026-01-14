@@ -366,7 +366,8 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                                 },
                               );
                               if (res) {
-                                // Check connectivity before finalization
+                                // Check connectivity before finalization - refresh connectivity status first
+                                await eventController.connectionEnabled();
                                 if (!eventController.isConnected.value) {
                                   showCustomMessageAlert(
                                     context,

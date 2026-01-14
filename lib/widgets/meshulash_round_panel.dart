@@ -112,7 +112,7 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                 padding: EdgeInsets.all(tablet ? 7.5 : 5.0),
                                 child: GestureDetector(
                                   onDoubleTap: () {
-                                    if (eventController.meshulashEditModeOn.value) {
+                                    if (eventController.meshulashEditModeOn.value && widget.round.round > 0) {
                                       eventController.loading.value = true;
                                       final participantNumber = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index];
                                       

@@ -102,7 +102,10 @@ class EventController extends GetxController {
           comparison = a.number.compareTo(b.number);
           break;
         case SortColumn.finalGrade:
-          comparison = a.instructorGrade.compareTo(b.instructorGrade);
+          // Use instructor grade if set (> 0), otherwise use calculated/hint value
+          final gradeA = a.instructorGrade > 0.0 ? a.instructorGrade : getCalculatedInstructorGrade(a);
+          final gradeB = b.instructorGrade > 0.0 ? b.instructorGrade : getCalculatedInstructorGrade(b);
+          comparison = gradeA.compareTo(gradeB);
           break;
         case SortColumn.systemGrade:
           comparison = a.systemGrade.compareTo(b.systemGrade);
@@ -118,6 +121,20 @@ class EventController extends GetxController {
           break;
         case SortColumn.sakim:
           comparison = a.sakimGrade.compareTo(b.sakimGrade);
+          break;
+        case SortColumn.instructorGrade:
+          // In the general context, sort by final instructor grade
+          // Exercise-specific instructor grade sorting is handled in exercise_grading_page.dart
+          comparison = a.instructorGrade.compareTo(b.instructorGrade);
+          break;
+        case SortColumn.instructorMeshulash:
+          comparison = a.instructorMeshulashGrade.compareTo(b.instructorMeshulashGrade);
+          break;
+        case SortColumn.instructorAlonka:
+          comparison = a.instructorAlonkaGrade.compareTo(b.instructorAlonkaGrade);
+          break;
+        case SortColumn.instructorSakim:
+          comparison = a.instructorSakimGrade.compareTo(b.instructorSakimGrade);
           break;
       }
 

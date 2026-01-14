@@ -231,8 +231,9 @@ class BarPainter extends CustomPainter {
 
 class MeshulashCharts extends StatelessWidget {
   final int number;
+  final bool hideComments; // Hide comments section when used in exercise grading page
 
-  MeshulashCharts({super.key, required this.number}); // The round where our participant is currently competing
+  MeshulashCharts({super.key, required this.number, this.hideComments = false}); // The round where our participant is currently competing
 
   @override
   Widget build(BuildContext context) {
@@ -421,7 +422,11 @@ class MeshulashCharts extends StatelessWidget {
                                   padding: EdgeInsets.only(right: tablet ? 4.0 : 12.0),
                                   child: Text(
                                     '${(participantsCount - value).toInt()}',
-                                    style: TextStyle(fontSize: tablet ? 12 : 10),
+                                    style: TextStyle(
+                                      fontSize: tablet ? 12 : 10,
+                                      color: Colors.black87,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                     textAlign: TextAlign.right,
                                   ),
                                 );
@@ -458,7 +463,11 @@ class MeshulashCharts extends StatelessWidget {
                                     padding: EdgeInsets.only(left: tablet ? 14.0 : 18.0), // Increased by 10px to move labels further right
                                     child: Text(
                                       '$countValue',
-                                      style: TextStyle(fontSize: tablet ? 12 : 10, color: Colors.white),
+                                      style: TextStyle(
+                                        fontSize: tablet ? 12 : 10,
+                                        color: Colors.black87,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                       textAlign: TextAlign.left,
                                     ),
                                   );
@@ -482,7 +491,11 @@ class MeshulashCharts extends StatelessWidget {
                                   padding: const EdgeInsets.only(top: 4.0),
                                   child: Text(
                                     '${value.toInt()}',
-                                    style: TextStyle(color: Colors.white, fontSize: tablet ? 12 : 10),
+                                    style: TextStyle(
+                                      color: Colors.black87,
+                                      fontSize: tablet ? 12 : 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 );
                               }
@@ -498,11 +511,11 @@ class MeshulashCharts extends StatelessWidget {
                         horizontalInterval: tablet ? 1 : (participantsCount > 10 ? 2 : 1), // Match Y-axis interval
                         verticalInterval: 1,
                         getDrawingHorizontalLine: (value) => FlLine(
-                          color: Colors.grey.withValues(alpha: 0.3),
+                          color: Colors.grey[700]!.withValues(alpha: 0.6),
                           strokeWidth: 1,
                         ),
                         getDrawingVerticalLine: (value) => FlLine(
-                          color: Colors.grey.withValues(alpha: 0.3),
+                          color: Colors.grey[700]!.withValues(alpha: 0.6),
                           strokeWidth: 1,
                         ),
                       ),
@@ -689,35 +702,37 @@ class MeshulashCharts extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: 4), // Match alonka spacing to maximize chart height
-            /// 📃 Instructor Comments Section
-            p.meshulashInstructorComments.isNotEmpty?const Text(
-              'הערות המדריך',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ):SizedBox.shrink(),
-            Container(
-              child: Directionality(
-                textDirection: TextDirection.rtl,
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.end,
-                  children: p.meshulashInstructorComments.map((comment) {
-                    return Chip(
-                      label: Text(
-                        comment,
-                        textAlign: TextAlign.right,
-                        softWrap: true,
-                        maxLines: null,
-                        overflow: TextOverflow.visible,
-                      ),
-                      backgroundColor: Colors.grey.shade200,
-                      labelStyle: TextStyle(color: Colors.black),
-                    );
-                  }).toList(),
+            if (!hideComments) ...[
+              const SizedBox(height: 4), // Match alonka spacing to maximize chart height
+              /// 📃 Instructor Comments Section
+              p.meshulashInstructorComments.isNotEmpty?const Text(
+                'הערות המדריך',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ):SizedBox.shrink(),
+              Container(
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.end,
+                    children: p.meshulashInstructorComments.map((comment) {
+                      return Chip(
+                        label: Text(
+                          comment,
+                          textAlign: TextAlign.right,
+                          softWrap: true,
+                          maxLines: null,
+                          overflow: TextOverflow.visible,
+                        ),
+                        backgroundColor: Colors.grey.shade200,
+                        labelStyle: TextStyle(color: Colors.black),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

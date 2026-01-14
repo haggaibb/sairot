@@ -21,6 +21,10 @@ enum SortColumn {
   alonka,
   bur,
   sakim,
+  instructorGrade,
+  instructorMeshulash,
+  instructorAlonka,
+  instructorSakim,
 }
 
 enum SortDirection {

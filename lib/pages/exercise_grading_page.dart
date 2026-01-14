@@ -12,6 +12,7 @@ import '../widgets/exercise_ranking_dialog.dart';
 import '../widgets/meshulash_charts.dart';
 import '../widgets/alonka_charts.dart';
 import '../widgets/sakim_charts.dart';
+import '../widgets/comments_dialog.dart';
 
 class ExerciseGradingPage extends StatefulWidget {
   final String exerciseType; // 'meshulash', 'alonka', or 'sakim'
@@ -96,19 +97,7 @@ class _ExerciseGradingPageState extends State<ExerciseGradingPage> with EventVal
                 });
               },
             ),
-            // Toggle instructor grades visibility
-            IconButton(
-              icon: Icon(
-                Icons.edit,
-                color: _showInstructorGrades ? Colors.blue : Colors.grey,
-              ),
-              tooltip: _showInstructorGrades ? 'הסתר ציוני מדריך' : 'הצג ציוני מדריך',
-              onPressed: () {
-                setState(() {
-                  _showInstructorGrades = !_showInstructorGrades;
-                });
-              },
-            ),
+            // Instructor grades are always visible in exercise grade page - no toggle button
             IconButton(
               icon: const Icon(Icons.info_outline),
               tooltip: 'מדריך למשתמש',
@@ -235,7 +224,7 @@ class _ExerciseGradingPageState extends State<ExerciseGradingPage> with EventVal
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 20),
+                    icon: const Icon(Icons.close, size: 20, color: Colors.black87),
                     onPressed: () {
                       setState(() {
                         _selectedParticipantNumber = null;
@@ -243,6 +232,7 @@ class _ExerciseGradingPageState extends State<ExerciseGradingPage> with EventVal
                     },
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
+                    tooltip: 'סגור',
                   ),
                 ],
               ),
@@ -316,6 +306,20 @@ class _ExerciseGradingPageState extends State<ExerciseGradingPage> with EventVal
                             fontStyle: FontStyle.italic,
                           ),
                         ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showAddCommentDialog(participantNumber),
+                      icon: const Icon(Icons.add_comment, size: 18),
+                      label: const Text('הוסף הערה'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[600],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -383,13 +387,78 @@ class _ExerciseGradingPageState extends State<ExerciseGradingPage> with EventVal
   Widget _buildChartWidget(int participantNumber) {
     switch (widget.exerciseType) {
       case 'meshulash':
-        return MeshulashCharts(number: participantNumber);
+        return MeshulashCharts(number: participantNumber, hideComments: true);
       case 'alonka':
-        return AlonkaCharts(number: participantNumber);
+        return AlonkaCharts(number: participantNumber, hideComments: true);
       case 'sakim':
-        return SakimCharts(number: participantNumber);
+        return SakimCharts(number: participantNumber, hideComments: true);
       default:
         return const Center(child: Text('תרגיל לא מזוהה'));
+    }
+  }
+
+  Future<void> _showAddCommentDialog(int participantNumber) async {
+    final participant = eventController.currentEvent.value.participants.firstWhere(
+      (p) => p.number == participantNumber,
+      orElse: () => eventController.currentEvent.value.participants.first,
+    );
+
+    List<String> commentsList;
+    List<String> selectedComments;
+    ExerciseType exerciseType;
+
+    switch (widget.exerciseType) {
+      case 'meshulash':
+        commentsList = eventController.gradesData.listOfCommentsMeshulash;
+        selectedComments = participant.meshulashInstructorComments;
+        exerciseType = ExerciseType.meshulash;
+        break;
+      case 'alonka':
+        commentsList = eventController.gradesData.listOfCommentsAlonka;
+        selectedComments = participant.alonkaInstructorComments;
+        exerciseType = ExerciseType.alonka;
+        break;
+      case 'sakim':
+        commentsList = eventController.gradesData.listOfCommentsSakim;
+        selectedComments = participant.sakimInstructorComments;
+        exerciseType = ExerciseType.sakim;
+        break;
+      default:
+        return;
+    }
+
+    final res = await showDialog<List<String>>(
+      context: context,
+      builder: (BuildContext context) => CommentsDialog(
+        commentsList: commentsList,
+        selectedComments: selectedComments,
+        title: participantNumber.toString(),
+        exerciseType: exerciseType,
+        instructorCustomComments: eventController.getInstructorCustomCommentsForExercise(widget.exerciseType),
+      ),
+    );
+
+    if (res != null) {
+      if (res.contains(ParticipantStatus.Droped.name)) {
+        // Handle drop participant if needed
+        return;
+      }
+
+      // Update comments based on exercise type
+      switch (widget.exerciseType) {
+        case 'meshulash':
+          eventController.addMeshulashComments(res, participantNumber);
+          break;
+        case 'alonka':
+          eventController.addAlonkaComments(res, participantNumber);
+          break;
+        case 'sakim':
+          eventController.addSakimComments(res, participantNumber);
+          break;
+      }
+
+      // Refresh the UI
+      setState(() {});
     }
   }
 }
@@ -620,6 +689,12 @@ class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
           final gradeB = _getSystemGrade(b);
           comparison = gradeA.compareTo(gradeB);
           break;
+        case SortColumn.instructorGrade:
+          // Sort by instructor grade for the current exercise
+          final gradeA = _getInstructorGrade(a);
+          final gradeB = _getInstructorGrade(b);
+          comparison = gradeA.compareTo(gradeB);
+          break;
         default:
           comparison = 0;
       }
@@ -671,7 +746,7 @@ class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
                         if (widget.showSystemGrades)
                           _buildHeaderCell('מערכת', _getExerciseSortColumn(), exerciseWidth),
                         if (widget.showInstructorGrades)
-                          _buildHeaderCell('מדריך', null, exerciseWidth),
+                          _buildHeaderCell('מדריך', SortColumn.instructorGrade, exerciseWidth),
                       ],
                     ),
                     // Data rows

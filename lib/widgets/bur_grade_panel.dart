@@ -350,7 +350,24 @@ class _BurGradePanelState extends State<BurGradePanel> {
 
                     /// **Close Button**
                     ElevatedButton(
-                      onPressed: () => Get.back(),
+                      onPressed: () {
+                        // Auto-add comment from input field if not empty (similar to comments dialog)
+                        String textInField = customCommentCtrl.text.trim();
+                        if (textInField.isNotEmpty &&
+                            !predefinedComments.contains(textInField) &&
+                            !instructorSavedComments.contains(textInField) &&
+                            !sessionOnlyCustomComments.contains(textInField)) {
+                          // Add the comment before closing
+                          setState(() {
+                            sessionOnlyCustomComments.add(textInField);
+                            instructorComments.add(textInField);
+                          });
+                          // Save updated comments to Firestore (non-blocking)
+                          saveToFirestore();
+                          customCommentCtrl.clear();
+                        }
+                        Get.back();
+                      },
                       child: Text(
                         'סגור',
                         style: TextStyle(

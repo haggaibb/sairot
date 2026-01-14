@@ -808,11 +808,11 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                                 if (widget.showSystemGrades)
                                   _buildHeaderCell('מערכת', SortColumn.meshulash, exerciseWidth),
                                 if (widget.showInstructorGrades)
-                                  _buildHeaderCell('מדריך', SortColumn.meshulash, instructorExerciseWidth, isFirstInGroup: true), // First in meshulash group
+                                  _buildHeaderCell('מדריך', SortColumn.instructorMeshulash, instructorExerciseWidth, isFirstInGroup: true), // First in meshulash group
                                 if (widget.showSystemGrades)
                                   _buildHeaderCell('מערכת', SortColumn.alonka, exerciseWidth),
                                 if (widget.showInstructorGrades)
-                                  _buildHeaderCell('מדריך', SortColumn.alonka, instructorExerciseWidth, isFirstInGroup: true), // First in alonka group
+                                  _buildHeaderCell('מדריך', SortColumn.instructorAlonka, instructorExerciseWidth, isFirstInGroup: true), // First in alonka group
                               ],
                               // Bur column - show when either system or instructor grades are visible (Bur only has instructor grade, no system grade)
                               if (widget.showSystemGrades || widget.showInstructorGrades)
@@ -821,7 +821,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                                 if (widget.showSystemGrades)
                                   _buildHeaderCell('מערכת', SortColumn.sakim, sakimWidth),
                                 if (widget.showInstructorGrades)
-                                  _buildHeaderCell('מדריך', SortColumn.sakim, instructorExerciseWidth, isFirstInGroup: true), // First in sakim group
+                                  _buildHeaderCell('מדריך', SortColumn.instructorSakim, instructorExerciseWidth, isFirstInGroup: true), // First in sakim group
                               ],
                             ],
                           ),

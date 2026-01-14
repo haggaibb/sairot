@@ -115,32 +115,34 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                             padding: EdgeInsets.all(tablet ? 7.5 : 5.0),
                             child: GestureDetector(
                               onDoubleTap: () {
-                                eventController.loading.value = true;
-                                final participantNumber = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index];
-                                
-                                // Pop the last stored index from stack (for undo)
-                                final originalIndex = eventController.getLastSakimIndex(participantNumber);
-                                
-                                // Remove the last position from the array
-                                eventController.removeLastSakimPosition(participantNumber);
-                                
-                                // Remove participant from current round
-                                widget.round.participantsInRound.remove(participantNumber);
-                                
-                                // Insert participant at original index in previous round (or add to end if stack is empty)
-                                final previousRound = eventController.currentEvent.value.sakimRounds[widget.round.round-1];
-                                if (originalIndex != null && originalIndex >= 0 && originalIndex <= previousRound.participantsInRound.length) {
-                                  previousRound.participantsInRound.insert(originalIndex, participantNumber);
-                                } else {
-                                  previousRound.participantsInRound.add(participantNumber);
+                                if (widget.round.round > 0) {
+                                  eventController.loading.value = true;
+                                  final participantNumber = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index];
+                                  
+                                  // Pop the last stored index from stack (for undo)
+                                  final originalIndex = eventController.getLastSakimIndex(participantNumber);
+                                  
+                                  // Remove the last position from the array
+                                  eventController.removeLastSakimPosition(participantNumber);
+                                  
+                                  // Remove participant from current round
+                                  widget.round.participantsInRound.remove(participantNumber);
+                                  
+                                  // Insert participant at original index in previous round (or add to end if stack is empty)
+                                  final previousRound = eventController.currentEvent.value.sakimRounds[widget.round.round-1];
+                                  if (originalIndex != null && originalIndex >= 0 && originalIndex <= previousRound.participantsInRound.length) {
+                                    previousRound.participantsInRound.insert(originalIndex, participantNumber);
+                                  } else {
+                                    previousRound.participantsInRound.add(participantNumber);
+                                  }
+                                  
+                                  eventController.update();
+                                  // Use non-blocking save to prevent delays when offline
+                                  eventController.saveEventWithOfflineSupport(
+                                    eventController.currentEvent.value
+                                  );
+                                  eventController.loading.value = false;
                                 }
-                                
-                                eventController.update();
-                                // Use non-blocking save to prevent delays when offline
-                                eventController.saveEventWithOfflineSupport(
-                                  eventController.currentEvent.value
-                                );
-                                eventController.loading.value = false;
                               },
                               child: Stack(
                                 clipBehavior: Clip.none, // Allow badge to extend beyond chip boundaries
