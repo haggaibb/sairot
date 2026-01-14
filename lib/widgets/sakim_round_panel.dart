@@ -117,7 +117,7 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                               onDoubleTap: () {
                                 if (widget.round.round > 0) {
                                   eventController.loading.value = true;
-                                  final participantNumber = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index];
+                                  // participantNumber is already defined on line 77 from sorted list
                                   
                                   // Pop the last stored index from stack (for undo)
                                   final originalIndex = eventController.getLastSakimIndex(participantNumber);
@@ -155,10 +155,16 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                       onPressed: () {
                                         if (eventController.sakimEditModeOn.value) {
                                           eventController.loading.value = true;
-                                          final participantNumber = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index];
+                                          // participantNumber is already defined on line 77 from sorted list
                                           
-                                          // Store the current index before moving forward (for undo)
-                                          eventController.setLastSakimIndex(participantNumber, index);
+                                          // Find the actual index in the original unsorted list for undo
+                                          final originalList = eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound;
+                                          final actualIndex = originalList.indexOf(participantNumber);
+                                          
+                                          // Store the actual index before moving forward (for undo)
+                                          if (actualIndex != -1) {
+                                            eventController.setLastSakimIndex(participantNumber, actualIndex);
+                                          }
                                           
                                           if (eventController.currentEvent.value.sakimRounds.length == widget.round.round+1) {
                                             eventController.currentEvent.value.sakimRounds.add(
@@ -200,13 +206,11 @@ class _SakimRoundPanelState extends State<SakimRoundPanel> {
                                             print('dropped');
                                             eventController.loading.value =
                                             true;
-                                            eventController.dropParticipant(
-                                                widget.round.participantsInRound[index]);
-                                            widget.round.participantsInRound
-                                                .removeAt(index);
+                                            eventController.dropParticipant(participantNumber);
+                                            widget.round.participantsInRound.remove(participantNumber);
                                             eventController.loading.value=false;
                                           } else {
-                                            eventController.addSakimComments(res,eventController.currentEvent.value.sakimRounds[widget.round.round].participantsInRound[index]);
+                                            eventController.addSakimComments(res, participantNumber);
                                           }
                                         }
                                       },

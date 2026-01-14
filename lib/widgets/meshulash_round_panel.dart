@@ -114,7 +114,7 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                   onDoubleTap: () {
                                     if (eventController.meshulashEditModeOn.value && widget.round.round > 0) {
                                       eventController.loading.value = true;
-                                      final participantNumber = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index];
+                                      // participantNumber is already defined on line 74 from sorted list
                                       
                                       // Pop the last stored index from stack (for undo)
                                       final originalIndex = eventController.getLastMeshulashIndex(participantNumber);
@@ -152,10 +152,16 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                           onPressed: () {
                                             if (eventController.meshulashEditModeOn.value) {
                                               eventController.loading.value = true;
-                                              final participantNumber = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index];
+                                              // participantNumber is already defined on line 74 from sorted list
                                               
-                                              // Store the current index before moving forward (for undo)
-                                              eventController.setLastMeshulashIndex(participantNumber, index);
+                                              // Find the actual index in the original unsorted list for undo
+                                              final originalList = eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound;
+                                              final actualIndex = originalList.indexOf(participantNumber);
+                                              
+                                              // Store the actual index before moving forward (for undo)
+                                              if (actualIndex != -1) {
+                                                eventController.setLastMeshulashIndex(participantNumber, actualIndex);
+                                              }
                                               
                                               if (eventController.currentEvent.value.meshulashRounds.length == widget.round.round+1) {
                                                 eventController.currentEvent.value.meshulashRounds.add(
@@ -198,13 +204,11 @@ class _MeshulashRoundPanelState extends State<MeshulashRoundPanel> {
                                               if (res.contains(ParticipantStatus.Droped.name)) {
                                                 eventController.loading.value =
                                                 true;
-                                                eventController.dropParticipant(
-                                                    widget.round.participantsInRound[index]);
-                                                widget.round.participantsInRound
-                                                    .removeAt(index);
+                                                eventController.dropParticipant(participantNumber);
+                                                widget.round.participantsInRound.remove(participantNumber);
                                                 eventController.loading.value=false;
                                               } else {
-                                                eventController.addMeshulashComments(res,eventController.currentEvent.value.meshulashRounds[widget.round.round].participantsInRound[index]);
+                                                eventController.addMeshulashComments(res, participantNumber);
                                               }
                                             }
                                           },
