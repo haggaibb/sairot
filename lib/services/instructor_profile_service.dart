@@ -1,63 +1,129 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
 import '../services/local_storage_service.dart';
+import '../services/sync_queue_service.dart';
+import '../connectivity_controller.dart';
 
 /// Service for managing instructor profile data, specifically custom comments
 class InstructorProfileService {
   static final FirebaseFirestore firestore = FirebaseFirestore.instance;
   static final LocalStorageService _localStorage = LocalStorageService.instance;
 
-  /// Load instructor's custom comments from Firebase with local cache fallback
+  /// Load instructor's custom comments with smart merge strategy
+  /// Merges Firebase and local cache to ensure no data loss
   static Future<Map<String, List<String>>> loadInstructorCustomComments(String instructorId) async {
     try {
-      // First, try to load from local cache
+      // Check connectivity
+      bool isOnline = false;
+      try {
+        final connectivityController = Get.find<ConnectivityController>();
+        isOnline = connectivityController.isConnected.value;
+      } catch (e) {
+        // ConnectivityController not available, assume offline
+        print('⚠️ ConnectivityController not available, assuming offline');
+      }
+      
+      // Load from local cache (always, as fallback)
       final localComments = await _localStorage.loadInstructorCustomCommentsLocally(instructorId);
       
       // Try to load from Firestore if online
-      try {
-        final docSnapshot = await firestore
-            .collection('Instructors')
-            .doc(instructorId)
-            .collection('profile')
-            .doc('customComments')
-            .get();
-        
-        if (docSnapshot.exists && docSnapshot.data() != null) {
-          final data = docSnapshot.data() as Map<String, dynamic>;
+      Map<String, List<String>> firebaseComments = {};
+      if (isOnline) {
+        try {
+          final docSnapshot = await firestore
+              .collection('Instructors')
+              .doc(instructorId)
+              .collection('profile')
+              .doc('customComments')
+              .get();
           
-          // Convert to Map<String, List<String>>
-          final Map<String, List<String>> comments = {};
-          data.forEach((key, value) {
-            if (value is List) {
-              comments[key] = value.map((e) => e.toString()).toList();
-            }
-          });
-          
-          // Update local cache
-          await _localStorage.saveInstructorCustomCommentsLocally(instructorId, comments);
-          
-          print('✅ Loaded instructor custom comments from Firestore for: $instructorId');
-          return comments;
+          if (docSnapshot.exists && docSnapshot.data() != null) {
+            final data = docSnapshot.data() as Map<String, dynamic>;
+            
+            // Convert to Map<String, List<String>>
+            data.forEach((key, value) {
+              if (value is List) {
+                firebaseComments[key] = value.map((e) => e.toString()).toList();
+              }
+            });
+            
+            print('✅ Loaded instructor custom comments from Firestore for: $instructorId');
+          }
+        } catch (e) {
+          print('⚠️ Error loading instructor custom comments from Firestore: $e');
+          // Continue with merge using local cache only
         }
-      } catch (e) {
-        print('⚠️ Error loading instructor custom comments from Firestore: $e');
-        // Fall through to use local cache
       }
       
-      // Return local cache if available, otherwise empty map
-      if (localComments.isNotEmpty) {
+      // Merge both sources: union of all unique comments
+      final Map<String, List<String>> mergedComments = {};
+      
+      // Add all exercise types from both sources
+      final allExerciseTypes = <String>{};
+      allExerciseTypes.addAll(localComments.keys);
+      allExerciseTypes.addAll(firebaseComments.keys);
+      
+      // Merge comments for each exercise type
+      for (final exerciseType in allExerciseTypes) {
+        final Set<String> uniqueComments = {};
+        
+        // Add comments from local cache
+        if (localComments.containsKey(exerciseType)) {
+          uniqueComments.addAll(localComments[exerciseType]!);
+        }
+        
+        // Add comments from Firebase
+        if (firebaseComments.containsKey(exerciseType)) {
+          uniqueComments.addAll(firebaseComments[exerciseType]!);
+        }
+        
+        // Convert set to list (preserves uniqueness)
+        mergedComments[exerciseType] = uniqueComments.toList();
+      }
+      
+      // Save merged result back to both Firebase (if online) and local cache
+      // Always update local cache with merged result
+      await _localStorage.saveInstructorCustomCommentsLocally(instructorId, mergedComments);
+      
+      // Update Firebase if online (merged result may include local-only comments)
+      if (isOnline && mergedComments.isNotEmpty) {
+        try {
+          await firestore
+              .collection('Instructors')
+              .doc(instructorId)
+              .collection('profile')
+              .doc('customComments')
+              .set(mergedComments);
+          print('✅ Updated Firestore with merged comments for: $instructorId');
+        } catch (e) {
+          print('⚠️ Error updating Firestore with merged comments: $e');
+          // Non-critical, local cache is already updated
+        }
+      }
+      
+      if (mergedComments.isNotEmpty) {
+        print('✅ Merged ${mergedComments.length} custom comment categories (${isOnline ? 'online' : 'offline'})');
+      } else if (localComments.isNotEmpty) {
         print('📴 Using cached instructor custom comments (offline mode)');
-        return localComments;
       }
       
-      return {};
+      return mergedComments;
     } catch (e) {
       print('❌ Error in loadInstructorCustomComments: $e');
-      return {};
+      // Fallback to local cache if available
+      try {
+        final localComments = await _localStorage.loadInstructorCustomCommentsLocally(instructorId);
+        return localComments;
+      } catch (e2) {
+        print('❌ Error loading local cache fallback: $e2');
+        return {};
+      }
     }
   }
 
   /// Save a custom comment to Firebase and local cache
-  static Future<bool> saveCustomComment(String instructorId, String exerciseType, String comment) async {
+  /// Queues operation for sync if offline
+  static Future<bool> saveCustomComment(String instructorId, String exerciseType, String comment, {bool skipLocalSave = false}) async {
     try {
       // Load current comments
       final currentComments = await loadInstructorCustomComments(instructorId);
@@ -72,23 +138,57 @@ class InstructorProfileService {
         currentComments[exerciseType]!.add(comment);
       }
       
-      // Save to Firestore if online
-      try {
-        await firestore
-            .collection('Instructors')
-            .doc(instructorId)
-            .collection('profile')
-            .doc('customComments')
-            .set(currentComments);
-        
-        print('✅ Saved custom comment to Firestore: $exerciseType - $comment');
-      } catch (e) {
-        print('⚠️ Error saving custom comment to Firestore: $e');
-        // Continue to save locally even if Firestore fails
+      // Always save to local cache first (unless skipLocalSave is true)
+      if (!skipLocalSave) {
+        await _localStorage.saveInstructorCustomCommentsLocally(instructorId, currentComments);
       }
       
-      // Always save to local cache
-      await _localStorage.saveInstructorCustomCommentsLocally(instructorId, currentComments);
+      // Check connectivity
+      bool isOnline = false;
+      try {
+        final connectivityController = Get.find<ConnectivityController>();
+        isOnline = connectivityController.isConnected.value;
+      } catch (e) {
+        // ConnectivityController not available, assume offline
+        print('⚠️ ConnectivityController not available, assuming offline');
+      }
+      
+      // Try to save to Firestore if online
+      bool firestoreSuccess = false;
+      if (isOnline) {
+        try {
+          await firestore
+              .collection('Instructors')
+              .doc(instructorId)
+              .collection('profile')
+              .doc('customComments')
+              .set(currentComments);
+          
+          print('✅ Saved custom comment to Firestore: $exerciseType - $comment');
+          firestoreSuccess = true;
+        } catch (e) {
+          print('⚠️ Error saving custom comment to Firestore: $e');
+          // Will queue for sync below
+        }
+      }
+      
+      // Queue operation if offline or Firestore failed
+      if (!firestoreSuccess) {
+        try {
+          await SyncQueueService.instance.queueFirestoreOperation(
+            'saveInstructorCustomComment',
+            {
+              'instructorId': instructorId,
+              'exerciseType': exerciseType,
+              'comment': comment,
+            },
+          );
+          print('📋 Queued saveInstructorCustomComment operation for sync');
+        } catch (e) {
+          print('⚠️ Error queueing saveInstructorCustomComment operation: $e');
+          // Non-critical, local cache is already saved
+        }
+      }
       
       return true;
     } catch (e) {
@@ -98,7 +198,8 @@ class InstructorProfileService {
   }
 
   /// Remove a custom comment from Firebase and local cache
-  static Future<bool> removeCustomComment(String instructorId, String exerciseType, String comment) async {
+  /// Queues operation for sync if offline
+  static Future<bool> removeCustomComment(String instructorId, String exerciseType, String comment, {bool skipLocalSave = false}) async {
     try {
       // Load current comments
       final currentComments = await loadInstructorCustomComments(instructorId);
@@ -113,23 +214,57 @@ class InstructorProfileService {
         }
       }
       
-      // Save to Firestore if online
-      try {
-        await firestore
-            .collection('Instructors')
-            .doc(instructorId)
-            .collection('profile')
-            .doc('customComments')
-            .set(currentComments);
-        
-        print('✅ Removed custom comment from Firestore: $exerciseType - $comment');
-      } catch (e) {
-        print('⚠️ Error removing custom comment from Firestore: $e');
-        // Continue to save locally even if Firestore fails
+      // Always save to local cache first (unless skipLocalSave is true)
+      if (!skipLocalSave) {
+        await _localStorage.saveInstructorCustomCommentsLocally(instructorId, currentComments);
       }
       
-      // Always save to local cache
-      await _localStorage.saveInstructorCustomCommentsLocally(instructorId, currentComments);
+      // Check connectivity
+      bool isOnline = false;
+      try {
+        final connectivityController = Get.find<ConnectivityController>();
+        isOnline = connectivityController.isConnected.value;
+      } catch (e) {
+        // ConnectivityController not available, assume offline
+        print('⚠️ ConnectivityController not available, assuming offline');
+      }
+      
+      // Try to save to Firestore if online
+      bool firestoreSuccess = false;
+      if (isOnline) {
+        try {
+          await firestore
+              .collection('Instructors')
+              .doc(instructorId)
+              .collection('profile')
+              .doc('customComments')
+              .set(currentComments);
+          
+          print('✅ Removed custom comment from Firestore: $exerciseType - $comment');
+          firestoreSuccess = true;
+        } catch (e) {
+          print('⚠️ Error removing custom comment from Firestore: $e');
+          // Will queue for sync below
+        }
+      }
+      
+      // Queue operation if offline or Firestore failed
+      if (!firestoreSuccess) {
+        try {
+          await SyncQueueService.instance.queueFirestoreOperation(
+            'removeInstructorCustomComment',
+            {
+              'instructorId': instructorId,
+              'exerciseType': exerciseType,
+              'comment': comment,
+            },
+          );
+          print('📋 Queued removeInstructorCustomComment operation for sync');
+        } catch (e) {
+          print('⚠️ Error queueing removeInstructorCustomComment operation: $e');
+          // Non-critical, local cache is already saved
+        }
+      }
       
       return true;
     } catch (e) {

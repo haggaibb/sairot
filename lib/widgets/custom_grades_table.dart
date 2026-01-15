@@ -828,11 +828,29 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                           // Data rows
                           ...sortedParticipants.map((participant) {
               final rowColor = _getRowColor(participant);
-              // Ensure controllers exist
+              // Ensure controllers exist and are up to date
               if (!_gradeControllers.containsKey(participant.number)) {
                 _gradeControllers[participant.number] = TextEditingController(
-                                  text: participant.instructorGrade.toStringAsFixed(participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2),
+                  text: participant.instructorGrade > 0.0
+                      ? participant.instructorGrade.toStringAsFixed(
+                          participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2
+                        )
+                      : '',
                 );
+                _gradeFocusNodes[participant.number] = FocusNode();
+              } else {
+                // Update controller if grade changed and field is not focused
+                final controller = _gradeControllers[participant.number]!;
+                if (!_gradeFocusNodes[participant.number]!.hasFocus) {
+                  final expectedText = participant.instructorGrade > 0.0
+                      ? participant.instructorGrade.toStringAsFixed(
+                          participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2
+                        )
+                      : '';
+                  if (controller.text != expectedText) {
+                    controller.text = expectedText;
+                  }
+                }
               }
               if (!_meshulashGradeControllers.containsKey(participant.number)) {
                 _meshulashGradeControllers[participant.number] = TextEditingController(
@@ -934,66 +952,111 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                         ),
                       ),
                       child: isFinalized
-                          ? Center(
-                              child: Text(
-                                participant.instructorGrade.toStringAsFixed(participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2),
-                                style: const TextStyle(color: Colors.black),
-                              ),
-                            )
-                          : TextField(
-                              controller: gradeController,
-                              focusNode: _gradeFocusNodes[participant.number],
-                              textAlign: TextAlign.center,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 14,
-                              ),
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                disabledBorder: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 12,
+                          ? Obx(() {
+                              // Make finalized grade reactive by accessing through eventController
+                              final currentParticipant = widget.eventController.currentEvent.value.participants
+                                  .firstWhere((p) => p.number == participant.number, orElse: () => participant);
+                              final currentGrade = currentParticipant.instructorGrade;
+                              return Center(
+                                child: Text(
+                                  currentGrade.toStringAsFixed(currentGrade == currentGrade.roundToDouble() ? 0 : 2),
+                                  style: const TextStyle(color: Colors.black),
                                 ),
-                                isDense: false,
-                                // Show calculated grade as hint when field is empty or matches calculated
-                                hintText: _getCalculatedGradeHint(participant),
-                                hintStyle: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              onTap: () {
-                                // Select all text when focused
-                                // Use a post-frame callback to ensure selection happens after focus
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  if (mounted && gradeController.text.isNotEmpty) {
-                                    gradeController.selection = TextSelection(
-                                      baseOffset: 0,
-                                      extentOffset: gradeController.text.length,
-                                    );
+                              );
+                            })
+                          : Obx(() {
+                              // Make TextField reactive to grade changes by accessing through eventController
+                              final currentParticipant = widget.eventController.currentEvent.value.participants
+                                  .firstWhere((p) => p.number == participant.number, orElse: () => participant);
+                              final currentGrade = currentParticipant.instructorGrade;
+                              
+                              // Update controller if grade changed externally and field is not focused
+                              if (!_gradeFocusNodes[participant.number]!.hasFocus) {
+                                if (currentGrade > 0.0) {
+                                  final expectedText = currentGrade.toStringAsFixed(
+                                    currentGrade == currentGrade.roundToDouble() ? 0 : 2
+                                  );
+                                  if (gradeController.text != expectedText) {
+                                    gradeController.text = expectedText;
                                   }
-                                });
-                                // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
-                              },
-                              onEditingComplete: () {
-                                // Unfocus when editing is complete (Enter key)
-                                FocusScope.of(context).unfocus();
-                              },
-                              onChanged: (value) {
-                                // Parse as double, allowing up to 2 decimal places
-                                final grade = double.tryParse(value) ?? 0.0;
-                                // Round to 2 decimal places
-                                final roundedGrade = double.parse(grade.toStringAsFixed(2));
-                                widget.eventController.setParticipantsGrade(
-                                  participant.number,
-                                  roundedGrade,
-                                );
-                              },
-                            ),
+                                } else if (gradeController.text.isNotEmpty) {
+                                  gradeController.text = '';
+                                }
+                              }
+                              
+                              return Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  TextField(
+                                    controller: gradeController,
+                                    focusNode: _gradeFocusNodes[participant.number],
+                                    textAlign: TextAlign.center,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 14,
+                                    ),
+                                    decoration: InputDecoration(
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      disabledBorder: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: currentGrade <= 0.0 ? 20 : 4, // Extra padding for icon
+                                        vertical: 12,
+                                      ),
+                                      isDense: false,
+                                      // Show calculated grade as hint when field is empty or matches calculated
+                                      hintText: _getCalculatedGradeHint(currentParticipant),
+                                      hintStyle: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      // Select all text when focused
+                                      // Use a post-frame callback to ensure selection happens after focus
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted && gradeController.text.isNotEmpty) {
+                                          gradeController.selection = TextSelection(
+                                            baseOffset: 0,
+                                            extentOffset: gradeController.text.length,
+                                          );
+                                        }
+                                      });
+                                      // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
+                                    },
+                                    onEditingComplete: () {
+                                      // Unfocus when editing is complete (Enter key)
+                                      FocusScope.of(context).unfocus();
+                                    },
+                                    onChanged: (value) {
+                                      // Parse as double, allowing up to 2 decimal places
+                                      final grade = double.tryParse(value) ?? 0.0;
+                                      // Round to 2 decimal places
+                                      final roundedGrade = double.parse(grade.toStringAsFixed(2));
+                                      widget.eventController.setParticipantsGrade(
+                                        participant.number,
+                                        roundedGrade,
+                                      );
+                                    },
+                                  ),
+                                  // Show reminder icon when no instructor grade is entered
+                                  if (currentGrade <= 0.0 && !_gradeFocusNodes[participant.number]!.hasFocus)
+                                    Positioned(
+                                      right: 4,
+                                      child: Tooltip(
+                                        message: 'ציון מדריך לא הוזן',
+                                        child: Icon(
+                                          Icons.info_outline,
+                                          size: 16,
+                                          color: Colors.orange[700],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            }),
                     ),
                   ),
                   // System grade cell

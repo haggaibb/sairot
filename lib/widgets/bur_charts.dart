@@ -12,8 +12,9 @@ class BurCharts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final eventController = Get.put(EventController());
-    final List<Bur> participantsGrades = eventController.currentEvent.value.burGrades;
-    int participantIndex = eventController.currentEvent.value.participants.indexWhere((participant) => participant.number== number);
+    // Use activeParticipants and look up bur grades (same logic as grades page)
+    final activeParticipants = eventController.currentEvent.value.activeParticipants;
+    int currentParticipantIndex = activeParticipants.indexWhere((p) => p.number == number);
     return Scaffold(
       //appBar: AppBar(title: Text("Participant Progress Chart")),
       body: SafeArea(
@@ -26,15 +27,21 @@ class BurCharts extends StatelessWidget {
             Expanded(
               child: BarChart(
                 BarChartData(
-                  barGroups: participantsGrades.asMap().entries.map((entry) {
+                  barGroups: activeParticipants.asMap().entries.map((entry) {
                     int index = entry.key;
-                    double grade = entry.value.burGrade;
+                    int participantNumber = entry.value.number;
+                    // Look up bur grade from burGrades collection (same logic as grades page)
+                    int burIndex = eventController.currentEvent.value.burGrades
+                        .indexWhere((bur) => bur.id == participantNumber);
+                    double grade = (burIndex != -1) 
+                        ? eventController.currentEvent.value.burGrades[burIndex].burGrade 
+                        : 0.0;
                     return BarChartGroupData(
-                      x: participantsGrades[index].id,
+                      x: participantNumber,
                       barRods: [
                         BarChartRodData(
                           toY:  grade,
-                          color: participantIndex==index ? Colors.green : Colors.black, // Highlight the current round
+                          color: currentParticipantIndex == index ? Colors.green : Colors.black, // Highlight the current participant
                           width: 20,
                         ),
                       ],

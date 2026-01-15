@@ -198,7 +198,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                 : 0.0;
                                             return Padding(
                                               padding: EdgeInsets.all(7.5),
-                                              child: ElevatedButton(
+                                              child: Obx(() => ElevatedButton(
                                                   style: ElevatedButton.styleFrom(
                                                       foregroundColor: Colors.black,
                                                       backgroundColor:
@@ -231,7 +231,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                       .toString(),
                                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
 
-                                                  )),
+                                                  ))),
                                             );
                                           }),
                                         );
@@ -341,6 +341,9 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                             _.currentEvent.value
                                                                 .burEndTime = null;
                                                           });
+                                                          // Trigger reactive update
+                                                          _.currentEvent.refresh();
+                                                          _.update();
                                                           // Restart timer
                                                           _timer?.cancel();
                                                           _timer = Timer.periodic(Duration(seconds: 30), (Timer timer) {
@@ -348,9 +351,10 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                               runTime = eventController.currentEvent.value.getBurRunTime();
                                                             });
                                                           });
-                                                          eventController
-                                                              .currentEvent.value
-                                                              .saveToFirestore();
+                                                          // Use non-blocking save to prevent delays when offline
+                                                          eventController.saveEventWithOfflineSupport(
+                                                            eventController.currentEvent.value
+                                                          );
                                                           eventController.loading.value =
                                                           false;
                                                         }
@@ -396,7 +400,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                               : 0.0;
                                           return Padding(
                                             padding: EdgeInsets.all(7.5),
-                                            child: ElevatedButton(
+                                            child: Obx(() => ElevatedButton(
                                                 style: ElevatedButton.styleFrom(
                                                     foregroundColor: Colors.black,
                                                     backgroundColor:
@@ -429,7 +433,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                     .toString(),
                                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
 
-                                                )),
+                                                ))),
                                           );
                                         })),
                                   ),
@@ -521,35 +525,38 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                     foregroundColor: Colors.white,
                                                     minimumSize: Size(200, 60),
                                                   ),
-                                                  onPressed: () async {
-                                                    var res = await showDialog(
-                                                      context: context,
-                                                      builder:
-                                                          (BuildContext context) {
-                                                        return YesNoDialog();
+                                                      onPressed: () async {
+                                                        var res = await showDialog(
+                                                          context: context,
+                                                          builder:
+                                                              (BuildContext context) {
+                                                            return YesNoDialog();
+                                                          },
+                                                        );
+                                                        if (res) {
+                                                          eventController.loading.value =
+                                                          true;
+                                                          setState(() {
+                                                            _.currentEvent.value
+                                                                .burEndTime = null;
+                                                          });
+                                                          // Trigger reactive update
+                                                          _.currentEvent.refresh();
+                                                          _.update();
+                                                          // Restart timer
+                                                          _timer = Timer.periodic(Duration(seconds: 30), (Timer timer) {
+                                                            setState(() {
+                                                              runTime = eventController.currentEvent.value.getBurRunTime();
+                                                            });
+                                                          });
+                                                          // Use non-blocking save to prevent delays when offline
+                                                          eventController.saveEventWithOfflineSupport(
+                                                            eventController.currentEvent.value
+                                                          );
+                                                          eventController.loading.value =
+                                                          false;
+                                                        }
                                                       },
-                                                    );
-                                                    if (res) {
-                                                      eventController.loading.value =
-                                                      true;
-                                                      setState(() {
-                                                        _.currentEvent.value
-                                                            .burEndTime = null;
-                                                      });
-                                                      // Restart timer
-                                                      _timer = Timer.periodic(Duration(seconds: 30), (Timer timer) {
-                                                        setState(() {
-                                                          runTime = eventController.currentEvent.value.getBurRunTime();
-                                                        });
-                                                      });
-                                                      // Use non-blocking save to prevent delays when offline
-                                                      eventController.saveEventWithOfflineSupport(
-                                                        eventController.currentEvent.value
-                                                      );
-                                                      eventController.loading.value =
-                                                      false;
-                                                    }
-                                                  },
                                                   child: Text('פתיחה מחדש לעריכה',
                                                     style: TextStyle(fontWeight: FontWeight.bold,fontSize: scaledFontSize),
                                                   )),
@@ -599,7 +606,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                     : 0.0;
                                                 return Padding(
                                                   padding: const EdgeInsets.all(5.0),
-                                                  child: ElevatedButton(
+                                                  child: Obx(() => ElevatedButton(
                                                       style: ElevatedButton.styleFrom(
                                                           foregroundColor: Colors.black,
                                                           backgroundColor:
@@ -632,7 +639,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                           .toString(),
                                                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: eventController.userFontSize.value),
 
-                                                      )),
+                                                      ))),
                                                 );
                                               }),
                                             );
@@ -739,15 +746,19 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
                                                               _.currentEvent.value
                                                                   .burEndTime = null;
                                                             });
+                                                            // Trigger reactive update
+                                                            _.currentEvent.refresh();
+                                                            _.update();
                                                             // Restart timer
                                                             _timer = Timer.periodic(Duration(seconds: 30), (Timer timer) {
                                                               setState(() {
                                                                 runTime = eventController.currentEvent.value.getBurRunTime();
                                                               });
                                                             });
-                                                            eventController
-                                                                .currentEvent.value
-                                                                .saveToFirestore();
+                                                            // Use non-blocking save to prevent delays when offline
+                                                            eventController.saveEventWithOfflineSupport(
+                                                              eventController.currentEvent.value
+                                                            );
                                                             eventController.loading.value =
                                                             false;
                                                           }

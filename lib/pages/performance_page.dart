@@ -22,6 +22,8 @@ class PerformancePage extends StatefulWidget {
 class _PerformancePageState extends State<PerformancePage> {
   bool _isGeneratingCommentsSummary = false;
   String? _commentsSummary;
+  final TextEditingController _finalGradeController = TextEditingController();
+  final FocusNode _finalGradeFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -29,7 +31,26 @@ class _PerformancePageState extends State<PerformancePage> {
     // Load comments summary in background (non-blocking)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadCommentsSummary();
+      _initializeFinalGrade();
     });
+  }
+
+  void _initializeFinalGrade() {
+    int number = int.parse(Get.parameters['number'] ?? '0');
+    Participant p = eventController.getParticipant(number);
+    // Initialize controller with current grade
+    if (p.instructorGrade > 0) {
+      _finalGradeController.text = p.instructorGrade.toStringAsFixed(
+        p.instructorGrade == p.instructorGrade.roundToDouble() ? 0 : 2
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _finalGradeController.dispose();
+    _finalGradeFocusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCommentsSummary() async {
@@ -177,6 +198,22 @@ class _PerformancePageState extends State<PerformancePage> {
   Widget build(BuildContext context) {
     int number = int.parse(Get.parameters['number'] ?? '0');
     Participant p = eventController.getParticipant(number);
+    
+    // Update final grade controller if participant changed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (p.instructorGrade > 0) {
+        final currentText = _finalGradeController.text;
+        final expectedText = p.instructorGrade.toStringAsFixed(
+          p.instructorGrade == p.instructorGrade.roundToDouble() ? 0 : 2
+        );
+        if (currentText != expectedText && !_finalGradeFocusNode.hasFocus) {
+          _finalGradeController.text = expectedText;
+        }
+      } else if (_finalGradeController.text.isNotEmpty && !_finalGradeFocusNode.hasFocus) {
+        _finalGradeController.clear();
+      }
+    });
+    
     // 📏 **Detect Tablet or Mobile**
     bool isTablet = MediaQuery.of(context).size.width > 600;
     // 🎨 **Dynamic Sizes for Mobile vs. Tablet**
@@ -249,13 +286,93 @@ class _PerformancePageState extends State<PerformancePage> {
                   style: TextStyle(
                       fontSize: titleFontSize, fontWeight: FontWeight.bold),
                 ),
-                // Show final grade if available
-                if (p.instructorGrade > 0)
-                  Text(
-                    'ציון סופי: ${p.instructorGrade.toStringAsFixed(2)}',
-                    style: TextStyle(
-                        fontSize: subtitleFontSize, fontWeight: FontWeight.bold),
+                SizedBox(height: 15),
+                // Final Grade Input Section
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.4),
+                      width: 2,
+                    ),
                   ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'ציון סופי מדריך:',
+                        style: TextStyle(
+                          fontSize: baseFontSize,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(width: 15),
+                      Container(
+                        width: isTablet ? 120 : 100,
+                        child: TextField(
+                          controller: _finalGradeController,
+                          focusNode: _finalGradeFocusNode,
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.numberWithOptions(decimal: true),
+                          style: TextStyle(
+                            fontSize: baseFontSize,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.3),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.6),
+                                width: 2,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.6),
+                                width: 2,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.white,
+                                width: 2,
+                              ),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            hintText: '0.00',
+                            hintStyle: TextStyle(
+                              color: Colors.white.withOpacity(0.6),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            // Update grade as user types
+                            final grade = double.tryParse(value) ?? 0.0;
+                            if (grade >= 0) {
+                              // Round to 2 decimal places
+                              final roundedGrade = double.parse(grade.toStringAsFixed(2));
+                              eventController.setParticipantsGrade(number, roundedGrade);
+                            }
+                          },
+                          onEditingComplete: () {
+                            // Unfocus when editing is complete
+                            _finalGradeFocusNode.unfocus();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 SizedBox(height: 10),
                 
                 // Comments Summary Section (AI-generated) - Only show if summary exists or is generating

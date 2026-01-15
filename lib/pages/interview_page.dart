@@ -174,11 +174,6 @@ class _InterviewPageState extends State<InterviewPage> with EventValidationMixin
                                                 ? Colors.green
                                                 : Theme.of(context).colorScheme.primary),
                                         onPressed: () async {
-                                          if (eventController
-                                              .currentEvent
-                                              .value
-                                              .finalized) return;
-                                          
                                           final participant = eventController
                                               .currentEvent
                                               .value

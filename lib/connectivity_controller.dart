@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'event_controller.dart';
 import 'services/sync_queue_service.dart';
 import 'services/local_storage_service.dart';
+import 'services/instructor_profile_service.dart';
 import 'models/event.dart';
 
 class ConnectivityController extends GetxController {
@@ -61,11 +62,18 @@ class ConnectivityController extends GetxController {
       final wasConnected = isConnected.value;
       isConnected.value = true;
       
-      // If we just gained connection, process sync queue
-      if (!wasConnected) {
-        print("🔄 Connection restored, processing sync queue...");
-        processSyncQueue();
-      }
+        // If we just gained connection, process sync queue
+        if (!wasConnected) {
+          print("🔄 Connection restored, processing sync queue...");
+          await processSyncQueue();
+          // Reload instructor custom comments after sync to get latest from Firebase
+          try {
+            await eventController.loadInstructorCustomComments();
+            print("✅ Reloaded instructor custom comments after connection restored");
+          } catch (e) {
+            print('⚠️ Error reloading comments after connection restored: $e');
+          }
+        }
       return;
     }
 
@@ -88,7 +96,14 @@ class ConnectivityController extends GetxController {
         // If we just gained connection, process sync queue
         if (!wasConnected) {
           print("🔄 Connection restored, processing sync queue...");
-          processSyncQueue();
+          await processSyncQueue();
+          // Reload instructor custom comments after sync to get latest from Firebase
+          try {
+            await eventController.loadInstructorCustomComments();
+            print("✅ Reloaded instructor custom comments after connection restored");
+          } catch (e) {
+            print('⚠️ Error reloading comments after connection restored: $e');
+          }
         }
       } else {
         print("⚠️ No real internet access.");
@@ -203,6 +218,136 @@ class ConnectivityController extends GetxController {
                 print("❌ Error syncing event deletion: $e");
                 await SyncQueueService.instance.incrementRetryCount(operation);
                 print("⚠️ Failed to sync event deletion, will retry");
+              }
+              break;
+
+            case 'saveInstructorCustomComment':
+              // Save instructor custom comment to Firestore
+              try {
+                final instructorId = operation.data['instructorId'] as String;
+                final exerciseType = operation.data['exerciseType'] as String;
+                final comment = operation.data['comment'] as String;
+                
+                // Load current state from Firebase first (to get latest data)
+                Map<String, List<String>> currentComments = {};
+                try {
+                  final docSnapshot = await InstructorProfileService.firestore
+                      .collection('Instructors')
+                      .doc(instructorId)
+                      .collection('profile')
+                      .doc('customComments')
+                      .get();
+                  
+                  if (docSnapshot.exists && docSnapshot.data() != null) {
+                    final data = docSnapshot.data() as Map<String, dynamic>;
+                    data.forEach((key, value) {
+                      if (value is List) {
+                        currentComments[key] = value.map((e) => e.toString()).toList();
+                      }
+                    });
+                  }
+                } catch (e) {
+                  print('⚠️ Error loading current Firebase state for merge: $e');
+                  // Continue with empty map, will add the comment
+                }
+                
+                // Merge the queued comment with Firebase state (add if not exists)
+                if (!currentComments.containsKey(exerciseType)) {
+                  currentComments[exerciseType] = [];
+                }
+                if (!currentComments[exerciseType]!.contains(comment)) {
+                  currentComments[exerciseType]!.add(comment);
+                }
+                
+                // Save merged result to Firebase
+                await InstructorProfileService.firestore
+                    .collection('Instructors')
+                    .doc(instructorId)
+                    .collection('profile')
+                    .doc('customComments')
+                    .set(currentComments);
+                
+                // Update local cache with merged result
+                await LocalStorageService.instance.saveInstructorCustomCommentsLocally(instructorId, currentComments);
+                
+                await SyncQueueService.instance.removeOperation(key);
+                print("✅ Synced saveInstructorCustomComment: $exerciseType - $comment");
+                
+                // Reload comments in EventController to update UI
+                try {
+                  await eventController.loadInstructorCustomComments();
+                } catch (e) {
+                  print('⚠️ Error reloading comments after sync: $e');
+                }
+              } catch (e) {
+                print("❌ Error syncing saveInstructorCustomComment: $e");
+                await SyncQueueService.instance.incrementRetryCount(operation);
+                print("⚠️ Failed to sync saveInstructorCustomComment, will retry");
+              }
+              break;
+
+            case 'removeInstructorCustomComment':
+              // Remove instructor custom comment from Firestore
+              try {
+                final instructorId = operation.data['instructorId'] as String;
+                final exerciseType = operation.data['exerciseType'] as String;
+                final comment = operation.data['comment'] as String;
+                
+                // Load current state from Firebase first
+                Map<String, List<String>> currentComments = {};
+                try {
+                  final docSnapshot = await InstructorProfileService.firestore
+                      .collection('Instructors')
+                      .doc(instructorId)
+                      .collection('profile')
+                      .doc('customComments')
+                      .get();
+                  
+                  if (docSnapshot.exists && docSnapshot.data() != null) {
+                    final data = docSnapshot.data() as Map<String, dynamic>;
+                    data.forEach((key, value) {
+                      if (value is List) {
+                        currentComments[key] = value.map((e) => e.toString()).toList();
+                      }
+                    });
+                  }
+                } catch (e) {
+                  print('⚠️ Error loading current Firebase state for merge: $e');
+                  // Continue with empty map
+                }
+                
+                // Remove comment from merged state
+                if (currentComments.containsKey(exerciseType)) {
+                  currentComments[exerciseType]!.remove(comment);
+                  if (currentComments[exerciseType]!.isEmpty) {
+                    currentComments.remove(exerciseType);
+                  }
+                }
+                
+                // Save to Firebase
+                await InstructorProfileService.firestore
+                    .collection('Instructors')
+                    .doc(instructorId)
+                    .collection('profile')
+                    .doc('customComments')
+                    .set(currentComments);
+                
+                // Update local cache
+                await LocalStorageService.instance.saveInstructorCustomCommentsLocally(instructorId, currentComments);
+                
+                await SyncQueueService.instance.removeOperation(key);
+                print("✅ Synced removeInstructorCustomComment: $exerciseType - $comment");
+                
+                // Reload comments in EventController to update UI
+                try {
+                  await eventController.loadInstructorCustomComments();
+                } catch (e) {
+                  print('⚠️ Error reloading comments after sync: $e');
+                }
+              } catch (e) {
+                print("❌ Error syncing removeInstructorCustomComment: $e");
+                await SyncQueueService.instance.incrementRetryCount(operation);
+                print("⚠️ Failed to sync removeInstructorCustomComment, will retry");
               }
               break;
 
