@@ -409,30 +409,20 @@ class EventController extends GetxController {
     }
     if (systemBox.length > 0) {
       final loginData = systemBox.get('login');
-      print(
-          '🔵 initSystemHiveBox: Read login data: $loginData (Type: ${loginData.runtimeType})');
-
       // Handle web's stricter typing - ensure it's a System
       if (loginData is System) {
         system.value = loginData;
-        print(
-            '✅ initSystemHiveBox: Successfully loaded System object via direct cast');
       } else if (loginData != null) {
         // Try to cast it - on web Hive might return it in a different wrapper
         try {
           system.value = loginData as System;
-          print(
-              '✅ initSystemHiveBox: Successfully loaded System object via explicit cast');
         } catch (e) {
           print('⚠️ Error loading login data from cache: $e');
           // If casting fails, create a new System object
           system.value = System();
         }
-      } else {
-        print('⚠️ initSystemHiveBox: loginData is null');
       }
     } else {
-      print('⚠️ initSystemHiveBox: Box is empty, creating default System');
       await systemBox.put('login', system.value);
       return false;
     }
@@ -2725,7 +2715,6 @@ class EventController extends GetxController {
     }
     if (systemBox.length > 0) {
       if (system.value.loggedIn != '') {
-        print('🔵 checkForLocalLogin: Logged in as ${system.value.loggedIn}');
         loggedIn.value = true;
         toggleTheme(system.value.isDarkMode);
 
@@ -2956,12 +2945,9 @@ class EventController extends GetxController {
   Future<void> loadUxPreferences() async {
     try {
       if (!loggedIn.value || currentInstructor.id.isEmpty) {
-        print(
-            '⚠️ loadUxPreferences: Skipping load - loggedIn=${loggedIn.value}, instructorId=${currentInstructor.id}');
         return;
       }
 
-      print('🔵 loadUxPreferences calling service for ${currentInstructor.id}');
       final prefs = await InstructorProfileService.loadUxPreferences(
           currentInstructor.id);
       uxPreferences.value = prefs;
@@ -2971,9 +2957,6 @@ class EventController extends GetxController {
       themeController.toggleTheme(prefs.theme == 'dark');
 
       themeController.toggleTheme(prefs.theme == 'dark');
-
-      print(
-          '✅ Loaded UX preferences for instructor: inOrderOfArrival=${prefs.inOrderOfArrival}');
     } catch (e) {
       print('❌ Error loading instructor UX preferences: $e');
     }
@@ -2981,11 +2964,9 @@ class EventController extends GetxController {
 
   /// 💾 Update and save instructor's UX preferences
   Future<bool> updateUxPreferences(InstructorUxPreferences newPrefs) async {
-    print(
-        '🔵 EventController (Hash: $hashCode): updateUxPreferences called with inOrderOfArrival=${newPrefs.inOrderOfArrival}');
     if (!loggedIn.value || currentInstructor.id.isEmpty) {
       print(
-          '⚠️ EventController (Hash: $hashCode): updateUxPreferences skipped - Not logged in or no instructor ID');
+          '⚠️ EventController: Cannot save preferences - Not logged in (loggedIn=${loggedIn.value}) or empty instructor ID (id=${currentInstructor.id})');
       return false;
     }
 

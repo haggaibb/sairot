@@ -176,8 +176,6 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
                               .activeParticipants = activeList;
                           eventController.update();
                         }
-                        print(
-                            '🔵 AlonkaPage: Toggling inOrderOfArrival from ${!newValue} to $newValue. Controller Hash: ${eventController.hashCode}');
                         var updatedPrefs = eventController.uxPreferences.value
                             .copyWith(inOrderOfArrival: newValue);
                         eventController.updateUxPreferences(updatedPrefs);

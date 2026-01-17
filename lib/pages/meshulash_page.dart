@@ -179,8 +179,6 @@ class _MeshulashPageState extends State<MeshulashPage>
                         final currentValue = eventController
                             .uxPreferences.value.inOrderOfArrival;
                         final newValue = !currentValue;
-                        print(
-                            '🔵 MeshulashPage: Toggling inOrderOfArrival from $currentValue to $newValue. Controller Hash: ${eventController.hashCode}');
                         var updatedPrefs = eventController.uxPreferences.value
                             .copyWith(inOrderOfArrival: newValue);
                         eventController.updateUxPreferences(updatedPrefs);
