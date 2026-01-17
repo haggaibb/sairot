@@ -25,12 +25,13 @@ import 'services/local_storage_service.dart';
 import 'services/sync_queue_service.dart';
 import 'services/instructor_profile_service.dart';
 import 'connectivity_controller.dart';
-
+import 'models/instructor_ux_preferences.dart';
 
 class EventController extends GetxController {
   var loading = false.obs;
   var widgetLoading = false.obs;
-  var unfinalizedLoading = true.obs; // Start as true to show loading message initially
+  var unfinalizedLoading =
+      true.obs; // Start as true to show loading message initially
   var pastEventsLoading = false.obs;
   var backgroundLoading = false.obs; // Track background cache/network loading
   GradeSettings gradesData = GradeSettings();
@@ -45,16 +46,23 @@ class EventController extends GetxController {
   var eventDays = <String, List<String>>{}.obs; // Map: Event -> Days with data
   var selectedEvent = RxnString();
   var selectedDay = RxnString();
-  Rx<Event> currentEvent = Event(date: DateTime.now().toString(), instructorId: '', eventName: '').obs;
+  Rx<Event> currentEvent =
+      Event(date: DateTime.now().toString(), instructorId: '', eventName: '')
+          .obs;
   List<Event> unfinalizedEvents = <Event>[].obs;
+
   /// Alonka
   RxInt currentAlonkaRound = 0.obs;
+
   /// Meshulash
   RxBool meshulashEditModeOn = true.obs;
+
   /// Sakim
   RxBool sakimEditModeOn = true.obs;
+
   /// Display
   int numberOfCols = 3;
+
   /// firebase
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   GradeSettings firestoreGradeSettings = GradeSettings();
@@ -65,25 +73,34 @@ class EventController extends GetxController {
   Rx<System> system = System().obs;
   RxBool loggedIn = false.obs;
   Instructor currentInstructor =
-   Instructor(id: '', firstName: '', lastName: '', mobile: '');
+      Instructor(id: '', firstName: '', lastName: '', mobile: '');
   RxBool isConnected = false.obs;
+
   /// Hive
   var systemBox;
+
   /// Settings
   RxDouble userFontSize = 18.0.obs;
   RxDouble userChildAspectRatio = 3.0.obs;
+
   /// Grades table sort state (shared with performance page)
   Rx<SortColumn?> sortColumn = SortColumn.systemGrade.obs;
   Rx<SortDirection> sortDirection = SortDirection.descending.obs;
+
   /// Progress bar state
   RxBool showProgressBar = false.obs;
+
   /// Instructor custom comments (exercise type -> list of comments)
-  RxMap<String, List<String>> instructorCustomComments = <String, List<String>>{}.obs;
-  
+  RxMap<String, List<String>> instructorCustomComments =
+      <String, List<String>>{}.obs;
+
+  /// Instructor UX preferences
+  Rx<InstructorUxPreferences> uxPreferences = InstructorUxPreferences().obs;
+
   /// Retention period for finalized events in local cache (days)
   /// Default: 30 days - finalized events older than this will be cleaned up
   static const int finalizedEventRetentionDays = 30;
-  
+
   /// Get sorted list of active participants based on current sort settings
   List<Participant> getSortedActiveParticipants() {
     final participants = List<Participant>.from(
@@ -103,8 +120,12 @@ class EventController extends GetxController {
           break;
         case SortColumn.finalGrade:
           // Use instructor grade if set (> 0), otherwise use calculated/hint value
-          final gradeA = a.instructorGrade > 0.0 ? a.instructorGrade : getCalculatedInstructorGrade(a);
-          final gradeB = b.instructorGrade > 0.0 ? b.instructorGrade : getCalculatedInstructorGrade(b);
+          final gradeA = a.instructorGrade > 0.0
+              ? a.instructorGrade
+              : getCalculatedInstructorGrade(a);
+          final gradeB = b.instructorGrade > 0.0
+              ? b.instructorGrade
+              : getCalculatedInstructorGrade(b);
           comparison = gradeA.compareTo(gradeB);
           break;
         case SortColumn.systemGrade:
@@ -128,33 +149,36 @@ class EventController extends GetxController {
           comparison = a.instructorGrade.compareTo(b.instructorGrade);
           break;
         case SortColumn.instructorMeshulash:
-          comparison = a.instructorMeshulashGrade.compareTo(b.instructorMeshulashGrade);
+          comparison =
+              a.instructorMeshulashGrade.compareTo(b.instructorMeshulashGrade);
           break;
         case SortColumn.instructorAlonka:
-          comparison = a.instructorAlonkaGrade.compareTo(b.instructorAlonkaGrade);
+          comparison =
+              a.instructorAlonkaGrade.compareTo(b.instructorAlonkaGrade);
           break;
         case SortColumn.instructorSakim:
           comparison = a.instructorSakimGrade.compareTo(b.instructorSakimGrade);
           break;
       }
 
-      return sortDirection.value == SortDirection.ascending ? comparison : -comparison;
+      return sortDirection.value == SortDirection.ascending
+          ? comparison
+          : -comparison;
     });
 
     return participants;
   }
 
-
-
   @override
   onInit() async {
     loading.value = true;
-    
+
     // Step 1: Initialize storage (fast, local operations)
     if (kIsWeb) {
       // Web: Hive uses IndexedDB automatically, no path needed
       if (!Hive.isAdapterRegistered(102)) Hive.registerAdapter(SystemAdapter());
-      if (!Hive.isAdapterRegistered(200)) Hive.registerAdapter(AccessibilityAdapter());
+      if (!Hive.isAdapterRegistered(200))
+        Hive.registerAdapter(AccessibilityAdapter());
       // Instructor adapter (103) is generated in instructor.g.dart (part of instructor.dart)
       // It should be accessible, but if registration fails, LocalStorageService will handle it
       try {
@@ -171,7 +195,8 @@ class EventController extends GetxController {
       // Mobile: Get the documents directory for Hive file storage
       var dir = await getApplicationDocumentsDirectory();
       if (!Hive.isAdapterRegistered(102)) Hive.registerAdapter(SystemAdapter());
-      if (!Hive.isAdapterRegistered(200)) Hive.registerAdapter(AccessibilityAdapter());
+      if (!Hive.isAdapterRegistered(200))
+        Hive.registerAdapter(AccessibilityAdapter());
       // Instructor adapter (103) is generated in instructor.g.dart (part of instructor.dart)
       // It should be accessible, but if registration fails, LocalStorageService will handle it
       try {
@@ -185,15 +210,15 @@ class EventController extends GetxController {
       }
       await Hive.initFlutter(dir.path);
     }
-    
+
     // Step 2: Initialize services (fast, local operations)
     await LocalStorageService.instance.initialize();
     await SyncQueueService.instance.initialize();
-    
+
     // Step 3: Load critical cached data first (fast, works offline)
     await initSystemHiveBox();
     await checkForLocalLogin(); // Works offline with cached instructors
-    
+
     // Step 4: Show UI immediately if logged in (don't wait for network)
     if (loggedIn.value) {
       // Don't load unfinalized events here - wait for connectivity check to avoid showing stale data
@@ -203,11 +228,11 @@ class EventController extends GetxController {
       // User can manually select an event from the list
       // await restoreSelectedEventAndDay(); // Disabled to prevent flash of stale events
     }
-    
+
     // Step 5: Set loading to false to show UI
     super.onInit();
     loading.value = false;
-    
+
     // Step 6: Do network operations in background (non-blocking)
     backgroundLoading.value = true; // Show background loading indicator
     _initializeInBackground();
@@ -226,12 +251,13 @@ class EventController extends GetxController {
             isConnected.value = false;
           },
         );
-        print('🔍 Connectivity check completed. isConnected: ${isConnected.value}');
+        print(
+            '🔍 Connectivity check completed. isConnected: ${isConnected.value}');
       } catch (e) {
         print('⚠️ Connectivity check error (non-critical): $e');
         isConnected.value = false;
       }
-      
+
       // Load network-dependent data in background (non-blocking when offline)
       // Only do Firestore operations if online to avoid blocking
       if (isConnected.value) {
@@ -253,24 +279,30 @@ class EventController extends GetxController {
         getCurrentEventName(); // Loads from local cache
         getUpdatedInstructorsList(); // Loads from local cache
       }
-      
+
       if (loggedIn.value) {
         // Load instructor's custom comments (non-blocking - fire and forget)
         loadInstructorCustomComments().catchError((e) {
           print('⚠️ Error loading custom comments (non-critical): $e');
         });
-        
+
+        // Load instructor's UX preferences (non-blocking - fire and forget)
+        loadUxPreferences().catchError((e) {
+          print('⚠️ Error loading UX preferences (non-critical): $e');
+        });
+
         // Load unfinalized events (from Firestore if online, local if offline)
         // This is done here after connectivity check to avoid showing stale data
         // Don't await - function returns immediately with local events, Firebase fetch happens in background
         getUnfinalizedEvents();
-        
+
         // Cleanup old finalized events from local cache (non-blocking)
         // Run after loading events to ensure we don't delete currently loaded events
         cleanupOldFinalizedEvents().catchError((e) {
-          print('⚠️ Error during cleanup of old finalized events (non-critical): $e');
+          print(
+              '⚠️ Error during cleanup of old finalized events (non-critical): $e');
         });
-        
+
         // Refresh events from network in background if online (non-blocking)
         if (isConnected.value) {
           fetchInstructorEvents().then((_) {
@@ -288,10 +320,11 @@ class EventController extends GetxController {
               print('⚠️ Error restoring selected event (non-critical): $e');
             });
           }).catchError((e) {
-            print('⚠️ Error fetching instructor events from local (non-critical): $e');
+            print(
+                '⚠️ Error fetching instructor events from local (non-critical): $e');
           });
         }
-        
+
         // Process sync queue in background (non-blocking)
         if (isConnected.value) {
           final connectivityController = Get.put(ConnectivityController());
@@ -314,28 +347,57 @@ class EventController extends GetxController {
   void onClose() {
     super.onClose();
   }
+
   /// Settings
   setUserAccessibility(Accessibility accessibility) {
     switch (accessibility) {
       case Accessibility.normal:
-        userFontSize.value = systemSettings.accessibilitySettings['normal']['font_size'].toDouble() ?? 18;
-        userChildAspectRatio.value = systemSettings.accessibilitySettings['normal']['child_aspect_ratio'].toDouble() ?? 3;
+        userFontSize.value = systemSettings.accessibilitySettings['normal']
+                    ['font_size']
+                .toDouble() ??
+            18;
+        userChildAspectRatio.value = systemSettings
+                .accessibilitySettings['normal']['child_aspect_ratio']
+                .toDouble() ??
+            3;
         system.value.userFontSize = userFontSize.value;
         system.value.save();
         break;
       case Accessibility.big:
-        userFontSize.value = systemSettings.accessibilitySettings['big']['font_size'].toDouble() ?? 26;
-        userChildAspectRatio.value = systemSettings.accessibilitySettings['big']['child_aspect_ratio'].toDouble() ?? 2.5;        system.value.userFontSize = userFontSize.value;
+        userFontSize.value = systemSettings.accessibilitySettings['big']
+                    ['font_size']
+                .toDouble() ??
+            26;
+        userChildAspectRatio.value = systemSettings.accessibilitySettings['big']
+                    ['child_aspect_ratio']
+                .toDouble() ??
+            2.5;
+        system.value.userFontSize = userFontSize.value;
         system.value.save();
         break;
       case Accessibility.biggest:
-        userFontSize.value = (systemSettings.accessibilitySettings['biggest']?['font_size'] as num?)?.toDouble() ?? 30.0;
-        userChildAspectRatio.value = systemSettings.accessibilitySettings['biggest']['child_aspect_ratio'].toDouble() ?? 2;        system.value.userFontSize = userFontSize.value;
+        userFontSize.value = (systemSettings.accessibilitySettings['biggest']
+                    ?['font_size'] as num?)
+                ?.toDouble() ??
+            30.0;
+        userChildAspectRatio.value = systemSettings
+                .accessibilitySettings['biggest']['child_aspect_ratio']
+                .toDouble() ??
+            2;
+        system.value.userFontSize = userFontSize.value;
         system.value.save();
         break;
     }
     system.refresh(); // Ensure UI updates
     update(); // Notify GetX listeners
+
+    // Save font size to UX preferences
+    if (loggedIn.value && currentInstructor.id.isNotEmpty) {
+      final updatedPrefs = uxPreferences.value.copyWith(
+        fontSize: userFontSize.value,
+      );
+      updateUxPreferences(updatedPrefs);
+    }
   }
 
   /// Hive
@@ -347,24 +409,35 @@ class EventController extends GetxController {
     }
     if (systemBox.length > 0) {
       final loginData = systemBox.get('login');
+      print(
+          '🔵 initSystemHiveBox: Read login data: $loginData (Type: ${loginData.runtimeType})');
+
       // Handle web's stricter typing - ensure it's a System
       if (loginData is System) {
         system.value = loginData;
+        print(
+            '✅ initSystemHiveBox: Successfully loaded System object via direct cast');
       } else if (loginData != null) {
         // Try to cast it - on web Hive might return it in a different wrapper
         try {
           system.value = loginData as System;
+          print(
+              '✅ initSystemHiveBox: Successfully loaded System object via explicit cast');
         } catch (e) {
           print('⚠️ Error loading login data from cache: $e');
           // If casting fails, create a new System object
           system.value = System();
         }
+      } else {
+        print('⚠️ initSystemHiveBox: loginData is null');
       }
     } else {
+      print('⚠️ initSystemHiveBox: Box is empty, creating default System');
       await systemBox.put('login', system.value);
       return false;
     }
   }
+
   deleteSystemHiveBox() async {
     await Hive.deleteBoxFromDisk('system');
     Get.offAllNamed('/front_door');
@@ -391,7 +464,8 @@ class EventController extends GetxController {
                   if (value is Map) {
                     final converted = <String, dynamic>{};
                     for (var entry in value.entries) {
-                      converted[entry.key.toString()] = convertValue(entry.value);
+                      converted[entry.key.toString()] =
+                          convertValue(entry.value);
                     }
                     return converted;
                   } else if (value is List) {
@@ -399,7 +473,7 @@ class EventController extends GetxController {
                   }
                   return value;
                 }
-                
+
                 // Create a new Map and copy all entries, converting keys to String
                 final tempMap = <String, dynamic>{};
                 for (var entry in cachedSettingsData.entries) {
@@ -415,7 +489,7 @@ class EventController extends GetxController {
               cachedSettingsJson = null;
             }
           }
-          
+
           if (cachedSettingsJson != null) {
             systemSettings = SystemSettings.fromJson(cachedSettingsJson);
             setUserAccessibility(system.value.accessibility);
@@ -430,8 +504,10 @@ class EventController extends GetxController {
       // If online, try to fetch from Firestore and update cache
       if (isConnected.value) {
         try {
-          DocumentSnapshot docSnapshot =
-              await firestore.collection('System').doc('app_system_settings').get();
+          DocumentSnapshot docSnapshot = await firestore
+              .collection('System')
+              .doc('app_system_settings')
+              .get();
           if (docSnapshot.exists) {
             // Handle web's IdentityMap type - convert to regular Map
             final data = docSnapshot.data();
@@ -441,10 +517,10 @@ class EventController extends GetxController {
             } else {
               settingsMap = Map<String, dynamic>.from(data as Map);
             }
-            
+
             systemSettings = SystemSettings.fromJson(settingsMap);
             setUserAccessibility(system.value.accessibility);
-            
+
             // Update local cache
             if (systemBox != null) {
               await systemBox!.put('systemSettings', systemSettings.toJson());
@@ -486,47 +562,52 @@ class EventController extends GetxController {
   Instructor? getInstructor(String id) {
     return instructorList.firstWhereOrNull((i) => i.id == id);
   }
-  
+
   /// 🔎 Get a List of Unfinalized Events for an Instructor in a Specific Event (works offline)
   getUnfinalizedEvents() async {
     AppLogger.debug(" ➡️ get Unfinalized Events.");
     try {
-      unfinalizedLoading.value=true;
+      unfinalizedLoading.value = true;
       unfinalizedEvents.clear();
-      
+
       // If currentEventName is 'playground', load all unfinalized events for the instructor
       // Otherwise, load only events for the current event name
-      final shouldLoadAllEvents = currentEventName == 'playground' || currentEventName.isEmpty;
-      
+      final shouldLoadAllEvents =
+          currentEventName == 'playground' || currentEventName.isEmpty;
+
       // LOCAL-FIRST STRATEGY: Load from local storage first
-      final localEvents = await LocalStorageService.instance.getLocalUnfinalizedEvents();
+      final localEvents =
+          await LocalStorageService.instance.getLocalUnfinalizedEvents();
       // Filter by current instructor, exclude playground
       List<Event> filteredLocalEvents;
       if (shouldLoadAllEvents) {
         // Load all unfinalized events for this instructor (excluding playground)
-        filteredLocalEvents = localEvents.where((e) => 
-          e.instructorId == currentInstructor.id && 
-          e.eventName != 'playground'
-        ).toList();
+        filteredLocalEvents = localEvents
+            .where((e) =>
+                e.instructorId == currentInstructor.id &&
+                e.eventName != 'playground')
+            .toList();
       } else {
         // Load only events for current event name
-        filteredLocalEvents = localEvents.where((e) => 
-          e.instructorId == currentInstructor.id && 
-          e.eventName == currentEventName &&
-          e.eventName != 'playground'
-        ).toList();
+        filteredLocalEvents = localEvents
+            .where((e) =>
+                e.instructorId == currentInstructor.id &&
+                e.eventName == currentEventName &&
+                e.eventName != 'playground')
+            .toList();
       }
-      
+
       // Start with local events (these are the most up-to-date)
       if (filteredLocalEvents.isNotEmpty) {
         unfinalizedEvents.addAll(filteredLocalEvents);
-        print('✅ Loaded ${filteredLocalEvents.length} unfinalized events from local cache');
+        print(
+            '✅ Loaded ${filteredLocalEvents.length} unfinalized events from local cache');
       }
-      
+
       // Return immediately with local events to avoid blocking UI
       // Firebase fetch will happen in background if online
       unfinalizedLoading.value = false;
-      
+
       // If online, also fetch from Firebase to catch any events that might not be in local cache
       // But don't overwrite local events (local is source of truth)
       // Do this in background (non-blocking) with timeout to prevent delays when offline
@@ -539,103 +620,117 @@ class EventController extends GetxController {
             await Future.any([
               Future(() async {
                 if (shouldLoadAllEvents) {
-            // Load all unfinalized events across all event names for this instructor
-            QuerySnapshot eventsSnapshot = await firestore.collection('Results')
-                .doc(currentInstructor.id)
-                .collection('events')
-                .get();
-            
-            // Merge Firebase events with local (don't overwrite local events)
-            // Use a map to track events by key to avoid duplicates
-            final Map<String, Event> eventMap = {};
-            // First, add all local events to the map (these take priority)
-            for (var localEvent in filteredLocalEvents) {
-              final key = '${localEvent.eventName}/${localEvent.date}';
-              eventMap[key] = localEvent;
-            }
-            
-            for (var eventDoc in eventsSnapshot.docs) {
-              if (eventDoc.id == 'playground') continue; // Skip playground
-              
-              QuerySnapshot daysSnapshot = await firestore.collection('Results')
-                  .doc(currentInstructor.id)
-                  .collection('events')
-                  .doc(eventDoc.id)
-                  .collection('days')
-                  .where('finalized', isEqualTo: false)
-                  .get();
-              
-              for (var doc in daysSnapshot.docs) {
-                Map<String, dynamic> docData = doc.data() as Map<String, dynamic>;
-                final event = Event.fromJson(docData);
-                // Exclude playground events
-                if (event.eventName != 'playground') {
-                  final key = '${event.eventName}/${event.date}';
-                  // Check if event was deleted locally (don't restore deleted events)
-                  final isDeleted = await LocalStorageService.instance.isEventDeleted(event.eventName, event.date);
-                  if (isDeleted) {
-                    print('⚠️ Skipping deleted event from Firebase: $key');
-                    continue;
+                  // Load all unfinalized events across all event names for this instructor
+                  QuerySnapshot eventsSnapshot = await firestore
+                      .collection('Results')
+                      .doc(currentInstructor.id)
+                      .collection('events')
+                      .get();
+
+                  // Merge Firebase events with local (don't overwrite local events)
+                  // Use a map to track events by key to avoid duplicates
+                  final Map<String, Event> eventMap = {};
+                  // First, add all local events to the map (these take priority)
+                  for (var localEvent in filteredLocalEvents) {
+                    final key = '${localEvent.eventName}/${localEvent.date}';
+                    eventMap[key] = localEvent;
                   }
-                  // Only add if not already in map (local events take priority)
-                  if (!eventMap.containsKey(key)) {
-                    eventMap[key] = event;
-                    // Save to local storage for future loads
-                    await LocalStorageService.instance.saveEventLocally(event);
+
+                  for (var eventDoc in eventsSnapshot.docs) {
+                    if (eventDoc.id == 'playground')
+                      continue; // Skip playground
+
+                    QuerySnapshot daysSnapshot = await firestore
+                        .collection('Results')
+                        .doc(currentInstructor.id)
+                        .collection('events')
+                        .doc(eventDoc.id)
+                        .collection('days')
+                        .where('finalized', isEqualTo: false)
+                        .get();
+
+                    for (var doc in daysSnapshot.docs) {
+                      Map<String, dynamic> docData =
+                          doc.data() as Map<String, dynamic>;
+                      final event = Event.fromJson(docData);
+                      // Exclude playground events
+                      if (event.eventName != 'playground') {
+                        final key = '${event.eventName}/${event.date}';
+                        // Check if event was deleted locally (don't restore deleted events)
+                        final isDeleted = await LocalStorageService.instance
+                            .isEventDeleted(event.eventName, event.date);
+                        if (isDeleted) {
+                          print(
+                              '⚠️ Skipping deleted event from Firebase: $key');
+                          continue;
+                        }
+                        // Only add if not already in map (local events take priority)
+                        if (!eventMap.containsKey(key)) {
+                          eventMap[key] = event;
+                          // Save to local storage for future loads
+                          await LocalStorageService.instance
+                              .saveEventLocally(event);
+                        }
+                      }
+                    }
                   }
-                }
-              }
-                }
-                // Update unfinalizedEvents with merged results
-                unfinalizedEvents.clear();
-                unfinalizedEvents.addAll(eventMap.values);
-                print('✅ Merged ${unfinalizedEvents.length} unfinalized events (local-first, Firebase fallback)');
-              } else {
-            // Load only for current event name
-            QuerySnapshot unfinalizedSnapshot = await firestore.collection('Results')
-                .doc(currentInstructor.id)
-                .collection('events')
-                .doc(currentEventName)
-                .collection('days')
-                .where('finalized', isEqualTo: false)
-                .get();
-            
-            if (unfinalizedSnapshot.docs.isNotEmpty) {
-              // Merge Firebase events with local (don't overwrite local events)
-              // Use a map to track events by key to avoid duplicates
-              final Map<String, Event> eventMap = {};
-              // First, add all local events to the map (these take priority)
-              for (var localEvent in filteredLocalEvents) {
-                final key = '${localEvent.eventName}/${localEvent.date}';
-                eventMap[key] = localEvent;
-              }
-              
-              for (var doc in unfinalizedSnapshot.docs) {
-                Map<String, dynamic> docData = doc.data() as Map<String, dynamic>;
-                final event = Event.fromJson(docData);
-                // Exclude playground events
-                if (event.eventName != 'playground') {
-                  final key = '${event.eventName}/${event.date}';
-                  // Check if event was deleted locally (don't restore deleted events)
-                  final isDeleted = await LocalStorageService.instance.isEventDeleted(event.eventName, event.date);
-                  if (isDeleted) {
-                    print('⚠️ Skipping deleted event from Firebase: $key');
-                    continue;
-                  }
-                  // Only add if not already in map (local events take priority)
-                  if (!eventMap.containsKey(key)) {
-                    eventMap[key] = event;
-                    // Save to local storage for future loads
-                    await LocalStorageService.instance.saveEventLocally(event);
-                  }
-                }
-                }
                   // Update unfinalizedEvents with merged results
                   unfinalizedEvents.clear();
                   unfinalizedEvents.addAll(eventMap.values);
-                  print('✅ Merged ${unfinalizedEvents.length} unfinalized events (local-first, Firebase fallback)');
+                  print(
+                      '✅ Merged ${unfinalizedEvents.length} unfinalized events (local-first, Firebase fallback)');
+                } else {
+                  // Load only for current event name
+                  QuerySnapshot unfinalizedSnapshot = await firestore
+                      .collection('Results')
+                      .doc(currentInstructor.id)
+                      .collection('events')
+                      .doc(currentEventName)
+                      .collection('days')
+                      .where('finalized', isEqualTo: false)
+                      .get();
+
+                  if (unfinalizedSnapshot.docs.isNotEmpty) {
+                    // Merge Firebase events with local (don't overwrite local events)
+                    // Use a map to track events by key to avoid duplicates
+                    final Map<String, Event> eventMap = {};
+                    // First, add all local events to the map (these take priority)
+                    for (var localEvent in filteredLocalEvents) {
+                      final key = '${localEvent.eventName}/${localEvent.date}';
+                      eventMap[key] = localEvent;
+                    }
+
+                    for (var doc in unfinalizedSnapshot.docs) {
+                      Map<String, dynamic> docData =
+                          doc.data() as Map<String, dynamic>;
+                      final event = Event.fromJson(docData);
+                      // Exclude playground events
+                      if (event.eventName != 'playground') {
+                        final key = '${event.eventName}/${event.date}';
+                        // Check if event was deleted locally (don't restore deleted events)
+                        final isDeleted = await LocalStorageService.instance
+                            .isEventDeleted(event.eventName, event.date);
+                        if (isDeleted) {
+                          print(
+                              '⚠️ Skipping deleted event from Firebase: $key');
+                          continue;
+                        }
+                        // Only add if not already in map (local events take priority)
+                        if (!eventMap.containsKey(key)) {
+                          eventMap[key] = event;
+                          // Save to local storage for future loads
+                          await LocalStorageService.instance
+                              .saveEventLocally(event);
+                        }
+                      }
+                    }
+                    // Update unfinalizedEvents with merged results
+                    unfinalizedEvents.clear();
+                    unfinalizedEvents.addAll(eventMap.values);
+                    print(
+                        '✅ Merged ${unfinalizedEvents.length} unfinalized events (local-first, Firebase fallback)');
+                  }
                 }
-              }
               }),
               Future.delayed(Duration(seconds: 2), () {
                 print('⏱️ Firebase fetch timeout - using local events only');
@@ -654,50 +749,58 @@ class EventController extends GetxController {
           print("⚠️ Background Firebase fetch error: $e");
         }));
       }
-      
+
       // Return immediately - don't wait for Firebase fetch
       // If offline or no events loaded yet, ensure we have local events
       if (!isConnected.value && unfinalizedEvents.isEmpty) {
         // Already loaded local events above, but if we're offline and nothing was loaded, use local
         if (filteredLocalEvents.isNotEmpty) {
           unfinalizedEvents.addAll(filteredLocalEvents);
-          print('📴 Using local unfinalized events (offline mode): ${filteredLocalEvents.length} events');
+          print(
+              '📴 Using local unfinalized events (offline mode): ${filteredLocalEvents.length} events');
         }
       }
-      
+
       // Final check: if still empty and we have local events, use them
       if (unfinalizedEvents.isEmpty && filteredLocalEvents.isNotEmpty) {
         unfinalizedEvents.addAll(filteredLocalEvents);
-        print('✅ Using local unfinalized events as fallback: ${filteredLocalEvents.length} events');
+        print(
+            '✅ Using local unfinalized events as fallback: ${filteredLocalEvents.length} events');
       }
     } catch (e) {
-      unfinalizedLoading.value=false;
+      unfinalizedLoading.value = false;
       print("❌ Error in getUnfinalizedEvents: $e");
     }
     // Ensure loading is false (already set above, but ensure it's set on error paths)
-    unfinalizedLoading.value=false;
+    unfinalizedLoading.value = false;
     // Return immediately - function completes here, Firebase fetch continues in background
     return unfinalizedEvents;
   }
 
   /// 📂 Fetch Main Event list from firebase Where Current Instructor Has Data for dropdown (works offline)
   Future<void> fetchInstructorEvents() async {
-    pastEventsLoading.value=true;
+    pastEventsLoading.value = true;
     try {
       // First, load from local cache
-      final localEventList = await LocalStorageService.instance.getLocalEventList();
+      final localEventList =
+          await LocalStorageService.instance.getLocalEventList();
       if (localEventList.isNotEmpty) {
         final filteredList = localEventList
             .where((eventName) => eventName != 'playground')
             .toList();
         events.value = filteredList;
-        print('✅ Loaded ${filteredList.length} events from local cache (playground filtered)');
+        print(
+            '✅ Loaded ${filteredList.length} events from local cache (playground filtered)');
       }
-      
+
       // If online, sync with Firestore and update cache
       if (isConnected.value) {
         try {
-          QuerySnapshot eventsSnapshot = await firestore.collection('Results').doc(currentInstructor.id).collection('events').get();
+          QuerySnapshot eventsSnapshot = await firestore
+              .collection('Results')
+              .doc(currentInstructor.id)
+              .collection('events')
+              .get();
           if (eventsSnapshot.docs.isNotEmpty) {
             events.value = eventsSnapshot.docs
                 .map((doc) => doc.id)
@@ -749,7 +852,7 @@ class EventController extends GetxController {
     } catch (e) {
       print('❌ Error in fetchInstructorEvents: $e');
     }
-    pastEventsLoading.value=false;
+    pastEventsLoading.value = false;
     AppLogger.debug("📂 Found events: ${events.toList()}");
   }
 
@@ -762,7 +865,8 @@ class EventController extends GetxController {
       return;
     }
     try {
-      QuerySnapshot daysSnapshot = await firestore.collection('Results')
+      QuerySnapshot daysSnapshot = await firestore
+          .collection('Results')
           .doc(currentInstructor.id)
           .collection('events')
           .doc(eventName)
@@ -787,24 +891,28 @@ class EventController extends GetxController {
     try {
       // Clear current event to avoid showing stale data during load
       // Only clear if we're loading a different event than what's currently loaded
-      if (currentEvent.value.eventName != eventName || currentEvent.value.date != day) {
+      if (currentEvent.value.eventName != eventName ||
+          currentEvent.value.date != day) {
         currentEvent.value = Event(date: '', instructorId: '', eventName: '');
       }
-      
+
       // LOCAL-FIRST STRATEGY: Always try local cache first
       // This prevents stale Firebase data from overwriting fresh local data
-      final localEvent = await LocalStorageService.instance.loadEventLocally(eventName, day);
+      final localEvent =
+          await LocalStorageService.instance.loadEventLocally(eventName, day);
       if (localEvent != null) {
         currentEvent.value = localEvent;
-        print('✅ Loaded event from local cache (local-first): $eventName - $day');
+        print(
+            '✅ Loaded event from local cache (local-first): $eventName - $day');
         pastEventsLoading.value = false;
         return; // Successfully loaded from local cache, exit early
       }
-      
+
       // If local cache doesn't exist or failed, try Firebase as fallback
       if (isConnected.value) {
         try {
-          DocumentSnapshot eventSnapshot = await firestore.collection('Results')
+          DocumentSnapshot eventSnapshot = await firestore
+              .collection('Results')
               .doc(currentInstructor.id)
               .collection('events')
               .doc(eventName)
@@ -812,12 +920,15 @@ class EventController extends GetxController {
               .doc(day)
               .get();
           if (eventSnapshot.exists && eventSnapshot.data() != null) {
-            Map<String, dynamic> eventData = eventSnapshot.data() as Map<String, dynamic>;
+            Map<String, dynamic> eventData =
+                eventSnapshot.data() as Map<String, dynamic>;
             currentEvent.value = Event.fromJson(eventData);
-            
+
             // Update local cache for future loads
-            await LocalStorageService.instance.saveEventLocally(currentEvent.value);
-            print('✅ Loaded event from Firebase (fallback, cached locally): $eventName - $day');
+            await LocalStorageService.instance
+                .saveEventLocally(currentEvent.value);
+            print(
+                '✅ Loaded event from Firebase (fallback, cached locally): $eventName - $day');
             pastEventsLoading.value = false;
             return; // Successfully loaded from Firebase, exit early
           }
@@ -826,7 +937,7 @@ class EventController extends GetxController {
           // Fall through to error message
         }
       }
-      
+
       // Neither local nor Firebase had the event
       print('⚠️ Event not found in local cache or Firebase: $eventName - $day');
     } catch (e) {
@@ -851,10 +962,13 @@ class EventController extends GetxController {
             // Try to convert to String if it's a different type
             cachedEventName = cachedEventNameData.toString();
           }
-          
-          if (cachedEventName != null && cachedEventName.isNotEmpty && cachedEventName != 'NA') {
+
+          if (cachedEventName != null &&
+              cachedEventName.isNotEmpty &&
+              cachedEventName != 'NA') {
             currentEventName = cachedEventName;
-            print('✅ Loaded current event name from local cache: $currentEventName');
+            print(
+                '✅ Loaded current event name from local cache: $currentEventName');
           }
         } catch (e) {
           print('⚠️ Error loading cached event name: $e');
@@ -868,14 +982,15 @@ class EventController extends GetxController {
               await firestore.collection('System').doc('config').get();
           Map<String, dynamic>? docData = doc.data();
           final firestoreEventName = docData?['current_event'] ?? 'NA';
-          
+
           if (firestoreEventName != 'NA' && firestoreEventName.isNotEmpty) {
             currentEventName = firestoreEventName;
-            
+
             // Update local cache
             if (systemBox != null) {
               await systemBox!.put('currentEventName', currentEventName);
-              print('✅ Updated current event name cache from Firestore: $currentEventName');
+              print(
+                  '✅ Updated current event name cache from Firestore: $currentEventName');
             }
           } else if (currentEventName.isEmpty || currentEventName == 'NA') {
             // If Firestore doesn't have it and we don't have cache, use default
@@ -906,14 +1021,14 @@ class EventController extends GetxController {
   }
 
   getCurrentEventDays() async {
-      CollectionReference eventDaysRef =
-      firestore.collection('Events/' + currentEventName + '/days');
-      QuerySnapshot eventDaysQuery = await eventDaysRef.get();
-      var _eventDays = [];
-      eventDaysQuery.docs.forEach((element) {
-        _eventDays.add(element.id);
-      });
-      return _eventDays;
+    CollectionReference eventDaysRef =
+        firestore.collection('Events/' + currentEventName + '/days');
+    QuerySnapshot eventDaysQuery = await eventDaysRef.get();
+    var _eventDays = [];
+    eventDaysQuery.docs.forEach((element) {
+      _eventDays.add(element.id);
+    });
+    return _eventDays;
   }
 
   /// Save selected event and day to cache
@@ -947,7 +1062,7 @@ class EventController extends GetxController {
             } else if (cachedEventData != null) {
               cachedEvent = cachedEventData.toString();
             }
-            
+
             if (cachedEvent != null && cachedEvent.isNotEmpty) {
               selectedEvent.value = cachedEvent;
               print('✅ Restored selected event from cache: $cachedEvent');
@@ -967,7 +1082,7 @@ class EventController extends GetxController {
             } else if (cachedDayData != null) {
               cachedDay = cachedDayData.toString();
             }
-            
+
             if (cachedDay != null && cachedDay.isNotEmpty) {
               selectedDay.value = cachedDay;
               print('✅ Restored selected day from cache: $cachedDay');
@@ -981,47 +1096,52 @@ class EventController extends GetxController {
         // This prevents loading stale cached events that no longer exist or are from different dates
         if (selectedEvent.value != null && selectedDay.value != null) {
           // Check if this event/day combination exists in the current unfinalized events list
-          bool eventExistsInUnfinalized = unfinalizedEvents.any((e) => 
-            e.eventName == selectedEvent.value && e.date == selectedDay.value
-          );
-          
+          bool eventExistsInUnfinalized = unfinalizedEvents.any((e) =>
+              e.eventName == selectedEvent.value &&
+              e.date == selectedDay.value);
+
           if (!eventExistsInUnfinalized) {
             // Cached event is not in current unfinalized events, clear the cache
-            print('⚠️ Cached event not in current unfinalized events, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
+            print(
+                '⚠️ Cached event not in current unfinalized events, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
             selectedEvent.value = null;
             selectedDay.value = null;
             await saveSelectedEventAndDay(null, null);
             return; // Don't load stale event
           }
-          
+
           // Check if the event still exists in local storage before auto-loading
-          final cachedEvent = await LocalStorageService.instance.loadEventLocally(
-            selectedEvent.value!, 
-            selectedDay.value!
-          );
-          
+          final cachedEvent = await LocalStorageService.instance
+              .loadEventLocally(selectedEvent.value!, selectedDay.value!);
+
           if (cachedEvent != null) {
             // Verify the cached event matches currentEventName (if set) to avoid loading wrong events
             // Only auto-load if it's a valid, current event
             bool shouldLoad = true;
-            if (currentEventName.isNotEmpty && cachedEvent.eventName != currentEventName) {
-              print('⚠️ Cached event name mismatch: cached=${cachedEvent.eventName}, current=$currentEventName');
+            if (currentEventName.isNotEmpty &&
+                cachedEvent.eventName != currentEventName) {
+              print(
+                  '⚠️ Cached event name mismatch: cached=${cachedEvent.eventName}, current=$currentEventName');
               shouldLoad = false;
             }
-            
+
             if (shouldLoad) {
-              print('🔄 Auto-loading cached event: ${selectedEvent.value} / ${selectedDay.value}');
-              await loadInstructorEvent(selectedEvent.value!, selectedDay.value!);
+              print(
+                  '🔄 Auto-loading cached event: ${selectedEvent.value} / ${selectedDay.value}');
+              await loadInstructorEvent(
+                  selectedEvent.value!, selectedDay.value!);
             } else {
               // Clear stale cache if event doesn't match
-              print('⚠️ Cached event is stale, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
+              print(
+                  '⚠️ Cached event is stale, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
               selectedEvent.value = null;
               selectedDay.value = null;
               await saveSelectedEventAndDay(null, null);
             }
           } else {
             // Clear stale cache if event no longer exists
-            print('⚠️ Cached event no longer exists, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
+            print(
+                '⚠️ Cached event no longer exists, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
             selectedEvent.value = null;
             selectedDay.value = null;
             await saveSelectedEventAndDay(null, null);
@@ -1035,7 +1155,8 @@ class EventController extends GetxController {
 
   /// Helper method to save event with offline support
   /// Always saves locally first, then syncs to Firestore if online (non-blocking)
-  Future<bool> saveEventWithOfflineSupport(Event event, {bool isCreate = false}) async {
+  Future<bool> saveEventWithOfflineSupport(Event event,
+      {bool isCreate = false}) async {
     try {
       // Always save locally first (immediate)
       final localSuccess = await event.saveToLocal();
@@ -1043,13 +1164,13 @@ class EventController extends GetxController {
         print('⚠️ Failed to save event locally');
         return false;
       }
-      
+
       print('✅ Event saved locally successfully');
-      
+
       // Try Firestore save in background (non-blocking) - don't wait for it
       // This prevents the UI from hanging when offline
       _saveToFirestoreInBackground(event, isCreate: isCreate);
-      
+
       // Return immediately after local save succeeds
       return true;
     } catch (e) {
@@ -1060,20 +1181,19 @@ class EventController extends GetxController {
 
   /// Save to Firestore in background (non-blocking)
   /// This method runs asynchronously and doesn't block the UI
-  void _saveToFirestoreInBackground(Event event, {bool isCreate = false}) async {
+  void _saveToFirestoreInBackground(Event event,
+      {bool isCreate = false}) async {
     try {
       // Check connectivity before attempting Firestore save
       if (!isConnected.value) {
         // Offline: queue for sync when internet becomes available
         await SyncQueueService.instance.queueFirestoreOperation(
-          isCreate ? 'createEvent' : 'saveEvent', 
-          event.toJson()
-        );
+            isCreate ? 'createEvent' : 'saveEvent', event.toJson());
         print('📴 Event saved locally, queued for sync when online');
         // Note: Playground is NOT deleted here - it persists like a real event
         return;
       }
-      
+
       // Online: try to save to Firestore (with timeout)
       try {
         if (isCreate) {
@@ -1083,7 +1203,8 @@ class EventController extends GetxController {
             // Note: isBackedUp flag is set in createFirestoreEvent() method
           } else {
             // Queue for retry
-            await SyncQueueService.instance.queueFirestoreOperation('createEvent', event.toJson());
+            await SyncQueueService.instance
+                .queueFirestoreOperation('createEvent', event.toJson());
             print('⚠️ Firestore create failed, queued for retry');
           }
         } else {
@@ -1093,7 +1214,8 @@ class EventController extends GetxController {
             // Note: isBackedUp flag is set in saveToFirestore() method
           } else {
             // Queue for retry
-            await SyncQueueService.instance.queueFirestoreOperation('saveEvent', event.toJson());
+            await SyncQueueService.instance
+                .queueFirestoreOperation('saveEvent', event.toJson());
             print('⚠️ Firestore save failed, queued for retry');
           }
         }
@@ -1103,18 +1225,14 @@ class EventController extends GetxController {
         print('⚠️ Error saving to Firestore: $e, queuing for retry');
         // Queue for retry
         await SyncQueueService.instance.queueFirestoreOperation(
-          isCreate ? 'createEvent' : 'saveEvent', 
-          event.toJson()
-        );
+            isCreate ? 'createEvent' : 'saveEvent', event.toJson());
       }
     } catch (e) {
       print('❌ Error in _saveToFirestoreInBackground: $e');
       // Even if background save fails, queue it for later
       try {
         await SyncQueueService.instance.queueFirestoreOperation(
-          isCreate ? 'createEvent' : 'saveEvent', 
-          event.toJson()
-        );
+            isCreate ? 'createEvent' : 'saveEvent', event.toJson());
       } catch (queueError) {
         print('⚠️ Failed to queue operation: $queueError');
       }
@@ -1134,17 +1252,19 @@ class EventController extends GetxController {
   delEvent(Event event) async {
     try {
       // 🔒 Safety check: If this is the currently loaded event, clear it first
-      final isCurrentEvent = currentEvent.value.eventName == event.eventName && 
-                             currentEvent.value.date == event.date;
+      final isCurrentEvent = currentEvent.value.eventName == event.eventName &&
+          currentEvent.value.date == event.date;
       if (isCurrentEvent) {
-        print('⚠️ Deleting currently loaded event - clearing currentEvent first');
+        print(
+            '⚠️ Deleting currently loaded event - clearing currentEvent first');
         currentEvent.value = Event(date: '', instructorId: '', eventName: '');
         currentEvent.refresh();
       }
-      
+
       // 🔥 Step 1: Delete from local storage first (immediate, works offline)
-      await LocalStorageService.instance.deleteEventLocally(event.eventName, event.date);
-      
+      await LocalStorageService.instance
+          .deleteEventLocally(event.eventName, event.date);
+
       // 🔥 Step 2: Refresh eventDays cache for this event
       if (eventDays.containsKey(event.eventName)) {
         eventDays[event.eventName]?.remove(event.date);
@@ -1152,7 +1272,7 @@ class EventController extends GetxController {
           eventDays.remove(event.eventName);
         }
       }
-      
+
       // 🔥 Step 3: Delete from Firestore (queue if offline, execute if online)
       if (isConnected.value) {
         // Online: Delete from Firestore immediately
@@ -1160,20 +1280,20 @@ class EventController extends GetxController {
           try {
             await deleteEventFromFirestore(event);
             // Unmark as deleted after successful Firebase deletion
-            await LocalStorageService.instance.unmarkEventAsDeleted(event.eventName, event.date);
-            print("✅ Event '${event.date}' deleted successfully from Firestore.");
+            await LocalStorageService.instance
+                .unmarkEventAsDeleted(event.eventName, event.date);
+            print(
+                "✅ Event '${event.date}' deleted successfully from Firestore.");
           } catch (e) {
             print("❌ Error deleting event from Firestore: $e");
             // If Firestore delete fails, queue it for retry
-            await SyncQueueService.instance.queueFirestoreOperation(
-              'deleteEvent',
-              {
-                'eventName': event.eventName,
-                'date': event.date,
-                'instructorId': event.instructorId,
-                'groupNumber': event.groupNumber,
-              }
-            );
+            await SyncQueueService.instance
+                .queueFirestoreOperation('deleteEvent', {
+              'eventName': event.eventName,
+              'date': event.date,
+              'instructorId': event.instructorId,
+              'groupNumber': event.groupNumber,
+            });
             // Keep it marked as deleted until Firebase deletion succeeds
           }
         }).catchError((e) {
@@ -1181,21 +1301,20 @@ class EventController extends GetxController {
         });
       } else {
         // Offline: Queue deletion for sync when online
-        print('📴 Offline: Event deleted locally, queuing Firestore delete for sync');
-        await SyncQueueService.instance.queueFirestoreOperation(
-          'deleteEvent',
-          {
-            'eventName': event.eventName,
-            'date': event.date,
-            'instructorId': event.instructorId,
-            'groupNumber': event.groupNumber,
-          }
-        );
-        
+        print(
+            '📴 Offline: Event deleted locally, queuing Firestore delete for sync');
+        await SyncQueueService.instance.queueFirestoreOperation('deleteEvent', {
+          'eventName': event.eventName,
+          'date': event.date,
+          'instructorId': event.instructorId,
+          'groupNumber': event.groupNumber,
+        });
+
         // Track deleted event locally to prevent restoration from Firebase
-        await LocalStorageService.instance.markEventAsDeleted(event.eventName, event.date);
+        await LocalStorageService.instance
+            .markEventAsDeleted(event.eventName, event.date);
       }
-      
+
       print("✅ Event '${event.date}' deleted successfully from local storage.");
     } catch (e) {
       print("❌ Error deleting event: $e");
@@ -1206,10 +1325,11 @@ class EventController extends GetxController {
   /// Delete event from Firestore (extracted for reuse)
   Future<void> deleteEventFromFirestore(Event event) async {
     FirebaseFirestore firestore = FirebaseFirestore.instance;
-    
+
     // Delete from Results collection (with timeout)
     try {
-      DocumentReference eventRef = firestore.collection('Results')
+      DocumentReference eventRef = firestore
+          .collection('Results')
           .doc(event.instructorId)
           .collection('events')
           .doc(event.eventName)
@@ -1226,15 +1346,16 @@ class EventController extends GetxController {
       print('⚠️ Error deleting from Results collection: $e');
       rethrow;
     }
-    
+
     // ❌ NOTE: We do NOT delete from Events collection
     // The Events collection is read-only and managed by admin system/Cloud Functions
     // It may contain data from other instructors and shouldn't be deleted by instructors
     // getCurrentEventDays() reads from Events collection for reference only
-    
+
     // Update AdminIndex (remove instructor/group references) - non-critical
     try {
-      DocumentReference adminRef = firestore.collection('AdminIndex')
+      DocumentReference adminRef = firestore
+          .collection('AdminIndex')
           .doc(event.eventName)
           .collection('days')
           .doc(event.date);
@@ -1244,7 +1365,7 @@ class EventController extends GetxController {
       await adminRef.update({
         "instructors": FieldValue.arrayRemove([event.instructorId]),
       }).timeout(Duration(seconds: 3));
-      
+
       // Get the document snapshot and update groupsAndInstructors
       final snapshot = await adminRef.get().timeout(Duration(seconds: 3));
       if (snapshot.exists) {
@@ -1252,8 +1373,10 @@ class EventController extends GetxController {
         List<dynamic> groupsArray = data?['groupsAndInstructors'] ?? [];
         // Remove any map where instructorId matches
         groupsArray.removeWhere((item) =>
-        item is Map<String, dynamic> && item['instructorId'] == event.instructorId);
-        await adminRef.update({'groupsAndInstructors': groupsArray}).timeout(Duration(seconds: 3));
+            item is Map<String, dynamic> &&
+            item['instructorId'] == event.instructorId);
+        await adminRef.update({'groupsAndInstructors': groupsArray}).timeout(
+            Duration(seconds: 3));
       }
     } catch (e) {
       print('⚠️ Error updating AdminIndex (non-critical): $e');
@@ -1274,9 +1397,10 @@ class EventController extends GetxController {
     // Removed debug print of participant AI report
     int index = currentEvent.value.participants
         .indexWhere((participant) => participant.number == number);
-    if (index>-1)
-     return currentEvent.value.participants[index];
-    else return Participant(number: 0, name: 'לא נמצא');
+    if (index > -1)
+      return currentEvent.value.participants[index];
+    else
+      return Participant(number: 0, name: 'לא נמצא');
   }
 
   /// Sakim
@@ -1291,8 +1415,11 @@ class EventController extends GetxController {
   void removeLastSakimPosition(int number) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
-    if (participantIndex != -1 && currentEvent.value.participants[participantIndex].sakimPositions.isNotEmpty) {
-      currentEvent.value.participants[participantIndex].sakimPositions.removeLast();
+    if (participantIndex != -1 &&
+        currentEvent
+            .value.participants[participantIndex].sakimPositions.isNotEmpty) {
+      currentEvent.value.participants[participantIndex].sakimPositions
+          .removeLast();
     }
   }
 
@@ -1304,10 +1431,12 @@ class EventController extends GetxController {
     if (participantIndex != -1) {
       if (index == null) {
         // Clear the stack
-        currentEvent.value.participants[participantIndex].lastSakimIndexStack.clear();
+        currentEvent.value.participants[participantIndex].lastSakimIndexStack
+            .clear();
       } else {
         // Push index to stack
-        currentEvent.value.participants[participantIndex].lastSakimIndexStack.add(index);
+        currentEvent.value.participants[participantIndex].lastSakimIndexStack
+            .add(index);
       }
     }
   }
@@ -1318,7 +1447,8 @@ class EventController extends GetxController {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex != -1) {
-      final stack = currentEvent.value.participants[participantIndex].lastSakimIndexStack;
+      final stack =
+          currentEvent.value.participants[participantIndex].lastSakimIndexStack;
       if (stack.isNotEmpty) {
         return stack.removeLast(); // Pop from stack
       }
@@ -1331,9 +1461,11 @@ class EventController extends GetxController {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex != -1) {
-      currentEvent.value.participants[participantIndex].lastSakimIndexStack.clear();
+      currentEvent.value.participants[participantIndex].lastSakimIndexStack
+          .clear();
     }
   }
+
   void addSakimComments(List<String> comments, int participantNumber) {
     // Find the index of the participant by their number.
     int index = currentEvent.value.participants
@@ -1341,11 +1473,14 @@ class EventController extends GetxController {
     // ✅ Ensure participant exists.
     if (index != -1) {
       // Get the existing comments.
-      List<String> existingComments = currentEvent.value.participants[index].sakimInstructorComments;
+      List<String> existingComments =
+          currentEvent.value.participants[index].sakimInstructorComments;
       // ✅ Merge new comments without duplicates.
-      existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
+      existingComments.addAll(
+          comments.where((comment) => !existingComments.contains(comment)));
       // ✅ Update the participant's comment list.
-      currentEvent.value.participants[index].sakimInstructorComments = existingComments;
+      currentEvent.value.participants[index].sakimInstructorComments =
+          existingComments;
       print("✅ Comments merged successfully: ${existingComments}");
       // Use non-blocking save to prevent delays when offline
       saveEventWithOfflineSupport(currentEvent.value);
@@ -1366,8 +1501,11 @@ class EventController extends GetxController {
   void removeLastMeshulashPosition(int number) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
-    if (participantIndex != -1 && currentEvent.value.participants[participantIndex].meshulashPositions.isNotEmpty) {
-      currentEvent.value.participants[participantIndex].meshulashPositions.removeLast();
+    if (participantIndex != -1 &&
+        currentEvent.value.participants[participantIndex].meshulashPositions
+            .isNotEmpty) {
+      currentEvent.value.participants[participantIndex].meshulashPositions
+          .removeLast();
     }
   }
 
@@ -1379,10 +1517,14 @@ class EventController extends GetxController {
     if (participantIndex != -1) {
       if (index == null) {
         // Clear the stack
-        currentEvent.value.participants[participantIndex].lastMeshulashIndexStack.clear();
+        currentEvent
+            .value.participants[participantIndex].lastMeshulashIndexStack
+            .clear();
       } else {
         // Push index to stack
-        currentEvent.value.participants[participantIndex].lastMeshulashIndexStack.add(index);
+        currentEvent
+            .value.participants[participantIndex].lastMeshulashIndexStack
+            .add(index);
       }
     }
   }
@@ -1393,7 +1535,8 @@ class EventController extends GetxController {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex != -1) {
-      final stack = currentEvent.value.participants[participantIndex].lastMeshulashIndexStack;
+      final stack = currentEvent
+          .value.participants[participantIndex].lastMeshulashIndexStack;
       if (stack.isNotEmpty) {
         return stack.removeLast(); // Pop from stack
       }
@@ -1406,9 +1549,11 @@ class EventController extends GetxController {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex != -1) {
-      currentEvent.value.participants[participantIndex].lastMeshulashIndexStack.clear();
+      currentEvent.value.participants[participantIndex].lastMeshulashIndexStack
+          .clear();
     }
   }
+
   void addMeshulashComments(List<String> comments, int participantNumber) {
     // Find the index of the participant by their number.
     int index = currentEvent.value.participants
@@ -1420,7 +1565,8 @@ class EventController extends GetxController {
       // ✅ Merge new comments without duplicates.
       //existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
       // ✅ Update the participant's comment list.
-      currentEvent.value.participants[index].meshulashInstructorComments = comments;
+      currentEvent.value.participants[index].meshulashInstructorComments =
+          comments;
       print("✅ Comments saved successfully: ${comments}");
       // Use non-blocking save to prevent delays when offline
       saveEventWithOfflineSupport(currentEvent.value);
@@ -1441,7 +1587,8 @@ class EventController extends GetxController {
       // ✅ Merge new comments without duplicates.
       //existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
       // ✅ Update the participant's comment list.
-      currentEvent.value.participants[index].alonkaInstructorComments = comments;
+      currentEvent.value.participants[index].alonkaInstructorComments =
+          comments;
       print("✅ Comments to save : ${comments}");
       // Use non-blocking save to prevent delays when offline
       saveEventWithOfflineSupport(currentEvent.value);
@@ -1458,12 +1605,13 @@ class EventController extends GetxController {
     // ✅ Ensure participant exists.
     if (index != -1) {
       // Get the existing comments.
-     // List<String> existingComments = currentEvent.value.participants[index].interviewInstructorComments;
+      // List<String> existingComments = currentEvent.value.participants[index].interviewInstructorComments;
       // ✅ Merge new comments without duplicates.
       //existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
 
       // ✅ Update the participant's comment list.
-      currentEvent.value.participants[index].interviewInstructorComments = comments;
+      currentEvent.value.participants[index].interviewInstructorComments =
+          comments;
       print("✅ Comments saved successfully: ${comments}");
       // Use non-blocking save to prevent delays when offline
       saveEventWithOfflineSupport(currentEvent.value);
@@ -1481,7 +1629,8 @@ class EventController extends GetxController {
     // ✅ Ensure participant exists.
     if (index != -1) {
       // ✅ Update the participant's generic comment list.
-      currentEvent.value.participants[index].genericInstructorComments = comments;
+      currentEvent.value.participants[index].genericInstructorComments =
+          comments;
       print("✅ Generic comments saved successfully: ${comments}");
       // Use non-blocking save to prevent delays when offline
       saveEventWithOfflineSupport(currentEvent.value);
@@ -1491,21 +1640,22 @@ class EventController extends GetxController {
     }
   }
 
-  Color getLeadershipStatus(){
+  Color getLeadershipStatus() {
     int count = 0;
     bool interviewsHaveStarted = false;
-    var list = currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
+    var list =
+        currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
     for (Participant p in list) {
       if (p.leadershipInstructorComments.isNotEmpty) count++;
-      if (p.interviewInstructorComments.isNotEmpty) interviewsHaveStarted = true;
+      if (p.interviewInstructorComments.isNotEmpty)
+        interviewsHaveStarted = true;
     }
-    if (count==0) return Colors.black;
-    if (count>0 && interviewsHaveStarted) {
+    if (count == 0) return Colors.black;
+    if (count > 0 && interviewsHaveStarted) {
       return Colors.green;
     } else {
       return Colors.red;
     }
-
   }
 
   /// Interview
@@ -1520,7 +1670,8 @@ class EventController extends GetxController {
       // ✅ Merge new comments without duplicates.
       //existingComments.addAll(comments.where((comment) => !existingComments.contains(comment)));
       // ✅ Update the participant's comment list.
-      currentEvent.value.participants[index].leadershipInstructorComments = comments;
+      currentEvent.value.participants[index].leadershipInstructorComments =
+          comments;
       print("✅ Comments to save: ${comments}");
       // Use non-blocking save to prevent delays when offline
       saveEventWithOfflineSupport(currentEvent.value);
@@ -1533,50 +1684,56 @@ class EventController extends GetxController {
   /// Bur - Add a comment to a Bur's instructorComments list
   void addBurComment(String comment, int participantNumber) {
     // Find the Bur by participant number (bur.id == participantNumber)
-    int burIndex = currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == participantNumber);
-    
+    int burIndex = currentEvent.value.burGrades
+        .indexWhere((Bur bur) => bur.id == participantNumber);
+
     if (burIndex != -1) {
       // Get the existing comments
-      List<String> existingComments = currentEvent.value.burGrades[burIndex].instructorComments;
-      
+      List<String> existingComments =
+          currentEvent.value.burGrades[burIndex].instructorComments;
+
       // Add new comment if it doesn't already exist (merge, don't replace)
       if (!existingComments.contains(comment)) {
         existingComments.add(comment);
-        currentEvent.value.burGrades[burIndex].instructorComments = existingComments;
-        print("✅ Bur comment added successfully to participant $participantNumber: $comment");
+        currentEvent.value.burGrades[burIndex].instructorComments =
+            existingComments;
+        print(
+            "✅ Bur comment added successfully to participant $participantNumber: $comment");
         // Use non-blocking save to prevent delays when offline
         saveEventWithOfflineSupport(currentEvent.value);
         currentEvent.refresh();
       } else {
-        print("⚠️ Bur comment already exists for participant $participantNumber: $comment");
+        print(
+            "⚠️ Bur comment already exists for participant $participantNumber: $comment");
       }
     } else {
       print("❌ Bur not found with participant number: $participantNumber");
     }
   }
 
-  Color getInterviewStatus(){
+  Color getInterviewStatus() {
     int count = 0;
-    var list = currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
+    var list =
+        currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
     for (Participant p in list) {
       if (p.interviewInstructorComments.isNotEmpty) count++;
     }
-    if (count==0) return Colors.black;
-    if (count==list.length) {
+    if (count == 0) return Colors.black;
+    if (count == list.length) {
       return Colors.green;
     } else {
       return Colors.red;
     }
-
   }
 
   /// Grades
   gradesUpdate() async {
     try {
       DocumentSnapshot docSnapshot =
-      await firestore.collection('System').doc('grades').get();
+          await firestore.collection('System').doc('grades').get();
       if (docSnapshot.exists) {
-        firestoreGradeSettings = GradeSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
+        firestoreGradeSettings =
+            GradeSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
         gradesData = firestoreGradeSettings;
         // print(
         //     'Grades Updated to version ${firestoreGradeSettings.version} !!!!');
@@ -1596,7 +1753,7 @@ class EventController extends GetxController {
   /// Grades
   bool gradesCanBeFinalized() {
     List<Participant> activeList =
-    currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
+        currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
     for (Participant p in activeList) {
       if (p.instructorGrade <= 0) return false;
     }
@@ -1610,7 +1767,7 @@ class EventController extends GetxController {
     // Find which round participant is in
     int currentRound = -1;
     int indexInRound = -1;
-    
+
     for (int i = 0; i < currentEvent.value.meshulashRounds.length; i++) {
       final round = currentEvent.value.meshulashRounds[i];
       final index = round.participantsInRound.indexOf(participantNumber);
@@ -1620,9 +1777,9 @@ class EventController extends GetxController {
         break;
       }
     }
-    
+
     if (currentRound == -1) return 0; // Not found
-    
+
     // Count participants in higher rounds
     int participantsAhead = 0;
     for (var round in currentEvent.value.meshulashRounds) {
@@ -1630,7 +1787,7 @@ class EventController extends GetxController {
         participantsAhead += round.participantsInRound.length;
       }
     }
-    
+
     return participantsAhead + indexInRound + 1;
   }
 
@@ -1645,21 +1802,23 @@ class EventController extends GetxController {
 
   double getMeshulashGrade(int number) {
     if (currentEvent.value.meshulashRounds.isEmpty) return 0;
-    
+
     final absolutePosition = _getMeshulashAbsolutePosition(number);
     if (absolutePosition == 0) {
       return 1 * gradesData.systemGradeFactor; // Not found
     }
-    
+
     final totalParticipants = _getTotalMeshulashParticipants();
     if (totalParticipants <= 1) {
       return 10 * gradesData.systemGradeFactor; // Single participant gets max
     }
-    
+
     // Normalize: position 1 = 10, last position = 1
     // Formula: 1 + ((total - position) / (total - 1)) * (10 - 1)
-    double meshulashGrade = 1 + ((totalParticipants - absolutePosition) / (totalParticipants - 1)) * (10 - 1);
-    
+    double meshulashGrade = 1 +
+        ((totalParticipants - absolutePosition) / (totalParticipants - 1)) *
+            (10 - 1);
+
     return meshulashGrade * gradesData.systemGradeFactor;
   }
 
@@ -1685,14 +1844,15 @@ class EventController extends GetxController {
     for (int i = 0; i < currentEvent.value.alonkaSprints.length; i++) {
       credits = credits + getAlonkaSprintCredit(number, i);
     }
-    
+
     // Max possible credit per sprint = ALONKA_CREDIT (1.0) + first place bonus (1.0) = 2.0
     double maxPossibleCredit = _getMaxAlonkaCredit();
     if (maxPossibleCredit == 0) return 0;
-    
+
     // Normalize: (actual credits / max possible credits) * 10 * systemGradeFactor
     // This ensures grades are between 0 and 10 (before systemGradeFactor)
-    double alonkaGrade = ((credits / maxPossibleCredit) * 10) * gradesData.systemGradeFactor;
+    double alonkaGrade =
+        ((credits / maxPossibleCredit) * 10) * gradesData.systemGradeFactor;
     return alonkaGrade;
   }
 
@@ -1700,7 +1860,7 @@ class EventController extends GetxController {
   /// Used for chart display to show element credit separately from position
   double getAlonkaSprintBaseCredit(int number, int sprintNumber) {
     AlonkaSprint sprint = currentEvent.value.alonkaSprints[sprintNumber];
-    
+
     // Check each element type and return base credit only
     if (sprint.alonkaCredits.contains(number)) {
       return gradesData.ALONKA_CREDIT;
@@ -1711,7 +1871,7 @@ class EventController extends GetxController {
     } else if (sprint.participationCredits.contains(number)) {
       return gradesData.PARTICIPATION_CREDIT;
     }
-    
+
     return 0; // Not found
   }
 
@@ -1720,7 +1880,7 @@ class EventController extends GetxController {
   /// Returns 0 if participant not found, otherwise returns 1-based absolute position
   int getAlonkaSprintPosition(int number, int sprintNumber) {
     AlonkaSprint sprint = currentEvent.value.alonkaSprints[sprintNumber];
-    
+
     // Combine all element lists in order to get absolute order of arrival
     // Order: alonkaCredits (highest priority), then gerikanCredits, then runCredits, then participationCredits
     List<int> allParticipantsInOrder = [];
@@ -1728,10 +1888,10 @@ class EventController extends GetxController {
     allParticipantsInOrder.addAll(sprint.gerikanCredits);
     allParticipantsInOrder.addAll(sprint.runCredits);
     allParticipantsInOrder.addAll(sprint.participationCredits);
-    
+
     // Find participant's position in the combined list
     int absolutePosition = allParticipantsInOrder.indexOf(number);
-    
+
     // Return 1-based position, or 0 if not found
     return absolutePosition >= 0 ? absolutePosition + 1 : 0;
   }
@@ -1739,14 +1899,14 @@ class EventController extends GetxController {
   double getAlonkaSprintCredit(int number, int sprintNumber) {
     AlonkaSprint sprint = currentEvent.value.alonkaSprints[sprintNumber];
     double baseCredit = 0;
-    
+
     // Check if participant was automatically added to participationCredits
     // (i.e., instructor finished interval without inputting their order)
     if (sprint.participationCredits.contains(number)) {
       // Only give base participation credit, no arrival bonus
       return gradesData.PARTICIPATION_CREDIT;
     }
-    
+
     // Determine base credit based on element type for explicitly input participants
     if (sprint.alonkaCredits.contains(number)) {
       baseCredit = gradesData.ALONKA_CREDIT;
@@ -1757,12 +1917,12 @@ class EventController extends GetxController {
     } else {
       return 0; // Not found
     }
-    
+
     // Get absolute position (across all elements) for arrival bonus
     // Only calculate for participants explicitly input by instructor
     int absolutePosition = getAlonkaSprintPosition(number, sprintNumber);
     if (absolutePosition == 0) return 0;
-    
+
     double arrivalBonus = _getArrivalBonus(absolutePosition);
     return baseCredit + arrivalBonus;
   }
@@ -1774,7 +1934,7 @@ class EventController extends GetxController {
     // Find which round participant is in
     int currentRound = -1;
     int indexInRound = -1;
-    
+
     for (int i = 0; i < currentEvent.value.sakimRounds.length; i++) {
       final round = currentEvent.value.sakimRounds[i];
       final index = round.participantsInRound.indexOf(participantNumber);
@@ -1784,9 +1944,9 @@ class EventController extends GetxController {
         break;
       }
     }
-    
+
     if (currentRound == -1) return 0; // Not found
-    
+
     // Count participants in higher rounds
     int participantsAhead = 0;
     for (var round in currentEvent.value.sakimRounds) {
@@ -1794,7 +1954,7 @@ class EventController extends GetxController {
         participantsAhead += round.participantsInRound.length;
       }
     }
-    
+
     return participantsAhead + indexInRound + 1;
   }
 
@@ -1809,29 +1969,32 @@ class EventController extends GetxController {
 
   double getSakimGrade(int number) {
     if (currentEvent.value.sakimRounds.isEmpty) return 0;
-    
+
     final absolutePosition = _getSakimAbsolutePosition(number);
     if (absolutePosition == 0) {
       return 1 * gradesData.systemGradeFactor; // Not found
     }
-    
+
     final totalParticipants = _getTotalSakimParticipants();
     if (totalParticipants <= 1) {
       return 10 * gradesData.systemGradeFactor; // Single participant gets max
     }
-    
+
     // Normalize: position 1 = 10, last position = 1
     // Formula: 1 + ((total - position) / (total - 1)) * (10 - 1)
-    double sakimGrade = 1 + ((totalParticipants - absolutePosition) / (totalParticipants - 1)) * (10 - 1);
-    
+    double sakimGrade = 1 +
+        ((totalParticipants - absolutePosition) / (totalParticipants - 1)) *
+            (10 - 1);
+
     return sakimGrade * gradesData.systemGradeFactor;
   }
 
   double getBurGrade(int number) {
     if (currentEvent.value.burGrades.isEmpty) return 0;
     int participantBurIndex =
-    currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == number);
-    if (participantBurIndex == -1) return 0; // Participant not found in burGrades
+        currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == number);
+    if (participantBurIndex == -1)
+      return 0; // Participant not found in burGrades
     return currentEvent.value.burGrades[participantBurIndex].burGrade;
   }
 
@@ -1850,12 +2013,12 @@ class EventController extends GetxController {
     if (totalWeight != 1.0) {
       throw ArgumentError('Weights must sum up to 1.0');
     }
-    
+
     // Only include exercises with grades > 0
     // Build lists of valid (grade > 0) exercises with their weights
     double validTotalWeight = 0.0;
     double weightedSum = 0.0;
-    
+
     if (param1 > 0) {
       validTotalWeight += weight1;
       weightedSum += param1 * weight1;
@@ -1872,12 +2035,12 @@ class EventController extends GetxController {
       validTotalWeight += weight4;
       weightedSum += param4 * weight4;
     }
-    
+
     // If no valid grades, return 0
     if (validTotalWeight == 0) {
       return 0.0;
     }
-    
+
     // Normalize the weighted sum by the total of valid weights
     // This ensures the result is still a weighted average, but only of exercises with grades
     return weightedSum / validTotalWeight;
@@ -1885,10 +2048,8 @@ class EventController extends GetxController {
 
   void dropParticipant(int number) {
     var participant = currentEvent.value
-        .getParticipantsByStatus(
-        ParticipantStatus.Active)
-        .firstWhereOrNull(
-            (p) => p.number == number);
+        .getParticipantsByStatus(ParticipantStatus.Active)
+        .firstWhereOrNull((p) => p.number == number);
     if (participant != null) {
       participant.status = ParticipantStatus.Droped;
       // // Ensure UI updates properly
@@ -1898,7 +2059,6 @@ class EventController extends GetxController {
       // });
       update(); // Trigger GetX UI refresh
     }
-
   }
 
   /// Restore a participant to Active status and add them back to the appropriate round
@@ -1906,37 +2066,37 @@ class EventController extends GetxController {
   void restoreParticipantToRound(int number, String exerciseType) {
     var participant = currentEvent.value.participants
         .firstWhereOrNull((p) => p.number == number);
-    
+
     if (participant == null) return;
-    
+
     participant.status = ParticipantStatus.Active;
-    
+
     if (exerciseType == 'meshulash') {
       // Check if participant is already in any round
-      bool isInAnyRound = currentEvent.value.meshulashRounds.any(
-        (round) => round.participantsInRound.contains(number)
-      );
-      
+      bool isInAnyRound = currentEvent.value.meshulashRounds
+          .any((round) => round.participantsInRound.contains(number));
+
       // If not in any round, add to round 0
       if (!isInAnyRound && currentEvent.value.meshulashRounds.isNotEmpty) {
         currentEvent.value.meshulashRounds[0].participantsInRound.add(number);
       }
     } else if (exerciseType == 'sakim') {
       // Check if participant is already in any round
-      bool isInAnyRound = currentEvent.value.sakimRounds.any(
-        (round) => round.participantsInRound.contains(number)
-      );
-      
+      bool isInAnyRound = currentEvent.value.sakimRounds
+          .any((round) => round.participantsInRound.contains(number));
+
       // If not in any round, add to round 0
       if (!isInAnyRound && currentEvent.value.sakimRounds.isNotEmpty) {
         currentEvent.value.sakimRounds[0].participantsInRound.add(number);
       }
     }
-    
+
     update(); // Trigger GetX UI refresh
   }
+
   calculateGrades() {
-    for (Participant p in currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active)) {
+    for (Participant p in currentEvent.value
+        .getParticipantsByStatus(ParticipantStatus.Active)) {
       // Calculate system grades (from performance data)
       p.alonkaGrade = getAlonkaGrade(p.number);
       p.sakimGrade = getSakimGrade(p.number);
@@ -1955,15 +2115,16 @@ class EventController extends GetxController {
         weight3: (gradesData.weighted['sakim'] as num?)?.toDouble() ?? 0.25,
         weight4: (gradesData.weighted['bur'] as num?)?.toDouble() ?? 0.25,
       );
-      
+
       // Note: Final instructor grade is always manual - we don't auto-calculate it
       // The calculated value is only shown as a hint in the UI
       // Trigger refresh so UI can update hints
       currentEvent.refresh();
       update();
-      
+
       // Use non-blocking save to prevent delays when offline
-      if (!currentEvent.value.finalized) saveEventWithOfflineSupport(currentEvent.value);
+      if (!currentEvent.value.finalized)
+        saveEventWithOfflineSupport(currentEvent.value);
     }
   }
 
@@ -1975,14 +2136,15 @@ class EventController extends GetxController {
     double instructorMeshulash = p.instructorMeshulashGrade.toDouble();
     double instructorAlonka = p.instructorAlonkaGrade.toDouble();
     double instructorSakim = p.instructorSakimGrade.toDouble();
-    
+
     // Get bur instructor grade from burGrades collection
     double instructorBur = 0.0;
-    int burIndex = currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == p.number);
+    int burIndex = currentEvent.value.burGrades
+        .indexWhere((Bur bur) => bur.id == p.number);
     if (burIndex != -1) {
       instructorBur = currentEvent.value.burGrades[burIndex].burGrade;
     }
-    
+
     // Calculate weighted average of instructor exercise grades
     // Only include exercises with grades > 0
     double calculatedGrade = calculateWeightedGrade(
@@ -1995,11 +2157,11 @@ class EventController extends GetxController {
       weight3: (gradesData.weighted['sakim'] as num?)?.toDouble() ?? 0.25,
       weight4: (gradesData.weighted['bur'] as num?)?.toDouble() ?? 0.25,
     );
-    
+
     // Return calculated value (keep 2 decimal places)
     return double.parse(calculatedGrade.toStringAsFixed(2));
   }
-  
+
   /// Calculate instructor grade (for hint display only)
   /// This is called when exercise grades change to update the hint
   /// Does NOT modify instructorGrade - it's only used for displaying the hint
@@ -2015,7 +2177,7 @@ class EventController extends GetxController {
         .indexWhere((Participant p) => p.number == number);
     // Convert to double and round to 2 decimal places
     double gradeValue = grade is double ? grade : (grade as num).toDouble();
-    currentEvent.value.participants[participantIndex].instructorGrade = 
+    currentEvent.value.participants[participantIndex].instructorGrade =
         double.parse(gradeValue.toStringAsFixed(2));
     // Use non-blocking save to prevent delays when offline
     saveEventWithOfflineSupport(currentEvent.value);
@@ -2028,36 +2190,44 @@ class EventController extends GetxController {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
     if (participantIndex == -1) return;
-    
+
     bool shouldRecalculateSystemGrade = false;
-    
+
     switch (exercise) {
       case 'meshulash':
         // Convert to double and round to 2 decimal places
-        double meshulashGradeValue = grade is double ? grade : (grade as num).toDouble();
-        currentEvent.value.participants[participantIndex].instructorMeshulashGrade = 
+        double meshulashGradeValue =
+            grade is double ? grade : (grade as num).toDouble();
+        currentEvent
+                .value.participants[participantIndex].instructorMeshulashGrade =
             double.parse(meshulashGradeValue.toStringAsFixed(2));
         // Instructor grade for meshulash doesn't affect system grade (system uses system-calculated grade)
         // But it affects final instructor grade, so recalculate
-        calculateInstructorGrade(currentEvent.value.participants[participantIndex]);
+        calculateInstructorGrade(
+            currentEvent.value.participants[participantIndex]);
         break;
       case 'alonka':
         // Convert to double and round to 2 decimal places
-        double alonkaGradeValue = grade is double ? grade : (grade as num).toDouble();
-        currentEvent.value.participants[participantIndex].instructorAlonkaGrade = 
+        double alonkaGradeValue =
+            grade is double ? grade : (grade as num).toDouble();
+        currentEvent
+                .value.participants[participantIndex].instructorAlonkaGrade =
             double.parse(alonkaGradeValue.toStringAsFixed(2));
         // Instructor grade for alonka doesn't affect system grade (system uses system-calculated grade)
         // But it affects final instructor grade, so recalculate
-        calculateInstructorGrade(currentEvent.value.participants[participantIndex]);
+        calculateInstructorGrade(
+            currentEvent.value.participants[participantIndex]);
         break;
       case 'sakim':
         // Convert to double and round to 2 decimal places
-        double sakimGradeValue = grade is double ? grade : (grade as num).toDouble();
-        currentEvent.value.participants[participantIndex].instructorSakimGrade = 
+        double sakimGradeValue =
+            grade is double ? grade : (grade as num).toDouble();
+        currentEvent.value.participants[participantIndex].instructorSakimGrade =
             double.parse(sakimGradeValue.toStringAsFixed(2));
         // Instructor grade for sakim doesn't affect system grade (system uses system-calculated grade)
         // But it affects final instructor grade, so recalculate
-        calculateInstructorGrade(currentEvent.value.participants[participantIndex]);
+        calculateInstructorGrade(
+            currentEvent.value.participants[participantIndex]);
         break;
       case 'bur':
         // Bur grades are stored only in burGrades collection (single source of truth)
@@ -2069,7 +2239,8 @@ class EventController extends GetxController {
         } else {
           burGradeValue = (grade as num).toDouble();
         }
-        int burIndex = currentEvent.value.burGrades.indexWhere((Bur bur) => bur.id == number);
+        int burIndex = currentEvent.value.burGrades
+            .indexWhere((Bur bur) => bur.id == number);
         if (burIndex != -1) {
           // Update existing Bur entry
           currentEvent.value.burGrades[burIndex].burGrade = burGradeValue;
@@ -2083,16 +2254,17 @@ class EventController extends GetxController {
         update();
         // Bur grade affects both system grade and final instructor grade, so recalculate both
         shouldRecalculateSystemGrade = true;
-        calculateInstructorGrade(currentEvent.value.participants[participantIndex]);
+        calculateInstructorGrade(
+            currentEvent.value.participants[participantIndex]);
         break;
     }
-    
+
     // Only recalculate system grade for bur (since it uses instructor grade)
     // For meshulash/alonka/sakim, system grade uses system-calculated grades, not instructor grades
     if (shouldRecalculateSystemGrade) {
       calculateGrades();
     }
-    
+
     // Use non-blocking save to prevent delays when offline
     saveEventWithOfflineSupport(currentEvent.value);
   }
@@ -2100,9 +2272,9 @@ class EventController extends GetxController {
   /// Get rank information for a participant in a specific exercise
   /// Returns a map with 'rank' (1-based) and 'total' (total participants)
   Map<String, int> getExerciseRank(int participantNumber, String exerciseName) {
-    List<Participant> activeParticipants = 
+    List<Participant> activeParticipants =
         currentEvent.value.getParticipantsByStatus(ParticipantStatus.Active);
-    
+
     // Sort participants by grade (descending - higher grade = better rank)
     List<Participant> sortedParticipants;
     switch (exerciseName) {
@@ -2125,11 +2297,13 @@ class EventController extends GetxController {
       default:
         return {'rank': 0, 'total': activeParticipants.length};
     }
-    
+
     // Find participant's position (1-based)
-    int rank = sortedParticipants.indexWhere((p) => p.number == participantNumber) + 1;
-    if (rank == 0) rank = activeParticipants.length; // If not found, assume last
-    
+    int rank =
+        sortedParticipants.indexWhere((p) => p.number == participantNumber) + 1;
+    if (rank == 0)
+      rank = activeParticipants.length; // If not found, assume last
+
     return {
       'rank': rank,
       'total': activeParticipants.length,
@@ -2146,10 +2320,12 @@ class EventController extends GetxController {
       'sakim': getExerciseRank(participantNumber, 'sakim'),
     };
   }
+
   saveParticipantsAIReport(int number, String report) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
-    currentEvent.value.participants[participantIndex].participantAIReport = report;
+    currentEvent.value.participants[participantIndex].participantAIReport =
+        report;
     // Use non-blocking save to prevent delays when offline
     saveEventWithOfflineSupport(currentEvent.value);
   }
@@ -2158,12 +2334,13 @@ class EventController extends GetxController {
   Future<void> connectionEnabled() async {
     try {
       print("🔍 Starting connectivity check...");
-      
+
       // Quick connectivity check first (no HTTP)
-      var connectivityResult = await Connectivity().checkConnectivity()
+      var connectivityResult = await Connectivity()
+          .checkConnectivity()
           .timeout(Duration(seconds: 2));
       print("🔍 Connectivity result: $connectivityResult");
-      
+
       // ✅ Check if there is no Wi-Fi or mobile data
       if (connectivityResult == ConnectivityResult.none) {
         print("⚠️ No network available.");
@@ -2174,7 +2351,8 @@ class EventController extends GetxController {
       // On web, skip HTTP check to avoid CORS errors
       // The connectivity_plus check is sufficient for web
       if (kIsWeb) {
-        print("🌐 Web platform detected - skipping HTTP check (CORS restrictions).");
+        print(
+            "🌐 Web platform detected - skipping HTTP check (CORS restrictions).");
         print("✅ Internet connection assumed OK based on connectivity check.");
         isConnected.value = true;
         return;
@@ -2184,7 +2362,8 @@ class EventController extends GetxController {
       // Single attempt with shorter timeout for faster response
       try {
         print("🔍 Attempting HTTP request to google.com...");
-        final response = await http.get(Uri.parse("https://www.google.com")).timeout(
+        final response =
+            await http.get(Uri.parse("https://www.google.com")).timeout(
           Duration(seconds: 2), // Reduced timeout for faster response
           onTimeout: () {
             print("⚠️ Internet request timed out after 2 seconds.");
@@ -2203,13 +2382,13 @@ class EventController extends GetxController {
       } catch (e) {
         print("⚠️ HTTP check failed: $e");
       }
-      
+
       // If HTTP check failed, we're actually offline - don't allow Firestore operations
       // This prevents blocking operations when offline
       print("⚠️ HTTP check failed - device is offline.");
       print("⚠️ Skipping Firestore operations to prevent blocking.");
-      isConnected.value = false; // Mark as offline to prevent blocking operations
-      
+      isConnected.value =
+          false; // Mark as offline to prevent blocking operations
     } catch (e) {
       print("❌ Connectivity check error: $e");
       // Default to offline if check fails
@@ -2239,7 +2418,7 @@ class EventController extends GetxController {
           .where('deviceNumber', isEqualTo: deviceNumber)
           .limit(1)
           .get();
-      
+
       return query.docs.isNotEmpty;
     } catch (e) {
       print('❌ Error checking device number: $e');
@@ -2248,7 +2427,8 @@ class EventController extends GetxController {
   }
 
   /// Register device number to Firestore
-  Future<bool> registerDeviceNumber(String androidId, String deviceNumber) async {
+  Future<bool> registerDeviceNumber(
+      String androidId, String deviceNumber) async {
     try {
       // Check if device number is already registered
       final isRegistered = await isDeviceNumberRegistered(deviceNumber);
@@ -2267,7 +2447,8 @@ class EventController extends GetxController {
           .doc(androidId)
           .set(deviceData, SetOptions(merge: true));
 
-      print('✅ Device number registered: $deviceNumber for Android ID $androidId');
+      print(
+          '✅ Device number registered: $deviceNumber for Android ID $androidId');
       return true;
     } catch (e) {
       print('❌ Error registering device number: $e');
@@ -2282,7 +2463,7 @@ class EventController extends GetxController {
       if (kIsWeb || !platformService.requiresDeviceRegistration()) {
         return;
       }
-      
+
       final androidId = await _getAndroidId();
       if (androidId == null || androidId.isEmpty) {
         print('⚠️ Could not get Android ID for device registration');
@@ -2296,7 +2477,8 @@ class EventController extends GetxController {
       final deviceData = {
         'androidId': androidId,
         'instructorId': currentInstructor.id,
-        'instructorFullName': '${currentInstructor.firstName} ${currentInstructor.lastName}',
+        'instructorFullName':
+            '${currentInstructor.firstName} ${currentInstructor.lastName}',
         'lastLogin': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -2311,7 +2493,8 @@ class EventController extends GetxController {
           .doc(androidId)
           .set(deviceData, SetOptions(merge: true));
 
-      print('✅ Device registered: $androidId for instructor ${currentInstructor.id}');
+      print(
+          '✅ Device registered: $androidId for instructor ${currentInstructor.id}');
     } catch (e) {
       print('❌ Error registering device: $e');
     }
@@ -2362,10 +2545,12 @@ class EventController extends GetxController {
         // New unified structure with nested participantData
         Map<String, dynamic> recruitData = {
           'participantNumber': participant.number,
-          'participantData': participant.toJson(), // Full participant data nested
+          'participantData':
+              participant.toJson(), // Full participant data nested
           'eventName': eventName,
           'day': date, // Use 'day' for consistency (renamed from 'date')
-          'finalizedAt': FieldValue.serverTimestamp(), // When instructor finalized
+          'finalizedAt':
+              FieldValue.serverTimestamp(), // When instructor finalized
           'finalizedBy': instructorId, // Instructor ID who finalized
           'finalizedByName': instructorName, // Instructor name who finalized
           'groupNumber': groupNumber,
@@ -2420,13 +2605,14 @@ class EventController extends GetxController {
   /// log in (works offline with cached instructors)
   login(String id) async {
     loading.value = true;
-    
+
     // First check local instructor cache
     var i = getInstructor(id);
-    
+
     // If not found locally, try loading from local storage
     if (i == null) {
-      final localInstructor = LocalStorageService.instance.getInstructorLocally(id);
+      final localInstructor =
+          LocalStorageService.instance.getInstructorLocally(id);
       if (localInstructor != null) {
         // Add to instructorList if not already there
         if (!instructorList.any((inst) => inst.id == id)) {
@@ -2435,12 +2621,13 @@ class EventController extends GetxController {
         i = localInstructor;
       }
     }
-    
+
     if (i != null) {
       system.value.loggedIn = id;
       system.value.save();
+      loggedIn.value = true;
       currentInstructor = i;
-      
+
       // Register device to Firestore after successful login (non-blocking, background)
       // Don't block login if this fails
       if (isConnected.value) {
@@ -2448,12 +2635,18 @@ class EventController extends GetxController {
           print('⚠️ Device registration failed (non-critical): $e');
         });
       }
-      
+
       // Load instructor's custom comments after login
       loadInstructorCustomComments().catchError((e) {
-        print('⚠️ Failed to load instructor custom comments (non-critical): $e');
+        print(
+            '⚠️ Failed to load instructor custom comments (non-critical): $e');
       });
-      
+
+      // Load instructor's UX preferences after login
+      loadUxPreferences().catchError((e) {
+        print('⚠️ Failed to load instructor UX preferences (non-critical): $e');
+      });
+
       loading.value = false;
       return true;
     } else {
@@ -2465,7 +2658,8 @@ class EventController extends GetxController {
   getUpdatedInstructorsList() async {
     try {
       // First, try to load from local cache
-      final localInstructors = await LocalStorageService.instance.loadInstructorsLocally();
+      final localInstructors =
+          await LocalStorageService.instance.loadInstructorsLocally();
       if (localInstructors.isNotEmpty) {
         instructorList = localInstructors;
         print('✅ Loaded ${instructorList.length} instructors from local cache');
@@ -2481,10 +2675,12 @@ class EventController extends GetxController {
               return Instructor.fromJson(
                   doc.id, doc.data() as Map<String, dynamic>);
             }).toList();
-            
+
             // Update local cache
-            await LocalStorageService.instance.saveInstructorsLocally(instructorList);
-            print('✅ Updated instructors cache with ${instructorList.length} instructors from Firestore');
+            await LocalStorageService.instance
+                .saveInstructorsLocally(instructorList);
+            print(
+                '✅ Updated instructors cache with ${instructorList.length} instructors from Firestore');
             return instructorList;
           } else {
             print('⚠️ No instructors found in Firestore');
@@ -2512,7 +2708,8 @@ class EventController extends GetxController {
     } catch (e) {
       print('❌ Error in getUpdatedInstructorsList: $e');
       // Try to return cached instructors as fallback
-      final localInstructors = await LocalStorageService.instance.loadInstructorsLocally();
+      final localInstructors =
+          await LocalStorageService.instance.loadInstructorsLocally();
       if (localInstructors.isNotEmpty) {
         instructorList = localInstructors;
         return instructorList;
@@ -2528,27 +2725,29 @@ class EventController extends GetxController {
     }
     if (systemBox.length > 0) {
       if (system.value.loggedIn != '') {
-        //print('logged in');
+        print('🔵 checkForLocalLogin: Logged in as ${system.value.loggedIn}');
         loggedIn.value = true;
         toggleTheme(system.value.isDarkMode);
-        
+
         // Try to get instructor from local cache first
         var instructor = getInstructor(system.value.loggedIn);
-        
+
         // If not in instructorList, try loading from local storage
         if (instructor == null) {
-          final localInstructor = LocalStorageService.instance.getInstructorLocally(system.value.loggedIn);
+          final localInstructor = LocalStorageService.instance
+              .getInstructorLocally(system.value.loggedIn);
           if (localInstructor != null) {
             // Add to instructorList if not already there
-            if (!instructorList.any((inst) => inst.id == system.value.loggedIn)) {
+            if (!instructorList
+                .any((inst) => inst.id == system.value.loggedIn)) {
               instructorList.add(localInstructor);
             }
             instructor = localInstructor;
           }
         }
-        
+
         currentInstructor = instructor ?? currentInstructor;
-        
+
         // Register device if instructor is logged in (non-blocking, background)
         // Don't block login if this fails or if offline
         if (currentInstructor.id.isNotEmpty && isConnected.value) {
@@ -2556,14 +2755,15 @@ class EventController extends GetxController {
             print('⚠️ Device registration failed (non-critical): $e');
           });
         }
-        
+
         // Load instructor's custom comments after local login check
         if (currentInstructor.id.isNotEmpty) {
           loadInstructorCustomComments().catchError((e) {
-            print('⚠️ Failed to load instructor custom comments (non-critical): $e');
+            print(
+                '⚠️ Failed to load instructor custom comments (non-critical): $e');
           });
         }
-        
+
         return true;
       } else {
         print('Not logged in');
@@ -2585,7 +2785,7 @@ class EventController extends GetxController {
     final random = Random();
     final Set<int> usedNumbers = {};
     final List<Participant> participants = [];
-    
+
     // Generate 16 unique random numbers between 85-350
     while (usedNumbers.length < 16) {
       final number = 85 + random.nextInt(350 - 85 + 1); // 85 to 350 inclusive
@@ -2597,10 +2797,10 @@ class EventController extends GetxController {
         )..status = ParticipantStatus.Active);
       }
     }
-    
+
     // Sort participants by number
     participants.sort((a, b) => a.number.compareTo(b.number));
-    
+
     final event = Event(
       date: '01-01-2026',
       instructorId: currentInstructor.id,
@@ -2608,8 +2808,9 @@ class EventController extends GetxController {
     )
       ..participants = participants
       ..activeParticipants = List<Participant>.from(participants)
-      ..instructorName = '${currentInstructor.firstName} ${currentInstructor.lastName}'
-      ..groupNumber = 1  // Set groupNumber to pass validation (non-zero)
+      ..instructorName =
+          '${currentInstructor.firstName} ${currentInstructor.lastName}'
+      ..groupNumber = 1 // Set groupNumber to pass validation (non-zero)
       ..finalized = false
       ..alonkaSprints = []
       ..sakimRounds = []
@@ -2623,7 +2824,7 @@ class EventController extends GetxController {
       ..meshulashEndTime = null
       ..sakimStartTime = null
       ..sakimEndTime = null;
-    
+
     return event;
   }
 
@@ -2631,36 +2832,44 @@ class EventController extends GetxController {
   Future<void> loadPlaygroundEvent() async {
     try {
       currentEventName = 'playground';
-      
+
       // Try to load existing playground from local storage first
-      final existingPlayground = await LocalStorageService.instance.loadEventLocally('playground', '01-01-2026');
-      
-      if (existingPlayground != null && existingPlayground.participants.isNotEmpty) {
+      final existingPlayground = await LocalStorageService.instance
+          .loadEventLocally('playground', '01-01-2026');
+
+      if (existingPlayground != null &&
+          existingPlayground.participants.isNotEmpty) {
         // Load existing playground
         // Ensure the loaded event has the correct instructor ID (in case instructor changed)
         // Note: eventName, date, and instructorId are final, so they should already be correct from JSON
         currentEvent.value = existingPlayground;
-        
+
         // Explicitly save to ensure it's persisted (in case of any issues)
         await existingPlayground.saveToLocal();
-        
-        print('✅ Loaded existing playground event: ${existingPlayground.participants.length} participants, first participant: ${existingPlayground.participants.first.number}, eventName: ${existingPlayground.eventName}');
-        print('   Participants: ${existingPlayground.participants.map((p) => p.number).join(", ")}');
+
+        print(
+            '✅ Loaded existing playground event: ${existingPlayground.participants.length} participants, first participant: ${existingPlayground.participants.first.number}, eventName: ${existingPlayground.eventName}');
+        print(
+            '   Participants: ${existingPlayground.participants.map((p) => p.number).join(", ")}');
       } else {
         // Create new playground event only if it doesn't exist or is empty
-        print('🆕 No existing playground found (or empty), creating new one...');
+        print(
+            '🆕 No existing playground found (or empty), creating new one...');
         if (existingPlayground != null) {
-          print('   Existing playground was empty (${existingPlayground.participants.length} participants)');
+          print(
+              '   Existing playground was empty (${existingPlayground.participants.length} participants)');
         }
         final playgroundEvent = _createPlaygroundEvent();
         currentEvent.value = playgroundEvent;
-        
+
         // Save the new playground to local storage so it persists
         await playgroundEvent.saveToLocal();
-        print('✅ Created new playground event: ${playgroundEvent.participants.length} participants, groupNumber: ${playgroundEvent.groupNumber}, first participant: ${playgroundEvent.participants.first.number}');
-        print('   Participants: ${playgroundEvent.participants.map((p) => p.number).join(", ")}');
+        print(
+            '✅ Created new playground event: ${playgroundEvent.participants.length} participants, groupNumber: ${playgroundEvent.groupNumber}, first participant: ${playgroundEvent.participants.first.number}');
+        print(
+            '   Participants: ${playgroundEvent.participants.map((p) => p.number).join(", ")}');
       }
-      
+
       // Calculate grades synchronously before navigation
       // This ensures the event is fully ready and avoids build phase issues
       calculateGrades();
@@ -2699,10 +2908,11 @@ class EventController extends GetxController {
           print('⚠️ Error deleting playground from Firestore: $e');
         }
       }
-      
+
       // Delete from local storage
       try {
-        await LocalStorageService.instance.deleteEventLocally('playground', '01-01-2026');
+        await LocalStorageService.instance
+            .deleteEventLocally('playground', '01-01-2026');
         print('✅ Deleted playground from local storage');
       } catch (e) {
         print('⚠️ Error deleting playground from local storage: $e');
@@ -2715,7 +2925,8 @@ class EventController extends GetxController {
   /// 🔍 Get Full Name of an Instructor by `instructorId`
   String getInstructorName(String instructorId) {
     try {
-      Instructor instructor = instructorList.firstWhere((i) => i.id == instructorId);
+      Instructor instructor =
+          instructorList.firstWhere((i) => i.id == instructorId);
       return '${instructor.firstName} ${instructor.lastName}';
     } catch (e) {
       return "❌";
@@ -2728,34 +2939,99 @@ class EventController extends GetxController {
       if (!loggedIn.value || currentInstructor.id.isEmpty) {
         return;
       }
-      
-      final comments = await InstructorProfileService.loadInstructorCustomComments(currentInstructor.id);
+
+      final comments =
+          await InstructorProfileService.loadInstructorCustomComments(
+              currentInstructor.id);
       instructorCustomComments.value = comments;
       instructorCustomComments.refresh();
-      print('✅ Loaded ${comments.length} custom comment categories for instructor');
+      print(
+          '✅ Loaded ${comments.length} custom comment categories for instructor');
     } catch (e) {
       print('❌ Error loading instructor custom comments: $e');
     }
   }
 
+  /// 🎨 Load instructor's UX preferences from Firebase/local storage
+  Future<void> loadUxPreferences() async {
+    try {
+      if (!loggedIn.value || currentInstructor.id.isEmpty) {
+        print(
+            '⚠️ loadUxPreferences: Skipping load - loggedIn=${loggedIn.value}, instructorId=${currentInstructor.id}');
+        return;
+      }
+
+      print('🔵 loadUxPreferences calling service for ${currentInstructor.id}');
+      final prefs = await InstructorProfileService.loadUxPreferences(
+          currentInstructor.id);
+      uxPreferences.value = prefs;
+
+      // Apply preferences to current state
+      userFontSize.value = prefs.fontSize;
+      themeController.toggleTheme(prefs.theme == 'dark');
+
+      themeController.toggleTheme(prefs.theme == 'dark');
+
+      print(
+          '✅ Loaded UX preferences for instructor: inOrderOfArrival=${prefs.inOrderOfArrival}');
+    } catch (e) {
+      print('❌ Error loading instructor UX preferences: $e');
+    }
+  }
+
+  /// 💾 Update and save instructor's UX preferences
+  Future<bool> updateUxPreferences(InstructorUxPreferences newPrefs) async {
+    print(
+        '🔵 EventController (Hash: $hashCode): updateUxPreferences called with inOrderOfArrival=${newPrefs.inOrderOfArrival}');
+    if (!loggedIn.value || currentInstructor.id.isEmpty) {
+      print(
+          '⚠️ EventController (Hash: $hashCode): updateUxPreferences skipped - Not logged in or no instructor ID');
+      return false;
+    }
+
+    try {
+      // Update local state
+      uxPreferences.value = newPrefs;
+
+      // Apply preferences to current state
+      userFontSize.value = newPrefs.fontSize;
+      themeController.toggleTheme(newPrefs.theme == 'dark');
+
+      // Save to storage
+      final success = await InstructorProfileService.saveUxPreferences(
+          currentInstructor.id, newPrefs);
+
+      if (success) {
+        print(
+            '✅ Saved UX preferences for instructor: inOrderOfArrival=${newPrefs.inOrderOfArrival}');
+      }
+
+      return success;
+    } catch (e) {
+      print('❌ Error saving instructor UX preferences: $e');
+      return false;
+    }
+  }
+
   /// 💾 Save a custom comment to instructor's profile
-  Future<bool> saveInstructorCustomComment(String exerciseType, String comment) async {
+  Future<bool> saveInstructorCustomComment(
+      String exerciseType, String comment) async {
     try {
       if (!loggedIn.value || currentInstructor.id.isEmpty) {
         return false;
       }
-      
+
       final success = await InstructorProfileService.saveCustomComment(
         currentInstructor.id,
         exerciseType,
         comment,
       );
-      
+
       if (success) {
         // Reload comments to update UI
         await loadInstructorCustomComments();
       }
-      
+
       return success;
     } catch (e) {
       print('❌ Error saving instructor custom comment: $e');
@@ -2764,23 +3040,24 @@ class EventController extends GetxController {
   }
 
   /// 🗑️ Remove a custom comment from instructor's profile
-  Future<bool> removeInstructorCustomComment(String exerciseType, String comment) async {
+  Future<bool> removeInstructorCustomComment(
+      String exerciseType, String comment) async {
     try {
       if (!loggedIn.value || currentInstructor.id.isEmpty) {
         return false;
       }
-      
+
       final success = await InstructorProfileService.removeCustomComment(
         currentInstructor.id,
         exerciseType,
         comment,
       );
-      
+
       if (success) {
         // Reload comments to update UI
         await loadInstructorCustomComments();
       }
-      
+
       return success;
     } catch (e) {
       print('❌ Error removing instructor custom comment: $e');
@@ -2792,17 +3069,17 @@ class EventController extends GetxController {
   List<String> getInstructorCustomCommentsForExercise(String exerciseType) {
     try {
       final List<String> result = [];
-      
+
       // Add exercise-specific comments
       if (instructorCustomComments.containsKey(exerciseType)) {
         result.addAll(instructorCustomComments[exerciseType]!);
       }
-      
+
       // Add generic comments
       if (instructorCustomComments.containsKey('generic')) {
         result.addAll(instructorCustomComments['generic']!);
       }
-      
+
       return result;
     } catch (e) {
       print('❌ Error getting instructor custom comments for exercise: $e');
@@ -2817,28 +3094,31 @@ class EventController extends GetxController {
     try {
       // Build list of event keys to exclude (currently loaded events)
       List<String> excludeKeys = [];
-      
+
       // Exclude currently loaded event if it exists
-      if (currentEvent.value.eventName.isNotEmpty && 
+      if (currentEvent.value.eventName.isNotEmpty &&
           currentEvent.value.date.isNotEmpty) {
-        excludeKeys.add('${currentEvent.value.eventName}/${currentEvent.value.date}');
+        excludeKeys
+            .add('${currentEvent.value.eventName}/${currentEvent.value.date}');
       }
-      
+
       // Exclude all unfinalized events (they should never be deleted)
       for (var event in unfinalizedEvents) {
         if (event.eventName.isNotEmpty && event.date.isNotEmpty) {
           excludeKeys.add('${event.eventName}/${event.date}');
         }
       }
-      
+
       // Run cleanup with safety exclusions
-      final deletedCount = await LocalStorageService.instance.cleanupOldFinalizedEvents(
+      final deletedCount =
+          await LocalStorageService.instance.cleanupOldFinalizedEvents(
         retentionDays: finalizedEventRetentionDays,
         excludeEventKeys: excludeKeys,
       );
-      
+
       if (deletedCount > 0) {
-        print('🧹 Cleaned up $deletedCount old finalized event(s) from local cache');
+        print(
+            '🧹 Cleaned up $deletedCount old finalized event(s) from local cache');
       }
     } catch (e) {
       print('❌ Error in cleanupOldFinalizedEvents: $e');

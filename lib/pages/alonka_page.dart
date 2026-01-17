@@ -26,11 +26,11 @@ class AlonkaPage extends StatefulWidget {
 }
 
 class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
-  final eventController = Get.put(EventController());
+  final eventController = Get.find<EventController>();
   int runTime = 0;
   late Timer _timer;
   final ScrollController _scrollController = ScrollController();
-  bool inOrderOfArrival = true;
+  // inOrderOfArrival is now loaded from uxPreferences reactively
   bool _floatingPttEnabled = false;
   bool _volumeButtonPttEnabled = false;
   bool _showMatrix = false; // Toggle between list and matrix view
@@ -42,7 +42,7 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('alonka');
     _loadSttPreferences();
-    
+
     runTime = eventController.currentEvent.value.getAlonkaRunTime();
     if (eventController.currentEvent.value.alonkaEndTime == null) {
       _timer = Timer.periodic(Duration(seconds: 5), (Timer timer) {
@@ -52,7 +52,6 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
       });
     }
     _scrollToEnd();
-    super.initState();
   }
 
   Future<void> _loadSttPreferences() async {
@@ -79,9 +78,11 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
   void sortActiveList() {}
 
   bool showStartRoundButton() {
-    if (eventController.currentEvent.value.alonkaStartTime == null) return false;
+    if (eventController.currentEvent.value.alonkaStartTime == null)
+      return false;
     if (eventController.currentEvent.value.alonkaSprints.last.activeParticipants
-        .isNotEmpty || eventController.currentEvent.value.alonkaEndTime!=null) return false;
+            .isNotEmpty ||
+        eventController.currentEvent.value.alonkaEndTime != null) return false;
     return true;
   }
 
@@ -89,24 +90,25 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
   void dispose() {
     // Clear exercise context when leaving page
     ExerciseContextService().clearExercise();
-    
+
     if (eventController.currentEvent.value.alonkaEndTime == null)
       _timer.cancel(); // Stop timer when widget is disposed
-    
+
     // Restore portrait-only orientation when leaving
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
-    
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     bool tablet = isTablet(context);
-    double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
-    
+    double scaledFontSize =
+        getTabletScaledFontSize(context, eventController.userFontSize.value);
+
     // Allow landscape orientation for tablets
     if (tablet) {
       SystemChrome.setPreferredOrientations([
@@ -116,7 +118,7 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
         DeviceOrientation.landscapeRight,
       ]);
     }
-    
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -128,361 +130,415 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
       child: Stack(
         children: [
           Scaffold(
-          appBar: AppBar(
-            //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            centerTitle: true,
-            title: Text('אלונקה'),
-            actions: [
-              // Matrix toggle icon
-              IconButton(
-                icon: Icon(
-                  _showMatrix ? Icons.list : Icons.grid_on,
-                  color: _showMatrix ? Colors.blue : Colors.grey,
+            appBar: AppBar(
+              //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+              centerTitle: true,
+              title: Text('אלונקה'),
+              actions: [
+                // Matrix toggle icon
+                IconButton(
+                  icon: Icon(
+                    _showMatrix ? Icons.list : Icons.grid_on,
+                    color: _showMatrix ? Colors.blue : Colors.grey,
+                  ),
+                  tooltip: _showMatrix ? 'הצג רשימת סיבובים' : 'הצג מטריצה',
+                  onPressed: () {
+                    setState(() {
+                      _showMatrix = !_showMatrix;
+                    });
+                  },
                 ),
-                tooltip: _showMatrix ? 'הצג רשימת סיבובים' : 'הצג מטריצה',
-                onPressed: () {
-                  setState(() {
-                    _showMatrix = !_showMatrix;
-                  });
-                },
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    inOrderOfArrival = !inOrderOfArrival; // Toggle state
-                    // Only update active participants if there are sprints
-                    if (eventController.currentEvent.value.alonkaSprints.isNotEmpty) {
-                      List<int> activeList = eventController.currentEvent.value
-                          .getParticipantsByStatus(ParticipantStatus.Active)
-                          .map((participant) => participant.number)
-                          .toList();
-                      if (inOrderOfArrival) {
-                        /// Sort by Alonka grade (descending)
-                        activeList.sort((a, b) => eventController
-                            .getAlonkaGrade(b)
-                            .compareTo(eventController.getAlonkaGrade(a)));
-                      }
-                      eventController
-                          .currentEvent
-                          .value
-                          .alonkaSprints[eventController
-                                  .currentEvent.value.alonkaSprints.length -
-                              1]
-                          .activeParticipants = activeList;
-                      eventController.update();
-                    }
-                  });
-                },
-                icon: Icon(
-                  Icons.directions_walk_sharp,
-                  color: inOrderOfArrival
-                      ? Colors.green
-                      : Colors.grey, // Switch color
-                  size: 32,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.info_outline),
-                tooltip: 'מדריך למשתמש',
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => Directionality(
-                      textDirection: TextDirection.rtl,
-                      child: const ManualWebView(
-                        url:
-                            'https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000&slide=id.g384f00aea19_0_72',
-                        //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
-                      ),
-                    ),
-                  );
-                },
-              ),
-              WifiSettingsButton(),
-            ],
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back), // 🔄 Custom back arrow
-              onPressed: () {
-                eventController.loading.value = true;
-                Get.back(); // ⬅️ Go back using GetX
-                eventController.loading.value = false;
-              },
-            ),
-          ),
-          body: _showMatrix
-              ? _AlonkaExerciseMatrixView(
-                  key: ValueKey('matrix_$inOrderOfArrival'), // Force rebuild when sort order changes
-                  inOrderOfArrival: inOrderOfArrival,
-                )
-              : GetX<EventController>(builder: (_) {
-                  // Show the normal list view
-                  return SingleChildScrollView(
-              controller: _scrollController,
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: tablet ? 20.0 : 16.0),
-                  child: Column(
-                    children: [
-                      SizedBox(height: tablet ? 20.0 : 16.0),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            ' דקות  ',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            runTime.toString(),
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '  משך התרגיל  ',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          )
-                        ],
-                      ),
-                      SizedBox(
-                        height: tablet ? 25.0 : 20.0,
-                      ),
-                      Obx(() => eventController.loading.value
-                          ? SizedBox(
-                              height: 100,
-                              width: 100,
-                              child: CircularProgressIndicator(),
-                            )
-                          : Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: List.generate(
-                                  _.currentEvent.value.alonkaSprints.length,
-                                  (index) {
-                                return Padding(
-                                  padding: const EdgeInsets.all(5.0),
-                                  child: AlonkaRoundPanel(
-                                    round:
-                                        _.currentEvent.value.alonkaSprints[index],
-                                  ),
-                                );
-                              }),
-                            )),
-                      SizedBox(height: tablet ? 20.0 : 15.0),
-                      Divider(
-                        thickness: tablet ? 45.0 : 30.0,
-                      ),
-                      SizedBox(height: tablet ? 25.0 : 20.0),
-
-                      /// widget loading indicator
-                      /// show hide start Alonka Exam
-                      Obx(() => eventController.loading.value || eventController.currentEvent.value
-                          .alonkaStartTime != null
-                          ?  SizedBox.shrink()
-                          :  Padding(
-                            padding: EdgeInsets.symmetric(horizontal: tablet ? 20.0 : 16.0),
-                            child: ElevatedButton (
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                          Theme.of(context).colorScheme.primary,
-                          foregroundColor:
-                          Theme.of(context).colorScheme.onPrimary,
-                          minimumSize: tablet ? Size(200, 60) : null,
-                        ),
-                        onPressed: () async {
-                          _.loading.value = true;
-                          _.currentAlonkaRound.value =
-                              _.currentEvent.value.alonkaSprints.length;
-                          if (_
-                              .currentEvent.value.alonkaSprints.isEmpty)
-                            eventController.currentEvent.value
-                                .alonkaStartTime = DateTime.now();
-                          List<int> activeList = _.currentEvent.value
-                              .getParticipantsByStatus(
-                              ParticipantStatus.Active)
+                Obx(() => IconButton(
+                      onPressed: () {
+                        // Toggle the preference
+                        final newValue = !eventController
+                            .uxPreferences.value.inOrderOfArrival;
+                        // Update active participants if there are sprints
+                        if (eventController
+                            .currentEvent.value.alonkaSprints.isNotEmpty) {
+                          List<int> activeList = eventController
+                              .currentEvent.value
+                              .getParticipantsByStatus(ParticipantStatus.Active)
                               .map((participant) => participant.number)
                               .toList();
-                          if (inOrderOfArrival) {
+                          if (newValue) {
                             /// Sort by Alonka grade (descending)
                             activeList.sort((a, b) => eventController
                                 .getAlonkaGrade(b)
-                                .compareTo(
-                                eventController.getAlonkaGrade(a)));
+                                .compareTo(eventController.getAlonkaGrade(a)));
                           }
-
-                          /// create new Alonka Sprint
-                          _.currentEvent.value.alonkaSprints.add(
-                              AlonkaSprint(
-                                  round: _.currentEvent.value
-                                      .alonkaSprints.length,
-                                  activeParticipants: activeList));
-                          _.loading.value = false;
-                          _scrollToEnd();
-                          // Use non-blocking save to prevent delays when offline
-                          eventController.saveEventWithOfflineSupport(_.currentEvent.value);
-                          //})
-                        },
-                        child: Text(
-                          showStartRoundButton()
-                              ? 'התחל סיבוב חדש (צא)'
-                              : 'תחילת תרגיל',
-                          style: TextStyle(
-                              fontSize: scaledFontSize,
-                              fontWeight: FontWeight.bold),
+                          eventController
+                              .currentEvent
+                              .value
+                              .alonkaSprints[eventController
+                                      .currentEvent.value.alonkaSprints.length -
+                                  1]
+                              .activeParticipants = activeList;
+                          eventController.update();
+                        }
+                        print(
+                            '🔵 AlonkaPage: Toggling inOrderOfArrival from ${!newValue} to $newValue. Controller Hash: ${eventController.hashCode}');
+                        var updatedPrefs = eventController.uxPreferences.value
+                            .copyWith(inOrderOfArrival: newValue);
+                        eventController.updateUxPreferences(updatedPrefs);
+                      },
+                      icon: Icon(
+                        Icons.directions_walk_sharp,
+                        color:
+                            eventController.uxPreferences.value.inOrderOfArrival
+                                ? Colors.green
+                                : Colors.grey, // Switch color
+                        size: 32,
+                      ),
+                    )),
+                IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  tooltip: 'מדריך למשתמש',
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: const ManualWebView(
+                          url:
+                              'https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000&slide=id.g384f00aea19_0_72',
+                          //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
                         ),
-                            ),
-                          )),
-                    Obx(() => eventController.widgetLoading.value
-                        ? Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: SizedBox(
-                              height: 10,
-                              width: 200,
-                              child: LinearProgressIndicator()
-                            ),
-                        )
-                        :!showStartRoundButton()
-                        ? SizedBox.shrink()
-                        :  ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                      Theme.of(context).colorScheme.primary,
-                                  foregroundColor:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  minimumSize: tablet ? Size(200, 60) : null,
-                                ),
-                                onPressed: () async {
-                                  _.loading.value = true;
-                                  _.currentAlonkaRound.value =
-                                      _.currentEvent.value.alonkaSprints.length;
-                                  if (_
-                                      .currentEvent.value.alonkaSprints.isEmpty)
-                                    eventController.currentEvent.value
-                                        .alonkaStartTime = DateTime.now();
-                                  List<int> activeList = _.currentEvent.value
-                                      .getParticipantsByStatus(
-                                          ParticipantStatus.Active)
-                                      .map((participant) => participant.number)
-                                      .toList();
-                                  if (inOrderOfArrival) {
-                                    /// Sort by Alonka grade (descending)
-                                    activeList.sort((a, b) => eventController
-                                        .getAlonkaGrade(b)
-                                        .compareTo(
-                                            eventController.getAlonkaGrade(a)));
-                                  }
-
-                                  /// create new Alonka Sprint
-                                  _.currentEvent.value.alonkaSprints.add(
-                                      AlonkaSprint(
-                                          round: _.currentEvent.value
-                                              .alonkaSprints.length,
-                                          activeParticipants: activeList));
-                                  _.loading.value = false;
-                                  _scrollToEnd();
-                                  // Use non-blocking save to prevent delays when offline
-                                  eventController.saveEventWithOfflineSupport(_.currentEvent.value);
-                                  //})
-                                },
-                                child: Text(
-                                  'התחל סיבוב חדש (צא)',
-                                  style: TextStyle(
-                                      fontSize: scaledFontSize,
-                                      fontWeight: FontWeight.bold),
-                                ))),
-                    SizedBox(
-                      height: 100,
-                    ),
-                    _.currentEvent.value.alonkaEndTime == null &&
-                            _.currentEvent.value.alonkaStartTime != null &&
-                            _.currentEvent.value.alonkaSprints.last
-                                .activeParticipants.isEmpty
-                        ? ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.onPrimary,
-                              minimumSize: tablet ? Size(200, 60) : null,
-                            ),
-                            onPressed: () async {
-                              var res = await showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return YesNoDialog();
-                                },
-                              );
-                              if (res) {
-                                setState(() {
-                                  _.currentEvent.value.alonkaEndTime =
-                                      DateTime.now();
-                                });
-                                _timer.cancel();
-                                // Use non-blocking save to prevent delays when offline
-                                eventController.saveEventWithOfflineSupport(
-                                  eventController.currentEvent.value
-                                );
-                              }
-                            },
-                            //eventController.currentEvent.value.save();
-                            child: Text(
-                              'סיום התרגיל',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: scaledFontSize),
-                            ))
-                        : _.currentEvent.value.alonkaEndTime != null
-                            ? Column(
-                                mainAxisSize: MainAxisSize.min,
+                      ),
+                    );
+                  },
+                ),
+                WifiSettingsButton(),
+              ],
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back), // 🔄 Custom back arrow
+                onPressed: () {
+                  eventController.loading.value = true;
+                  Get.back(); // ⬅️ Go back using GetX
+                  eventController.loading.value = false;
+                },
+              ),
+            ),
+            body: _showMatrix
+                ? _AlonkaExerciseMatrixView(
+                    key: ValueKey(
+                        'matrix_${eventController.uxPreferences.value.inOrderOfArrival}'), // Force rebuild when sort order changes
+                    inOrderOfArrival:
+                        eventController.uxPreferences.value.inOrderOfArrival,
+                  )
+                : GetX<EventController>(builder: (_) {
+                    // Show the normal list view
+                    return SingleChildScrollView(
+                      controller: _scrollController,
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: tablet ? 20.0 : 16.0),
+                          child: Column(
+                            children: [
+                              SizedBox(height: tablet ? 20.0 : 16.0),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.orange,
-                                      foregroundColor: Colors.white,
-                                      minimumSize: tablet ? Size(200, 60) : null,
-                                    ),
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ExerciseGradingPage(exerciseType: 'alonka'),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.grade),
-                                    label: Text(
-                                      'ציון התרגיל',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: tablet ? 18 : 16,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
                                   Text(
-                                    '  התרגיל הסתיים  ',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: scaledFontSize),
+                                    ' דקות  ',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold),
                                   ),
+                                  Text(
+                                    runTime.toString(),
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(
+                                    '  משך התרגיל  ',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold),
+                                  )
                                 ],
-                              )
-                            : SizedBox.shrink(),
-                    SizedBox(
-                      height: 80,
-                    ),
-                  ],
-                ),
-                  ),
-                ),
-              );
-            }),
-        ),
-        // Floating PTT Button - OUTSIDE Scaffold, on top of everything
-        if (_floatingPttEnabled || _volumeButtonPttEnabled)
-          FloatingPttButton(
-            instructorId: eventController.currentInstructor.id,
-            enabled: _floatingPttEnabled || _volumeButtonPttEnabled,
-            showButton: _floatingPttEnabled,
+                              ),
+                              SizedBox(
+                                height: tablet ? 25.0 : 20.0,
+                              ),
+                              Obx(() => eventController.loading.value
+                                  ? SizedBox(
+                                      height: 100,
+                                      width: 100,
+                                      child: CircularProgressIndicator(),
+                                    )
+                                  : Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: List.generate(
+                                          _.currentEvent.value.alonkaSprints
+                                              .length, (index) {
+                                        return Padding(
+                                          padding: const EdgeInsets.all(5.0),
+                                          child: AlonkaRoundPanel(
+                                            round: _.currentEvent.value
+                                                .alonkaSprints[index],
+                                          ),
+                                        );
+                                      }),
+                                    )),
+                              SizedBox(height: tablet ? 20.0 : 15.0),
+                              Divider(
+                                thickness: tablet ? 45.0 : 30.0,
+                              ),
+                              SizedBox(height: tablet ? 25.0 : 20.0),
+
+                              /// widget loading indicator
+                              /// show hide start Alonka Exam
+                              Obx(() => eventController.loading.value ||
+                                      eventController.currentEvent.value
+                                              .alonkaStartTime !=
+                                          null
+                                  ? SizedBox.shrink()
+                                  : Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: tablet ? 20.0 : 16.0),
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          foregroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary,
+                                          minimumSize:
+                                              tablet ? Size(200, 60) : null,
+                                        ),
+                                        onPressed: () async {
+                                          _.loading.value = true;
+                                          _.currentAlonkaRound.value = _
+                                              .currentEvent
+                                              .value
+                                              .alonkaSprints
+                                              .length;
+                                          if (_.currentEvent.value.alonkaSprints
+                                              .isEmpty)
+                                            eventController.currentEvent.value
+                                                    .alonkaStartTime =
+                                                DateTime.now();
+                                          List<int> activeList = _
+                                              .currentEvent.value
+                                              .getParticipantsByStatus(
+                                                  ParticipantStatus.Active)
+                                              .map((participant) =>
+                                                  participant.number)
+                                              .toList();
+                                          if (eventController.uxPreferences
+                                              .value.inOrderOfArrival) {
+                                            /// Sort by Alonka grade (descending)
+                                            activeList.sort((a, b) =>
+                                                eventController
+                                                    .getAlonkaGrade(b)
+                                                    .compareTo(eventController
+                                                        .getAlonkaGrade(a)));
+                                          }
+
+                                          /// create new Alonka Sprint
+                                          _.currentEvent.value.alonkaSprints
+                                              .add(AlonkaSprint(
+                                                  round: _.currentEvent.value
+                                                      .alonkaSprints.length,
+                                                  activeParticipants:
+                                                      activeList));
+                                          _.loading.value = false;
+                                          _scrollToEnd();
+                                          // Use non-blocking save to prevent delays when offline
+                                          eventController
+                                              .saveEventWithOfflineSupport(
+                                                  _.currentEvent.value);
+                                          //})
+                                        },
+                                        child: Text(
+                                          showStartRoundButton()
+                                              ? 'התחל סיבוב חדש (צא)'
+                                              : 'תחילת תרגיל',
+                                          style: TextStyle(
+                                              fontSize: scaledFontSize,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    )),
+                              Obx(() => eventController.widgetLoading.value
+                                  ? Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: SizedBox(
+                                          height: 10,
+                                          width: 200,
+                                          child: LinearProgressIndicator()),
+                                    )
+                                  : !showStartRoundButton()
+                                      ? SizedBox.shrink()
+                                      : ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                            foregroundColor: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary,
+                                            minimumSize:
+                                                tablet ? Size(200, 60) : null,
+                                          ),
+                                          onPressed: () async {
+                                            _.loading.value = true;
+                                            _.currentAlonkaRound.value = _
+                                                .currentEvent
+                                                .value
+                                                .alonkaSprints
+                                                .length;
+                                            if (_.currentEvent.value
+                                                .alonkaSprints.isEmpty)
+                                              eventController.currentEvent.value
+                                                      .alonkaStartTime =
+                                                  DateTime.now();
+                                            List<int> activeList = _
+                                                .currentEvent.value
+                                                .getParticipantsByStatus(
+                                                    ParticipantStatus.Active)
+                                                .map((participant) =>
+                                                    participant.number)
+                                                .toList();
+                                            if (eventController.uxPreferences
+                                                .value.inOrderOfArrival) {
+                                              /// Sort by Alonka grade (descending)
+                                              activeList.sort((a, b) =>
+                                                  eventController
+                                                      .getAlonkaGrade(b)
+                                                      .compareTo(eventController
+                                                          .getAlonkaGrade(a)));
+                                            }
+
+                                            /// create new Alonka Sprint
+                                            _.currentEvent.value.alonkaSprints
+                                                .add(AlonkaSprint(
+                                                    round: _.currentEvent.value
+                                                        .alonkaSprints.length,
+                                                    activeParticipants:
+                                                        activeList));
+                                            _.loading.value = false;
+                                            _scrollToEnd();
+                                            // Use non-blocking save to prevent delays when offline
+                                            eventController
+                                                .saveEventWithOfflineSupport(
+                                                    _.currentEvent.value);
+                                            //})
+                                          },
+                                          child: Text(
+                                            'התחל סיבוב חדש (צא)',
+                                            style: TextStyle(
+                                                fontSize: scaledFontSize,
+                                                fontWeight: FontWeight.bold),
+                                          ))),
+                              SizedBox(
+                                height: 100,
+                              ),
+                              _.currentEvent.value.alonkaEndTime == null &&
+                                      _.currentEvent.value.alonkaStartTime !=
+                                          null &&
+                                      _.currentEvent.value.alonkaSprints.last
+                                          .activeParticipants.isEmpty
+                                  ? ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        foregroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary,
+                                        minimumSize:
+                                            tablet ? Size(200, 60) : null,
+                                      ),
+                                      onPressed: () async {
+                                        var res = await showDialog(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return YesNoDialog();
+                                          },
+                                        );
+                                        if (res) {
+                                          setState(() {
+                                            _.currentEvent.value.alonkaEndTime =
+                                                DateTime.now();
+                                          });
+                                          _timer.cancel();
+                                          // Use non-blocking save to prevent delays when offline
+                                          eventController
+                                              .saveEventWithOfflineSupport(
+                                                  eventController
+                                                      .currentEvent.value);
+                                        }
+                                      },
+                                      //eventController.currentEvent.value.save();
+                                      child: Text(
+                                        'סיום התרגיל',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: scaledFontSize),
+                                      ))
+                                  : _.currentEvent.value.alonkaEndTime != null
+                                      ? Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ElevatedButton.icon(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.orange,
+                                                foregroundColor: Colors.white,
+                                                minimumSize: tablet
+                                                    ? Size(200, 60)
+                                                    : null,
+                                              ),
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        ExerciseGradingPage(
+                                                            exerciseType:
+                                                                'alonka'),
+                                                  ),
+                                                );
+                                              },
+                                              icon: const Icon(Icons.grade),
+                                              label: Text(
+                                                'ציון התרגיל',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: tablet ? 18 : 16,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 20),
+                                            Text(
+                                              '  התרגיל הסתיים  ',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: scaledFontSize),
+                                            ),
+                                          ],
+                                        )
+                                      : SizedBox.shrink(),
+                              SizedBox(
+                                height: 80,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
           ),
-      ],
-    ),
+          // Floating PTT Button - OUTSIDE Scaffold, on top of everything
+          if (_floatingPttEnabled || _volumeButtonPttEnabled)
+            FloatingPttButton(
+              instructorId: eventController.currentInstructor.id,
+              enabled: _floatingPttEnabled || _volumeButtonPttEnabled,
+              showButton: _floatingPttEnabled,
+            ),
+        ],
+      ),
     );
   }
 }
@@ -490,11 +546,12 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
 /// Matrix view for the alonka exercise page showing all recruits and rounds
 class _AlonkaExerciseMatrixView extends StatefulWidget {
   final bool inOrderOfArrival;
-  
+
   const _AlonkaExerciseMatrixView({super.key, required this.inOrderOfArrival});
-  
+
   @override
-  State<_AlonkaExerciseMatrixView> createState() => _AlonkaExerciseMatrixViewState();
+  State<_AlonkaExerciseMatrixView> createState() =>
+      _AlonkaExerciseMatrixViewState();
 }
 
 class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
@@ -502,25 +559,25 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
   final ScrollController _verticalScrollController = ScrollController();
   final ScrollController _frozenColumnScrollController = ScrollController();
   bool _previousShowNewRoundColumn = false;
-  
+
   @override
   void initState() {
     super.initState();
     // Synchronize vertical scrolling between frozen column and scrollable part
     _verticalScrollController.addListener(() {
-      if (_frozenColumnScrollController.hasClients && 
+      if (_frozenColumnScrollController.hasClients &&
           _verticalScrollController.hasClients) {
         _frozenColumnScrollController.jumpTo(_verticalScrollController.offset);
       }
     });
     _frozenColumnScrollController.addListener(() {
-      if (_verticalScrollController.hasClients && 
+      if (_verticalScrollController.hasClients &&
           _frozenColumnScrollController.hasClients) {
         _verticalScrollController.jumpTo(_frozenColumnScrollController.offset);
       }
     });
   }
-  
+
   @override
   void dispose() {
     _horizontalScrollController.dispose();
@@ -528,16 +585,17 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
     _frozenColumnScrollController.dispose();
     super.dispose();
   }
-  
+
   void _scrollToNewColumn() {
     // Wait for the frame to render, then scroll
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Add a small delay to ensure layout is complete
       Future.delayed(Duration(milliseconds: 100), () {
-        if (_horizontalScrollController.hasClients && 
+        if (_horizontalScrollController.hasClients &&
             _horizontalScrollController.position.maxScrollExtent > 0) {
           _horizontalScrollController.animateTo(
-            _horizontalScrollController.position.maxScrollExtent, // Scroll to end (left side for RTL) to show new column
+            _horizontalScrollController.position
+                .maxScrollExtent, // Scroll to end (left side for RTL) to show new column
             duration: Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
@@ -545,7 +603,7 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
       });
     });
   }
-  
+
   Color _getCreditColor(AlonkaSprint sprint, int participantNumber) {
     if (sprint.alonkaCredits.contains(participantNumber)) {
       return Colors.red; // Alonka credit - red
@@ -575,9 +633,10 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
     return sprint.activeParticipants.isNotEmpty;
   }
 
-  Future<void> _handleCellClick(AlonkaSprint sprint, int participantNumber) async {
+  Future<void> _handleCellClick(
+      AlonkaSprint sprint, int participantNumber) async {
     final eventController = Get.put(EventController());
-    
+
     // Check if participant is in activeParticipants (round is open)
     if (!sprint.activeParticipants.contains(participantNumber)) {
       return; // Can't grant credit if not in active participants
@@ -585,7 +644,8 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
 
     var res = await showDialog<AlonkaCreditTypes>(
       context: context,
-      builder: (BuildContext context) => AlonkaCreditPanel(participantNumber: participantNumber),
+      builder: (BuildContext context) =>
+          AlonkaCreditPanel(participantNumber: participantNumber),
     );
 
     if (res != null) {
@@ -611,13 +671,14 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
         }
       });
       // Use non-blocking save to prevent delays when offline
-      eventController.saveEventWithOfflineSupport(eventController.currentEvent.value);
+      eventController
+          .saveEventWithOfflineSupport(eventController.currentEvent.value);
     }
   }
 
   void _handleCellDoubleClick(AlonkaSprint sprint, int participantNumber) {
     final eventController = Get.put(EventController());
-    
+
     setState(() {
       // Remove from credits and add back to active participants
       if (sprint.alonkaCredits.contains(participantNumber)) {
@@ -635,7 +696,8 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
       }
     });
     // Use non-blocking save to prevent delays when offline
-    eventController.saveEventWithOfflineSupport(eventController.currentEvent.value);
+    eventController
+        .saveEventWithOfflineSupport(eventController.currentEvent.value);
   }
 
   Future<void> _handleRecruitLongPress(int participantNumber) async {
@@ -644,10 +706,13 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
       context: context,
       builder: (BuildContext context) => CommentsDialog(
         commentsList: eventController.gradesData.listOfCommentsAlonka,
-        selectedComments: eventController.getParticipant(participantNumber).alonkaInstructorComments,
+        selectedComments: eventController
+            .getParticipant(participantNumber)
+            .alonkaInstructorComments,
         title: participantNumber.toString(),
         exerciseType: ExerciseType.alonka,
-        instructorCustomComments: eventController.getInstructorCustomCommentsForExercise('alonka'),
+        instructorCustomComments:
+            eventController.getInstructorCustomCommentsForExercise('alonka'),
       ),
     );
     if (res != null) {
@@ -664,7 +729,7 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
   Future<void> _handleStopRound(AlonkaSprint sprint) async {
     final eventController = Get.put(EventController());
     eventController.widgetLoading.value = true;
-    
+
     setState(() {
       // Add all remaining active participants to participation credits
       for (var participantNumber in sprint.activeParticipants) {
@@ -673,12 +738,13 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
       // Clear active participants
       sprint.activeParticipants = [];
     });
-    
+
     eventController.currentEvent.value.alonkaSprints[sprint.round] = sprint;
     // Use non-blocking save to prevent delays when offline
-    eventController.saveEventWithOfflineSupport(eventController.currentEvent.value);
+    eventController
+        .saveEventWithOfflineSupport(eventController.currentEvent.value);
     eventController.widgetLoading.value = false;
-    
+
     // Scroll to show the new placeholder column if it appears (scroll to max extent for RTL - left side)
     // The scroll will happen automatically in build() when showNewRoundColumn becomes true
   }
@@ -686,19 +752,21 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
   Future<void> _handleStartNewRound() async {
     final eventController = Get.put(EventController());
     eventController.loading.value = true;
-    eventController.currentAlonkaRound.value = eventController.currentEvent.value.alonkaSprints.length;
-    
+    eventController.currentAlonkaRound.value =
+        eventController.currentEvent.value.alonkaSprints.length;
+
     if (eventController.currentEvent.value.alonkaSprints.isEmpty) {
       eventController.currentEvent.value.alonkaStartTime = DateTime.now();
     }
-    
+
     List<int> activeList = eventController.currentEvent.value
         .getParticipantsByStatus(ParticipantStatus.Active)
         .map((participant) => participant.number)
         .toList();
-    
+
     if (eventController.currentEvent.value.alonkaSprints.isNotEmpty &&
-        eventController.currentEvent.value.alonkaSprints.last.activeParticipants.isEmpty) {
+        eventController
+            .currentEvent.value.alonkaSprints.last.activeParticipants.isEmpty) {
       // Sort by alonka grade if in order of arrival mode
       activeList.sort((a, b) => eventController
           .getAlonkaGrade(b)
@@ -713,11 +781,12 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
         ),
       );
     });
-    
+
     eventController.loading.value = false;
     // Use non-blocking save to prevent delays when offline
-    eventController.saveEventWithOfflineSupport(eventController.currentEvent.value);
-    
+    eventController
+        .saveEventWithOfflineSupport(eventController.currentEvent.value);
+
     // Scroll to show the new column (scroll to max extent for RTL - left side where new columns appear)
     _scrollToNewColumn();
   }
@@ -726,21 +795,22 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
   Widget build(BuildContext context) {
     // Use the inOrderOfArrival value directly - this ensures rebuild when it changes
     final inOrderOfArrival = widget.inOrderOfArrival;
-    
+
     // Use Obx to make it reactive to EventController changes
     return Obx(() {
       final eventController = Get.find<EventController>();
       final allSprints = eventController.currentEvent.value.alonkaSprints;
       bool isTablet = MediaQuery.of(context).size.width > 600;
-      
+
       // Show all rounds including open ones
       List<AlonkaSprint> sprints = List.from(allSprints);
-      
+
       // Check if we need to add a new round column (last round is finalized)
-      bool showNewRoundColumn = allSprints.isEmpty || 
-          (allSprints.isNotEmpty && allSprints.last.activeParticipants.isEmpty &&
-           eventController.currentEvent.value.alonkaEndTime == null);
-      
+      bool showNewRoundColumn = allSprints.isEmpty ||
+          (allSprints.isNotEmpty &&
+              allSprints.last.activeParticipants.isEmpty &&
+              eventController.currentEvent.value.alonkaEndTime == null);
+
       // Scroll to show placeholder column when it first appears
       if (showNewRoundColumn && !_previousShowNewRoundColumn) {
         _previousShowNewRoundColumn = true;
@@ -748,12 +818,12 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
       } else if (!showNewRoundColumn) {
         _previousShowNewRoundColumn = false;
       }
-      
+
       // Get participants and sort based on order of arrival toggle
       // Create a new list to ensure sorting happens
       final participantsList = List.from(eventController.currentEvent.value
           .getParticipantsByStatus(ParticipantStatus.Active));
-      
+
       // Sort based on order of arrival toggle
       if (inOrderOfArrival) {
         // Sort by estimated order of arrival (using getAlonkaGrade - same as other view)
@@ -765,428 +835,479 @@ class _AlonkaExerciseMatrixViewState extends State<_AlonkaExerciseMatrixView> {
         // Sort by recruit number ascending
         participantsList.sort((a, b) => a.number.compareTo(b.number));
       }
-      
+
       final participants = participantsList;
 
-    if (participants.isEmpty) {
-      return Center(
-        child: Text(
-          'אין נתונים',
-          style: TextStyle(color: Colors.white, fontSize: isTablet ? 18 : 16),
-        ),
-      );
-    }
+      if (participants.isEmpty) {
+        return Center(
+          child: Text(
+            'אין נתונים',
+            style: TextStyle(color: Colors.white, fontSize: isTablet ? 18 : 16),
+          ),
+        );
+      }
 
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+      final theme = Theme.of(context);
+      final isDark = theme.brightness == Brightness.dark;
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Stack(
-        children: [
-          // Scrollable table content - fills entire stack
-          Positioned.fill(
-            child: Container(
-              color: Colors.transparent, // Use transparent to show the gradient background
-              child: SingleChildScrollView(
-                controller: _verticalScrollController,
-                scrollDirection: Axis.vertical,
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  textDirection: TextDirection.rtl,
-                  children: [
-                    // Frozen first column (recruit numbers) - no scroll view needed, parent handles vertical scrolling
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Header cell
-                        Container(
-                          width: isTablet ? 80 : 70,
-                          height: isTablet ? 48 : 44,
-                          decoration: BoxDecoration(
-                            color: isDark 
-                                ? theme.colorScheme.surfaceContainerHighest
-                                : Colors.grey[200],
-                            border: Border(
-                              bottom: BorderSide(
-                                color: isDark 
-                                    ? theme.colorScheme.outline.withOpacity(0.3)
-                                    : Colors.grey[300]!, 
-                                width: 1
-                              ),
-                              left: BorderSide(
-                                color: isDark 
-                                    ? theme.colorScheme.outline.withOpacity(0.3)
-                                    : Colors.grey[300]!, 
-                                width: 1
-                              ),
-                            ),
-                          ),
-                          child: SizedBox.shrink(),
-                        ),
-                        // Data rows
-                        ...participants.map((participant) {
-                          return Container(
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: Stack(
+          children: [
+            // Scrollable table content - fills entire stack
+            Positioned.fill(
+              child: Container(
+                color: Colors
+                    .transparent, // Use transparent to show the gradient background
+                child: SingleChildScrollView(
+                  controller: _verticalScrollController,
+                  scrollDirection: Axis.vertical,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      // Frozen first column (recruit numbers) - no scroll view needed, parent handles vertical scrolling
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Header cell
+                          Container(
                             width: isTablet ? 80 : 70,
-                            height: isTablet ? 48 : 44, // Fixed height to match scrollable cells
+                            height: isTablet ? 48 : 44,
                             decoration: BoxDecoration(
-                              color: isDark 
-                                  ? theme.colorScheme.surfaceContainer
-                                  : Colors.grey[100],
+                              color: isDark
+                                  ? theme.colorScheme.surfaceContainerHighest
+                                  : Colors.grey[200],
                               border: Border(
                                 bottom: BorderSide(
-                                  color: isDark 
-                                      ? theme.colorScheme.outline.withOpacity(0.3)
-                                      : Colors.grey[300]!, 
-                                  width: 1
-                                ),
+                                    color: isDark
+                                        ? theme.colorScheme.outline
+                                            .withOpacity(0.3)
+                                        : Colors.grey[300]!,
+                                    width: 1),
                                 left: BorderSide(
-                                  color: isDark 
-                                      ? theme.colorScheme.outline.withOpacity(0.3)
-                                      : Colors.grey[300]!, 
-                                  width: 1
-                                ),
+                                    color: isDark
+                                        ? theme.colorScheme.outline
+                                            .withOpacity(0.3)
+                                        : Colors.grey[300]!,
+                                    width: 1),
                               ),
                             ),
-                            child: GestureDetector(
-                              onLongPress: () => _handleRecruitLongPress(participant.number),
-                              child: Center(
-                                child: Text(
-                                  participant.number.toString(),
-                                  style: TextStyle(
-                                    color: isDark 
-                                        ? theme.colorScheme.onSurface
-                                        : Colors.black,
-                                    fontSize: isTablet ? 16 : 14,
-                                    fontWeight: FontWeight.normal,
-                                  ),
-                                  textAlign: TextAlign.center,
+                            child: SizedBox.shrink(),
+                          ),
+                          // Data rows
+                          ...participants.map((participant) {
+                            return Container(
+                              width: isTablet ? 80 : 70,
+                              height: isTablet
+                                  ? 48
+                                  : 44, // Fixed height to match scrollable cells
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? theme.colorScheme.surfaceContainer
+                                    : Colors.grey[100],
+                                border: Border(
+                                  bottom: BorderSide(
+                                      color: isDark
+                                          ? theme.colorScheme.outline
+                                              .withOpacity(0.3)
+                                          : Colors.grey[300]!,
+                                      width: 1),
+                                  left: BorderSide(
+                                      color: isDark
+                                          ? theme.colorScheme.outline
+                                              .withOpacity(0.3)
+                                          : Colors.grey[300]!,
+                                      width: 1),
                                 ),
                               ),
-                            ),
-                          );
-                        }).toList(),
-                      ],
-                    ),
-                    // Scrollable columns (rounds) - horizontal scroll only
-                    Expanded(
-                      child: SingleChildScrollView(
-                      controller: _horizontalScrollController,
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(), // Smooth scrolling
-                      child: SizedBox(
-                        width: (sprints.length + (showNewRoundColumn ? 1 : 0)) * (isTablet ? 60.0 : 50.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Header row
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              textDirection: TextDirection.rtl,
-                              children: [
-                                  ...sprints.map((sprint) {
-                                    bool isOpen = _isRoundOpen(sprint);
-                                    return GestureDetector(
-                                      onTap: isOpen ? () => _handleStopRound(sprint) : null,
-                                      child: Container(
-                                        width: isTablet ? 60 : 50,
-                                        height: isTablet ? 48 : 44,
-                                        decoration: BoxDecoration(
-                                          color: isDark 
-                                              ? theme.colorScheme.surfaceContainerHighest
-                                              : Colors.grey[200],
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: isDark 
-                                                  ? theme.colorScheme.outline.withOpacity(0.3)
-                                                  : Colors.grey[300]!, 
-                                              width: 1
-                                            ),
-                                            right: BorderSide(
-                                              color: isDark 
-                                                  ? theme.colorScheme.outline.withOpacity(0.3)
-                                                  : Colors.grey[300]!, 
-                                              width: 1
-                                            ),
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: isOpen
-                                              ? Icon(Icons.stop, color: Colors.red, size: isTablet ? 24 : 20)
-                                              : Text(
-                                                  (sprint.round + 1).toString(),
-                                                  style: TextStyle(
-                                                    color: isDark 
-                                                        ? theme.colorScheme.onSurface
-                                                        : Colors.black,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: isTablet ? 16 : 14,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                  if (showNewRoundColumn)
-                                    GestureDetector(
-                                      onTap: () => _handleStartNewRound(),
-                                      child: Container(
-                                        width: isTablet ? 60 : 50,
-                                        height: isTablet ? 48 : 44,
-                                        decoration: BoxDecoration(
-                                          color: isDark 
-                                              ? theme.colorScheme.surfaceContainerHighest
-                                              : Colors.grey[200],
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: isDark 
-                                                  ? theme.colorScheme.outline.withOpacity(0.3)
-                                                  : Colors.grey[300]!, 
-                                              width: 1
-                                            ),
-                                            right: BorderSide(
-                                              color: isDark 
-                                                  ? theme.colorScheme.outline.withOpacity(0.3)
-                                                  : Colors.grey[300]!, 
-                                              width: 1
-                                            ),
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: Icon(Icons.play_arrow, color: Colors.green, size: isTablet ? 24 : 20),
-                                        ),
-                                      ),
+                              child: GestureDetector(
+                                onLongPress: () =>
+                                    _handleRecruitLongPress(participant.number),
+                                child: Center(
+                                  child: Text(
+                                    participant.number.toString(),
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? theme.colorScheme.onSurface
+                                          : Colors.black,
+                                      fontSize: isTablet ? 16 : 14,
+                                      fontWeight: FontWeight.normal,
                                     ),
-                                ],
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
                               ),
-                              // Data rows
-                              ...participants.map((participant) {
-                                return Row(
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                      // Scrollable columns (rounds) - horizontal scroll only
+                      Expanded(
+                        child: SingleChildScrollView(
+                          controller: _horizontalScrollController,
+                          scrollDirection: Axis.horizontal,
+                          physics:
+                              const BouncingScrollPhysics(), // Smooth scrolling
+                          child: SizedBox(
+                            width: (sprints.length +
+                                    (showNewRoundColumn ? 1 : 0)) *
+                                (isTablet ? 60.0 : 50.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Header row
+                                Row(
                                   mainAxisSize: MainAxisSize.min,
                                   textDirection: TextDirection.rtl,
                                   children: [
                                     ...sprints.map((sprint) {
-                                      Color cellColor = _getCreditColor(sprint, participant.number);
-                                      String label = _getCreditLabel(sprint, participant.number);
                                       bool isOpen = _isRoundOpen(sprint);
-                                      bool isActive = sprint.activeParticipants.contains(participant.number);
-                                      
-                                      // Check if participant has any credit in this sprint
-                                      bool hasCredit = sprint.alonkaCredits.contains(participant.number) ||
-                                                     sprint.gerikanCredits.contains(participant.number) ||
-                                                     sprint.runCredits.contains(participant.number) ||
-                                                     sprint.participationCredits.contains(participant.number);
-                                      
-                                      // For active cells in open rounds, show white background with recruit number
-                                      // This represents participation credit as default
-                                      Color displayColor = cellColor;
-                                      Widget displayChild;
-                                      
-                                      // Priority: If participant has a credit, show that credit (not active status)
-                                      if (hasCredit) {
-                                        if (label.isNotEmpty) {
-                                          // Has a credit label (א, ג, or ר) - show label with appropriate color
-                                          displayColor = cellColor;
+                                      return GestureDetector(
+                                        onTap: isOpen
+                                            ? () => _handleStopRound(sprint)
+                                            : null,
+                                        child: Container(
+                                          width: isTablet ? 60 : 50,
+                                          height: isTablet ? 48 : 44,
+                                          decoration: BoxDecoration(
+                                            color: isDark
+                                                ? theme.colorScheme
+                                                    .surfaceContainerHighest
+                                                : Colors.grey[200],
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                  color: isDark
+                                                      ? theme
+                                                          .colorScheme.outline
+                                                          .withOpacity(0.3)
+                                                      : Colors.grey[300]!,
+                                                  width: 1),
+                                              right: BorderSide(
+                                                  color: isDark
+                                                      ? theme
+                                                          .colorScheme.outline
+                                                          .withOpacity(0.3)
+                                                      : Colors.grey[300]!,
+                                                  width: 1),
+                                            ),
+                                          ),
+                                          child: Center(
+                                            child: isOpen
+                                                ? Icon(Icons.stop,
+                                                    color: Colors.red,
+                                                    size: isTablet ? 24 : 20)
+                                                : Text(
+                                                    (sprint.round + 1)
+                                                        .toString(),
+                                                    style: TextStyle(
+                                                      color: isDark
+                                                          ? theme.colorScheme
+                                                              .onSurface
+                                                          : Colors.black,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize:
+                                                          isTablet ? 16 : 14,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                    if (showNewRoundColumn)
+                                      GestureDetector(
+                                        onTap: () => _handleStartNewRound(),
+                                        child: Container(
+                                          width: isTablet ? 60 : 50,
+                                          height: isTablet ? 48 : 44,
+                                          decoration: BoxDecoration(
+                                            color: isDark
+                                                ? theme.colorScheme
+                                                    .surfaceContainerHighest
+                                                : Colors.grey[200],
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                  color: isDark
+                                                      ? theme
+                                                          .colorScheme.outline
+                                                          .withOpacity(0.3)
+                                                      : Colors.grey[300]!,
+                                                  width: 1),
+                                              right: BorderSide(
+                                                  color: isDark
+                                                      ? theme
+                                                          .colorScheme.outline
+                                                          .withOpacity(0.3)
+                                                      : Colors.grey[300]!,
+                                                  width: 1),
+                                            ),
+                                          ),
+                                          child: Center(
+                                            child: Icon(Icons.play_arrow,
+                                                color: Colors.green,
+                                                size: isTablet ? 24 : 20),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                // Data rows
+                                ...participants.map((participant) {
+                                  return Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    textDirection: TextDirection.rtl,
+                                    children: [
+                                      ...sprints.map((sprint) {
+                                        Color cellColor = _getCreditColor(
+                                            sprint, participant.number);
+                                        String label = _getCreditLabel(
+                                            sprint, participant.number);
+                                        bool isOpen = _isRoundOpen(sprint);
+                                        bool isActive = sprint
+                                            .activeParticipants
+                                            .contains(participant.number);
+
+                                        // Check if participant has any credit in this sprint
+                                        bool hasCredit = sprint.alonkaCredits
+                                                .contains(participant.number) ||
+                                            sprint.gerikanCredits
+                                                .contains(participant.number) ||
+                                            sprint.runCredits
+                                                .contains(participant.number) ||
+                                            sprint.participationCredits
+                                                .contains(participant.number);
+
+                                        // For active cells in open rounds, show white background with recruit number
+                                        // This represents participation credit as default
+                                        Color displayColor = cellColor;
+                                        Widget displayChild;
+
+                                        // Priority: If participant has a credit, show that credit (not active status)
+                                        if (hasCredit) {
+                                          if (label.isNotEmpty) {
+                                            // Has a credit label (א, ג, or ר) - show label with appropriate color
+                                            displayColor = cellColor;
+                                            displayChild = Center(
+                                              child: Text(
+                                                label,
+                                                style: TextStyle(
+                                                  color: cellColor ==
+                                                          Colors.black
+                                                      ? Colors
+                                                          .white // White text for black cells (runner credit)
+                                                      : Colors
+                                                          .white, // White text for colored cells (red/green)
+                                                  fontSize: isTablet ? 16 : 14,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            );
+                                          } else if (cellColor ==
+                                              Colors.white) {
+                                            // Participation credit: white background with NO text
+                                            displayColor = Colors.white;
+                                            displayChild = SizedBox.shrink();
+                                          } else {
+                                            // Other credit type without label
+                                            displayColor = cellColor;
+                                            displayChild = SizedBox.shrink();
+                                          }
+                                        } else if (isActive && isOpen) {
+                                          // Active round: show white background with recruit number (participation credit default)
+                                          displayColor = Colors.white;
                                           displayChild = Center(
                                             child: Text(
-                                              label,
+                                              participant.number.toString(),
                                               style: TextStyle(
-                                                color: cellColor == Colors.black
-                                                    ? Colors.white  // White text for black cells (runner credit)
-                                                    : Colors.white,  // White text for colored cells (red/green)
-                                                fontSize: isTablet ? 16 : 14,
+                                                color: Colors.black,
+                                                fontSize: isTablet ? 14 : 12,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                               textAlign: TextAlign.center,
                                             ),
                                           );
-                                        } else if (cellColor == Colors.white) {
-                                          // Participation credit: white background with NO text
-                                          displayColor = Colors.white;
-                                          displayChild = SizedBox.shrink();
                                         } else {
-                                          // Other credit type without label
+                                          // Empty cell (grey) - no credit and not active
                                           displayColor = cellColor;
                                           displayChild = SizedBox.shrink();
                                         }
-                                      } else if (isActive && isOpen) {
-                                        // Active round: show white background with recruit number (participation credit default)
-                                        displayColor = Colors.white;
-                                        displayChild = Center(
-                                          child: Text(
-                                            participant.number.toString(),
-                                            style: TextStyle(
-                                              color: Colors.black,
-                                              fontSize: isTablet ? 14 : 12,
-                                              fontWeight: FontWeight.bold,
+
+                                        return Container(
+                                          width: isTablet ? 60 : 50,
+                                          height: isTablet
+                                              ? 48
+                                              : 44, // Fixed height to match frozen column
+                                          decoration: BoxDecoration(
+                                            color: displayColor,
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                  color: isDark
+                                                      ? theme
+                                                          .colorScheme.outline
+                                                          .withOpacity(0.3)
+                                                      : Colors.grey[300]!,
+                                                  width: 1),
+                                              right: BorderSide(
+                                                  color: isDark
+                                                      ? theme
+                                                          .colorScheme.outline
+                                                          .withOpacity(0.3)
+                                                      : Colors.grey[300]!,
+                                                  width: 1),
                                             ),
-                                            textAlign: TextAlign.center,
+                                          ),
+                                          child: GestureDetector(
+                                            onTap: isOpen && isActive
+                                                ? () => _handleCellClick(
+                                                    sprint, participant.number)
+                                                : null,
+                                            onDoubleTap: () =>
+                                                _handleCellDoubleClick(
+                                                    sprint, participant.number),
+                                            child: displayChild,
                                           ),
                                         );
-                                      } else {
-                                        // Empty cell (grey) - no credit and not active
-                                        displayColor = cellColor;
-                                        displayChild = SizedBox.shrink();
-                                      }
-                                      
-                                      return Container(
-                                        width: isTablet ? 60 : 50,
-                                        height: isTablet ? 48 : 44, // Fixed height to match frozen column
-                                        decoration: BoxDecoration(
-                                          color: displayColor,
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: isDark 
-                                                  ? theme.colorScheme.outline.withOpacity(0.3)
-                                                  : Colors.grey[300]!, 
-                                              width: 1
-                                            ),
-                                            right: BorderSide(
-                                              color: isDark 
-                                                  ? theme.colorScheme.outline.withOpacity(0.3)
-                                                  : Colors.grey[300]!, 
-                                              width: 1
-                                            ),
-                                          ),
-                                        ),
-                                        child: GestureDetector(
-                                          onTap: isOpen && isActive ? () => _handleCellClick(sprint, participant.number) : null,
-                                          onDoubleTap: () => _handleCellDoubleClick(sprint, participant.number),
-                                          child: displayChild,
-                                        ),
-                                      );
-                                    }).toList(),
-                                    // New round column cell
-                                    if (showNewRoundColumn)
-                                      Container(
-                                        width: isTablet ? 60 : 50,
-                                        height: isTablet ? 48 : 44,
-                                        decoration: BoxDecoration(
-                                          color: isDark 
-                                              ? theme.colorScheme.surfaceContainer
-                                              : Colors.grey[300],
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: isDark 
-                                                  ? theme.colorScheme.outline.withOpacity(0.3)
-                                                  : Colors.grey[300]!, 
-                                              width: 1
-                                            ),
-                                            right: BorderSide(
-                                              color: isDark 
-                                                  ? theme.colorScheme.outline.withOpacity(0.3)
-                                                  : Colors.grey[300]!, 
-                                              width: 1
+                                      }).toList(),
+                                      // New round column cell
+                                      if (showNewRoundColumn)
+                                        Container(
+                                          width: isTablet ? 60 : 50,
+                                          height: isTablet ? 48 : 44,
+                                          decoration: BoxDecoration(
+                                            color: isDark
+                                                ? theme.colorScheme
+                                                    .surfaceContainer
+                                                : Colors.grey[300],
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                  color: isDark
+                                                      ? theme
+                                                          .colorScheme.outline
+                                                          .withOpacity(0.3)
+                                                      : Colors.grey[300]!,
+                                                  width: 1),
+                                              right: BorderSide(
+                                                  color: isDark
+                                                      ? theme
+                                                          .colorScheme.outline
+                                                          .withOpacity(0.3)
+                                                      : Colors.grey[300]!,
+                                                  width: 1),
                                             ),
                                           ),
+                                          child: SizedBox.shrink(),
                                         ),
-                                        child: SizedBox.shrink(),
-                                      ),
-                                  ],
-                                );
-                              }).toList(),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            ),
-          ), // Positioned.fill closes here
-          // Fixed button at bottom center
-          Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: GetX<EventController>(builder: (_) {
-                bool showEndButton = _.currentEvent.value.alonkaEndTime == null &&
-                    _.currentEvent.value.alonkaStartTime != null &&
-                    _.currentEvent.value.alonkaSprints.isNotEmpty &&
-                    _.currentEvent.value.alonkaSprints.last.activeParticipants.isEmpty;
-                
-                if (showEndButton) {
-                  return ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      minimumSize: isTablet ? Size(200, 60) : null,
-                    ),
-                    onPressed: () async {
-                      var res = await showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return YesNoDialog();
-                        },
-                      );
-                      if (res) {
-                        setState(() {
-                          _.currentEvent.value.alonkaEndTime = DateTime.now();
-                        });
-                        // Cancel timer - need to access parent's timer
-                        // The timer is managed in the parent widget, so we'll let it handle cancellation
-                        // Use non-blocking save to prevent delays when offline
-                        eventController.saveEventWithOfflineSupport(_.currentEvent.value);
-                      }
-                    },
-                    child: Text(
-                      'סיום התרגיל',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: isTablet ? 18 : 16,
-                      ),
-                    ),
-                  );
-                } else if (_.currentEvent.value.alonkaEndTime != null) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          foregroundColor: Colors.white,
-                          minimumSize: isTablet ? Size(200, 60) : null,
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ExerciseGradingPage(exerciseType: 'alonka'),
+                                    ],
+                                  );
+                                }).toList(),
+                              ],
                             ),
-                          );
-                        },
-                        icon: const Icon(Icons.grade),
-                        label: Text(
-                          'ציון התרגיל',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: isTablet ? 18 : 16,
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        '  התרגיל הסתיים  ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: isTablet ? 18 : 16,
-                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                     ],
-                  );
-                }
-                return SizedBox.shrink();
-              }),
+                  ),
+                ),
+              ),
+            ), // Positioned.fill closes here
+            // Fixed button at bottom center
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: GetX<EventController>(builder: (_) {
+                  bool showEndButton =
+                      _.currentEvent.value.alonkaEndTime == null &&
+                          _.currentEvent.value.alonkaStartTime != null &&
+                          _.currentEvent.value.alonkaSprints.isNotEmpty &&
+                          _.currentEvent.value.alonkaSprints.last
+                              .activeParticipants.isEmpty;
+
+                  if (showEndButton) {
+                    return ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                        minimumSize: isTablet ? Size(200, 60) : null,
+                      ),
+                      onPressed: () async {
+                        var res = await showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return YesNoDialog();
+                          },
+                        );
+                        if (res) {
+                          setState(() {
+                            _.currentEvent.value.alonkaEndTime = DateTime.now();
+                          });
+                          // Cancel timer - need to access parent's timer
+                          // The timer is managed in the parent widget, so we'll let it handle cancellation
+                          // Use non-blocking save to prevent delays when offline
+                          eventController.saveEventWithOfflineSupport(
+                              _.currentEvent.value);
+                        }
+                      },
+                      child: Text(
+                        'סיום התרגיל',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isTablet ? 18 : 16,
+                        ),
+                      ),
+                    );
+                  } else if (_.currentEvent.value.alonkaEndTime != null) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            minimumSize: isTablet ? Size(200, 60) : null,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ExerciseGradingPage(exerciseType: 'alonka'),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.grade),
+                          label: Text(
+                            'ציון התרגיל',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: isTablet ? 18 : 16,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          '  התרגיל הסתיים  ',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: isTablet ? 18 : 16,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return SizedBox.shrink();
+                }),
+              ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
     });
   }
 }

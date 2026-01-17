@@ -26,7 +26,7 @@ class SakimPage extends StatefulWidget {
 }
 
 class _SakimPageState extends State<SakimPage> with EventValidationMixin {
-  final eventController = Get.put(EventController());
+  final eventController = Get.find<EventController>();
   int runTime = 0;
   late Timer _timer;
   late bool editModeOn;
@@ -34,7 +34,7 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
   final ScrollController _scrollController = ScrollController();
   bool _floatingPttEnabled = false;
   bool _volumeButtonPttEnabled = false;
-  bool inOrderOfArrival = true; // Order of arrival mode (default: true)
+  // inOrderOfArrival is now loaded from uxPreferences reactively
 
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -53,7 +53,7 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('sakim');
     _loadSttPreferences();
-    
+
     if (eventController.currentEvent.value.sakimEndTime != null) {
       eventController.sakimEditModeOn.value = false;
       editModeOn = eventController.sakimEditModeOn.value;
@@ -71,7 +71,7 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
       });
     }
     _scrollToEnd();
-    
+
     // Allow landscape orientation for tablets
     // We'll check if it's a tablet in build() and set orientation there
     super.initState();
@@ -92,16 +92,16 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
   void dispose() {
     // Clear exercise context when leaving page
     ExerciseContextService().clearExercise();
-    
+
     if (eventController.currentEvent.value.sakimEndTime == null)
       _timer.cancel(); // Stop timer when widget is disposed
-    
+
     // Restore portrait-only orientation when leaving
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
-    
+
     super.dispose();
   }
 
@@ -110,10 +110,11 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
     bool tablet = isTablet(context);
     final orientation = MediaQuery.of(context).orientation;
     bool isLandscape = orientation == Orientation.landscape;
-    double scaledFontSize = getTabletScaledFontSize(context, eventController.userFontSize.value);
+    double scaledFontSize =
+        getTabletScaledFontSize(context, eventController.userFontSize.value);
     double buttonPadding = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
     double dividerThickness = tablet ? (isLandscape ? 30.0 : 45.0) : 30.0;
-    
+
     // Allow landscape orientation for tablets
     if (tablet) {
       SystemChrome.setPreferredOrientations([
@@ -123,7 +124,7 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
         DeviceOrientation.landscapeRight,
       ]);
     }
-    
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -135,442 +136,608 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
       child: Stack(
         children: [
           Scaffold(
-          appBar: AppBar(
-            //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            centerTitle: true,
-            title: Column(
-              children: [
-                Text('שקים'),
-                Text(style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold), 'משך התרגיל $runTime דקות ',
+            appBar: AppBar(
+              //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+              centerTitle: true,
+              title: Column(
+                children: [
+                  Text('שקים'),
+                  Text(
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    'משך התרגיל $runTime דקות ',
+                  ),
+                ],
+              ),
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back), // 🔄 Custom back arrow
+                onPressed: () {
+                  eventController.loading.value = true;
+                  Get.back(); // ⬅️ Go back using GetX
+                  eventController.loading.value = false;
+                },
+              ),
+              actions: [
+                Obx(() => IconButton(
+                      onPressed: () {
+                        // Toggle the preference
+                        final currentValue = eventController
+                            .uxPreferences.value.inOrderOfArrival;
+                        final newValue = !currentValue;
+                        var updatedPrefs = eventController.uxPreferences.value
+                            .copyWith(inOrderOfArrival: newValue);
+                        eventController.updateUxPreferences(updatedPrefs);
+                      },
+                      icon: Icon(
+                        Icons.directions_walk_sharp,
+                        color:
+                            eventController.uxPreferences.value.inOrderOfArrival
+                                ? Colors.green
+                                : Colors.grey, // Switch color
+                        size: 32,
+                      ),
+                    )),
+                IconButton(
+                  icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+                  tooltip:
+                      _isGridView ? 'מעבר לתצוגת רשימה' : 'מעבר לתצוגת רשת',
+                  onPressed: () {
+                    setState(() {
+                      _isGridView = !_isGridView;
+                    });
+                  },
                 ),
+                IconButton(
+                  icon: const Icon(Icons.info_outline),
+                  tooltip: 'מדריך למשתמש',
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: const ManualWebView(
+                          url:
+                              'https://docs.google.com/presentation/d/19SF_q3uXPt470mzfOKEorpoIORsOEEmQXL5_UUnelNo/preview?rm=minimal&slide=id.g384f00aea19_0_86',
+                          //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                WifiSettingsButton(),
               ],
             ),
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back), // 🔄 Custom back arrow
-              onPressed: () {
-                eventController.loading.value = true;
-                Get.back(); // ⬅️ Go back using GetX
-                eventController.loading.value = false;
-              },
-            ),
-            actions: [
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    inOrderOfArrival = !inOrderOfArrival; // Toggle state
-                  });
-                },
-                icon: Icon(
-                  Icons.directions_walk_sharp,
-                  color: inOrderOfArrival
-                      ? Colors.green
-                      : Colors.grey, // Switch color
-                  size: 32,
-                ),
-              ),
-              IconButton(
-                icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
-                tooltip: _isGridView ? 'מעבר לתצוגת רשימה' : 'מעבר לתצוגת רשת',
-                onPressed: () {
-                  setState(() {
-                    _isGridView = !_isGridView;
-                  });
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.info_outline),
-                tooltip: 'מדריך למשתמש',
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => Directionality(
-                      textDirection: TextDirection.rtl,
-                      child: const ManualWebView(
-                        url: 'https://docs.google.com/presentation/d/19SF_q3uXPt470mzfOKEorpoIORsOEEmQXL5_UUnelNo/preview?rm=minimal&slide=id.g384f00aea19_0_86',
-                        //https://docs.google.com/presentation/d/e/2PACX-1vR_qVfJhzZnG9WvPAzHheB5S-0oYeDFfH_8xuEfWdEhncZ8sVvry2Hl_7updw4P-6O_VbR83aAQ07CK/pub?start=false&loop=false&delayms=60000
-                      ),
-                    ),
-                  );
-                },
-              ),
-              WifiSettingsButton(),
-            ],
-          ),
-          body: GetX<EventController>(builder: (_) {
-            editModeOn = _.sakimEditModeOn.value;
-            // Show grid view if enabled
-            if (_isGridView) {
-              return Obx(() => eventController.loading.value
-                  ? LinearProgressIndicator()
-                  : SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: MediaQuery.of(context).size.height - 
-                                    AppBar().preferredSize.height - 
-                                    MediaQuery.of(context).padding.top,
-                        ),
-                        child: Column(
-                          children: [
-                            SakimGridView(
-                              key: ValueKey('sakim_grid_$inOrderOfArrival'),
-                              inOrderOfArrival: inOrderOfArrival,
-                            ),
-                            SizedBox(height: tablet ? 8.0 : 6.0),
-                            // Leaderboard
-                            ExerciseLeaderboard(
-                              exerciseType: 'sakim',
-                              inOrderOfArrival: inOrderOfArrival,
-                            ),
-                            SizedBox(height: tablet ? 8.0 : 6.0), // Compact gap between leaderboard and button
-                            if (eventController.currentEvent.value.sakimEndTime == null)
-                              Padding(
-                                padding: EdgeInsets.fromLTRB(buttonPadding, 8, buttonPadding, 8),
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Theme.of(context).colorScheme.primary,
-                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                    minimumSize: tablet ? Size(180, 45) : Size(150, 40),
-                                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  ),
-                                  onPressed: () async {
-                                    var res = await showDialog(
-                                      context: context,
-                                      builder: (BuildContext context) {
-                                        return YesNoDialog();
-                                      },
-                                    );
-                                    if (res) {
-                                      setState(() {
-                                        eventController.currentEvent.value.sakimEndTime = DateTime.now();
-                                        _timer.cancel();
-                                        _.sakimEditModeOn.value = false;
-                                        editModeOn = _.sakimEditModeOn.value;
-                                        // Use non-blocking save to prevent delays when offline
-                                        eventController.saveEventWithOfflineSupport(
-                                          eventController.currentEvent.value
-                                        );
-                                      });
-                                    }
-                                  },
-                                  child: Text('סיום התרגיל',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: tablet ? scaledFontSize - 1 : scaledFontSize - 2),
-                                  )),
-                                )
-                            else
-                              Padding(
-                                padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
-                                child: Column(
-                                  children: [
-                                    eventController.currentEvent.value.finalized
-                                        ? SizedBox.shrink()
-                                        : TextButton.icon(
-                                            onPressed: () {
-                                              if (editModeOn) {
-                                                // Use non-blocking save to prevent delays when offline
-                                                eventController.saveEventWithOfflineSupport(
-                                                  eventController.currentEvent.value
-                                                );
-                                              } else {}
-                                              _.sakimEditModeOn.value = !_.sakimEditModeOn.value;
-                                              setState(() {
-                                                editModeOn = _.sakimEditModeOn.value;
-                                              });
-                                            },
-                                            icon: editModeOn
-                                                ? const Icon(Icons.save)
-                                                : const Icon(Icons.edit),
-                                            label: editModeOn
-                                                ? Text('סיים',
-                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                                )
-                                                : Text('עריכה',
-                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                                ),
-                                            iconAlignment: IconAlignment.start,
-                                          ),
-                                    SizedBox(height: 20),
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.orange,
-                                        foregroundColor: Colors.white,
-                                        minimumSize: tablet ? Size(200, 60) : null,
-                                      ),
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => ExerciseGradingPage(exerciseType: 'sakim'),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.grade),
-                                      label: Text('ציון התרגיל',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                      ),
-                                    ),
-                                    SizedBox(height: 20),
-                                    Text('  התרגיל הסתיים  ',
-                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                    ),
-                                  ],
-                                ),
+            body: GetX<EventController>(builder: (_) {
+              editModeOn = _.sakimEditModeOn.value;
+              // Show grid view if enabled
+              if (_isGridView) {
+                return Obx(() => eventController.loading.value
+                    ? LinearProgressIndicator()
+                    : SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: MediaQuery.of(context).size.height -
+                                AppBar().preferredSize.height -
+                                MediaQuery.of(context).padding.top,
+                          ),
+                          child: Column(
+                            children: [
+                              SakimGridView(
+                                key: ValueKey(
+                                    'sakim_grid_${eventController.uxPreferences.value.inOrderOfArrival}'),
+                                inOrderOfArrival: eventController
+                                    .uxPreferences.value.inOrderOfArrival,
                               ),
-                          ],
-                        ),
-                      ),
-                    ));
-            }
-            // Show existing list view
-            return SingleChildScrollView(
-              controller: _scrollController,
-              child: eventController.currentEvent.value.sakimRounds.isNotEmpty
-                  ? Center(
-                      child: Obx(() {
-                        // Use inOrderOfArrival in the key to force rebuild when it changes
-                        final orderKey = inOrderOfArrival;
-                        return eventController.loading.value
-                          ? LinearProgressIndicator()
-                          : Column(
-                                key: ValueKey('sakim_rounds_$orderKey'),
-                              children: [
-                                SizedBox(
-                                  height: 15,
-                                ),
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: () {
-                                    // Filter rounds: show from first round with participants to last round with participants
-                                    // This includes empty rounds in between (that participants passed through)
-                                    // but excludes empty rounds before the first and after the last
-                                    final allRounds = List.from(eventController.currentEvent.value.sakimRounds);
-                                    
-                                    if (allRounds.isEmpty) {
-                                      return <Widget>[];
-                                    }
-                                    
-                                    // Sort rounds by round number to ensure proper order
-                                    allRounds.sort((a, b) => a.round.compareTo(b.round));
-                                    
-                                    // Find the first round index that has participants
-                                    int firstRoundWithParticipants = -1;
-                                    for (int i = 0; i < allRounds.length; i++) {
-                                      if (allRounds[i].participantsInRound.isNotEmpty) {
-                                        firstRoundWithParticipants = i;
-                                        break;
-                                      }
-                                    }
-                                    
-                                    // Find the last round index that has participants
-                                    int lastRoundWithParticipants = -1;
-                                    for (int i = allRounds.length - 1; i >= 0; i--) {
-                                      if (allRounds[i].participantsInRound.isNotEmpty) {
-                                        lastRoundWithParticipants = i;
-                                        break;
-                                      }
-                                    }
-                                    
-                                    // If no rounds with participants found, show only round 0 if it exists
-                                    if (firstRoundWithParticipants == -1 || lastRoundWithParticipants == -1) {
-                                      if (allRounds.isNotEmpty && allRounds[0].round == 0) {
-                                        return [
-                                          Padding(
-                                            padding: const EdgeInsets.all(5.0),
-                                            child: Obx(() => eventController.loading.value
-                                                ? CircularProgressIndicator()
-                                                : SakimRoundPanel(
-                                                      key: ValueKey('sakim_round_${allRounds[0].round}_$inOrderOfArrival'),
-                                                      round: allRounds[0],
-                                                      inOrderOfArrival: inOrderOfArrival,
-                                                  )),
-                                          )
-                                        ];
-                                      }
-                                      return <Widget>[];
-                                    }
-                                    
-                                    // Show rounds from first to last (including empty rounds in between)
-                                    // This excludes empty rounds before the first and after the last
-                                    final roundsToShow = allRounds.sublist(firstRoundWithParticipants, lastRoundWithParticipants + 1);
-                                    print('🔍 Sakim: Showing rounds ${allRounds[firstRoundWithParticipants].round} to ${allRounds[lastRoundWithParticipants].round} (${roundsToShow.length} rounds)');
-                                    return roundsToShow.map((round) {
-                                      return Padding(
-                                        padding: const EdgeInsets.all(5.0),
-                                        child: Obx(() => eventController.loading.value
-                                            ? CircularProgressIndicator()
-                                            : SakimRoundPanel(
-                                                  key: ValueKey('sakim_round_${round.round}_$inOrderOfArrival'),
-                                                  round: round,
-                                                  inOrderOfArrival: inOrderOfArrival,
-                                              )),
-                                      );
-                                    }).toList();
-                                  }(),
-                                ),
-                                Divider(
-                                  thickness: dividerThickness,
-                                ),
-                                SizedBox(
-                                  height: 20,
-                                ),
-                                eventController.currentEvent.value.sakimEndTime ==
-                                        null
-                                    ? Column(
-                                      children: [
-                                        Padding(
-                                            padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
-                                            child: ElevatedButton(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Theme.of(context).colorScheme.primary,
-                                                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                                  minimumSize: tablet ? Size(200, 60) : null,
-                                                ),
-                                                onPressed: () async {
-                                                  var res = await showDialog(
-                                                    context: context,
-                                                    builder: (BuildContext context) {
-                                                      return YesNoDialog();
-                                                    },
-                                                  );
-                                                  if (res) {
-                                                    setState(() {
-                                                      eventController.currentEvent.value
-                                                          .sakimEndTime =
-                                                          DateTime.now();
-                                                      _timer.cancel();
-                                                      _.sakimEditModeOn.value = false;
-                                                      editModeOn =
-                                                          _.sakimEditModeOn.value;
-                                                      // Use non-blocking save to prevent delays when offline
-                                                      eventController.saveEventWithOfflineSupport(
-                                                        eventController.currentEvent.value
-                                                      );
-                                                    });
-                                                  }
-                                                },
-                                                //eventController.currentEvent.value.save();
-                                                child: Text('סיום התרגיל',
-                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                                )),
-                                          ),
-                                        SizedBox(height: 50,)
-                                      ],
-                                    )
-                                    : Padding(
-                                        padding: EdgeInsets.fromLTRB(buttonPadding, buttonPadding, buttonPadding, 80.0),
-                                        child: Column(
-                                          children: [
-                                            eventController
-                                                    .currentEvent.value.finalized
-                                                ? SizedBox.shrink()
-                                                : TextButton.icon(
-                                                    onPressed: () {
-                                                      if (editModeOn) {
-                                                        ///save
-                                                        // Use non-blocking save to prevent delays when offline
-                                                        eventController.saveEventWithOfflineSupport(
-                                                          eventController.currentEvent.value
-                                                        );
-                                                      } else {}
-                                                      _.sakimEditModeOn.value =
-                                                          !_.sakimEditModeOn.value;
-                                                      setState(() {
-                                                        editModeOn =
-                                                            _.sakimEditModeOn.value;
-                                                      });
-                                                    },
-                                                    icon: editModeOn
-                                                        ? const Icon(Icons.save)
-                                                        : const Icon(Icons.edit),
-                                                    label: editModeOn
-                                                        ? Text('סיים',
-                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                                        )
-                                                        : Text('עריכה',
-                                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                                        ),
-                                                    iconAlignment:
-                                                        IconAlignment.start,
-                                                  ),
-                                            SizedBox(height: 20),
-                                            ElevatedButton.icon(
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.orange,
-                                                foregroundColor: Colors.white,
-                                                minimumSize: tablet ? Size(200, 60) : null,
-                                              ),
-                                              onPressed: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (context) => ExerciseGradingPage(exerciseType: 'sakim'),
-                                                  ),
-                                                );
-                                              },
-                                              icon: const Icon(Icons.grade),
-                                              label: Text('ציון התרגיל',
-                                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                              ),
-                                            ),
-                                            SizedBox(height: 20),
-                                            Text('  התרגיל הסתיים  ',
-                                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: scaledFontSize),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                              ],
-                            );
-                      }),
-                    )
-                  : Padding(
-                      padding: EdgeInsets.only(top: tablet ? 300 : 200),
-                      child: Center(
-                        child: Obx(() => eventController.loading.value
-                            ? SizedBox(
-                                height: 100,
-                                width: 100,
-                                child: CircularProgressIndicator(),
-                              )
-                            : Column(
-                                children: [
-                                  ElevatedButton(
+                              SizedBox(height: tablet ? 8.0 : 6.0),
+                              // Leaderboard
+                              ExerciseLeaderboard(
+                                exerciseType: 'sakim',
+                                inOrderOfArrival: eventController
+                                    .uxPreferences.value.inOrderOfArrival,
+                              ),
+                              SizedBox(
+                                  height: tablet
+                                      ? 8.0
+                                      : 6.0), // Compact gap between leaderboard and button
+                              if (eventController
+                                      .currentEvent.value.sakimEndTime ==
+                                  null)
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                      buttonPadding, 8, buttonPadding, 8),
+                                  child: ElevatedButton(
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Theme.of(context).colorScheme.primary,
-                                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                        minimumSize: tablet ? Size(200, 60) : null,
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        foregroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary,
+                                        minimumSize: tablet
+                                            ? Size(180, 45)
+                                            : Size(150, 40),
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 8),
                                       ),
                                       onPressed: () async {
-                                        setState(() {
-                                          eventController.currentEvent.value
-                                              .sakimStartTime = DateTime.now();
-                                          _.currentEvent.value.sakimRounds.add(
-                                              SakimRound(
-                                                  round: 0,
-                                                  participantsInRound: _
-                                                      .currentEvent.value
-                                                      .getParticipantsByStatus(
-                                                          ParticipantStatus
-                                                              .Active)
-                                                      .map((participant) =>
-                                                          participant.number)
-                                                      .toList()));
-                                        });
-                                        // Use non-blocking save to prevent delays when offline
-                                        eventController.saveEventWithOfflineSupport(
-                                          _.currentEvent.value
+                                        var res = await showDialog(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return YesNoDialog();
+                                          },
                                         );
+                                        if (res) {
+                                          setState(() {
+                                            eventController.currentEvent.value
+                                                .sakimEndTime = DateTime.now();
+                                            _timer.cancel();
+                                            _.sakimEditModeOn.value = false;
+                                            editModeOn =
+                                                _.sakimEditModeOn.value;
+                                            // Use non-blocking save to prevent delays when offline
+                                            eventController
+                                                .saveEventWithOfflineSupport(
+                                                    eventController
+                                                        .currentEvent.value);
+                                          });
+                                        }
                                       },
                                       child: Text(
-                                        'תחילת תרגיל',
-                                        style: TextStyle(fontSize: scaledFontSize, fontWeight: FontWeight.bold),
+                                        'סיום התרגיל',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: tablet
+                                                ? scaledFontSize - 1
+                                                : scaledFontSize - 2),
                                       )),
-                                ],
-                              )),
+                                )
+                              else
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(buttonPadding,
+                                      buttonPadding, buttonPadding, 80.0),
+                                  child: Column(
+                                    children: [
+                                      eventController
+                                              .currentEvent.value.finalized
+                                          ? SizedBox.shrink()
+                                          : TextButton.icon(
+                                              onPressed: () {
+                                                if (editModeOn) {
+                                                  // Use non-blocking save to prevent delays when offline
+                                                  eventController
+                                                      .saveEventWithOfflineSupport(
+                                                          eventController
+                                                              .currentEvent
+                                                              .value);
+                                                } else {}
+                                                _.sakimEditModeOn.value =
+                                                    !_.sakimEditModeOn.value;
+                                                setState(() {
+                                                  editModeOn =
+                                                      _.sakimEditModeOn.value;
+                                                });
+                                              },
+                                              icon: editModeOn
+                                                  ? const Icon(Icons.save)
+                                                  : const Icon(Icons.edit),
+                                              label: editModeOn
+                                                  ? Text(
+                                                      'סיים',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize:
+                                                              scaledFontSize),
+                                                    )
+                                                  : Text(
+                                                      'עריכה',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize:
+                                                              scaledFontSize),
+                                                    ),
+                                              iconAlignment:
+                                                  IconAlignment.start,
+                                            ),
+                                      SizedBox(height: 20),
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.orange,
+                                          foregroundColor: Colors.white,
+                                          minimumSize:
+                                              tablet ? Size(200, 60) : null,
+                                        ),
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  ExerciseGradingPage(
+                                                      exerciseType: 'sakim'),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(Icons.grade),
+                                        label: Text(
+                                          'ציון התרגיל',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: scaledFontSize),
+                                        ),
+                                      ),
+                                      SizedBox(height: 20),
+                                      Text(
+                                        '  התרגיל הסתיים  ',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: scaledFontSize),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ));
+              }
+              // Show existing list view
+              return SingleChildScrollView(
+                controller: _scrollController,
+                child: eventController.currentEvent.value.sakimRounds.isNotEmpty
+                    ? Center(
+                        child: Obx(() {
+                          // Use inOrderOfArrival in the key to force rebuild when it changes
+                          final orderKey = eventController
+                              .uxPreferences.value.inOrderOfArrival;
+                          return eventController.loading.value
+                              ? LinearProgressIndicator()
+                              : Column(
+                                  key: ValueKey('sakim_rounds_$orderKey'),
+                                  children: [
+                                    SizedBox(
+                                      height: 15,
+                                    ),
+                                    Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: () {
+                                        // Filter rounds: show from first round with participants to last round with participants
+                                        // This includes empty rounds in between (that participants passed through)
+                                        // but excludes empty rounds before the first and after the last
+                                        final allRounds = List.from(
+                                            eventController.currentEvent.value
+                                                .sakimRounds);
+
+                                        if (allRounds.isEmpty) {
+                                          return <Widget>[];
+                                        }
+
+                                        // Sort rounds by round number to ensure proper order
+                                        allRounds.sort((a, b) =>
+                                            a.round.compareTo(b.round));
+
+                                        // Find the first round index that has participants
+                                        int firstRoundWithParticipants = -1;
+                                        for (int i = 0;
+                                            i < allRounds.length;
+                                            i++) {
+                                          if (allRounds[i]
+                                              .participantsInRound
+                                              .isNotEmpty) {
+                                            firstRoundWithParticipants = i;
+                                            break;
+                                          }
+                                        }
+
+                                        // Find the last round index that has participants
+                                        int lastRoundWithParticipants = -1;
+                                        for (int i = allRounds.length - 1;
+                                            i >= 0;
+                                            i--) {
+                                          if (allRounds[i]
+                                              .participantsInRound
+                                              .isNotEmpty) {
+                                            lastRoundWithParticipants = i;
+                                            break;
+                                          }
+                                        }
+
+                                        // If no rounds with participants found, show only round 0 if it exists
+                                        if (firstRoundWithParticipants == -1 ||
+                                            lastRoundWithParticipants == -1) {
+                                          if (allRounds.isNotEmpty &&
+                                              allRounds[0].round == 0) {
+                                            return [
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.all(5.0),
+                                                child: Obx(() => eventController
+                                                        .loading.value
+                                                    ? CircularProgressIndicator()
+                                                    : SakimRoundPanel(
+                                                        key: ValueKey(
+                                                            'sakim_round_${allRounds[0].round}_${eventController.uxPreferences.value.inOrderOfArrival}'),
+                                                        round: allRounds[0],
+                                                        inOrderOfArrival:
+                                                            eventController
+                                                                .uxPreferences
+                                                                .value
+                                                                .inOrderOfArrival,
+                                                      )),
+                                              )
+                                            ];
+                                          }
+                                          return <Widget>[];
+                                        }
+
+                                        // Show rounds from first to last (including empty rounds in between)
+                                        // This excludes empty rounds before the first and after the last
+                                        final roundsToShow = allRounds.sublist(
+                                            firstRoundWithParticipants,
+                                            lastRoundWithParticipants + 1);
+                                        print(
+                                            '🔍 Sakim: Showing rounds ${allRounds[firstRoundWithParticipants].round} to ${allRounds[lastRoundWithParticipants].round} (${roundsToShow.length} rounds)');
+                                        return roundsToShow.map((round) {
+                                          return Padding(
+                                            padding: const EdgeInsets.all(5.0),
+                                            child: Obx(() => eventController
+                                                    .loading.value
+                                                ? CircularProgressIndicator()
+                                                : SakimRoundPanel(
+                                                    key: ValueKey(
+                                                        'sakim_round_${round.round}_${eventController.uxPreferences.value.inOrderOfArrival}'),
+                                                    round: round,
+                                                    inOrderOfArrival:
+                                                        eventController
+                                                            .uxPreferences
+                                                            .value
+                                                            .inOrderOfArrival,
+                                                  )),
+                                          );
+                                        }).toList();
+                                      }(),
+                                    ),
+                                    Divider(
+                                      thickness: dividerThickness,
+                                    ),
+                                    SizedBox(
+                                      height: 20,
+                                    ),
+                                    eventController.currentEvent.value
+                                                .sakimEndTime ==
+                                            null
+                                        ? Column(
+                                            children: [
+                                              Padding(
+                                                padding: EdgeInsets.fromLTRB(
+                                                    buttonPadding,
+                                                    buttonPadding,
+                                                    buttonPadding,
+                                                    80.0),
+                                                child: ElevatedButton(
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                      backgroundColor:
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .primary,
+                                                      foregroundColor:
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .onPrimary,
+                                                      minimumSize: tablet
+                                                          ? Size(200, 60)
+                                                          : null,
+                                                    ),
+                                                    onPressed: () async {
+                                                      var res =
+                                                          await showDialog(
+                                                        context: context,
+                                                        builder: (BuildContext
+                                                            context) {
+                                                          return YesNoDialog();
+                                                        },
+                                                      );
+                                                      if (res) {
+                                                        setState(() {
+                                                          eventController
+                                                                  .currentEvent
+                                                                  .value
+                                                                  .sakimEndTime =
+                                                              DateTime.now();
+                                                          _timer.cancel();
+                                                          _.sakimEditModeOn
+                                                              .value = false;
+                                                          editModeOn = _
+                                                              .sakimEditModeOn
+                                                              .value;
+                                                          // Use non-blocking save to prevent delays when offline
+                                                          eventController
+                                                              .saveEventWithOfflineSupport(
+                                                                  eventController
+                                                                      .currentEvent
+                                                                      .value);
+                                                        });
+                                                      }
+                                                    },
+                                                    //eventController.currentEvent.value.save();
+                                                    child: Text(
+                                                      'סיום התרגיל',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize:
+                                                              scaledFontSize),
+                                                    )),
+                                              ),
+                                              SizedBox(
+                                                height: 50,
+                                              )
+                                            ],
+                                          )
+                                        : Padding(
+                                            padding: EdgeInsets.fromLTRB(
+                                                buttonPadding,
+                                                buttonPadding,
+                                                buttonPadding,
+                                                80.0),
+                                            child: Column(
+                                              children: [
+                                                eventController.currentEvent
+                                                        .value.finalized
+                                                    ? SizedBox.shrink()
+                                                    : TextButton.icon(
+                                                        onPressed: () {
+                                                          if (editModeOn) {
+                                                            ///save
+                                                            // Use non-blocking save to prevent delays when offline
+                                                            eventController
+                                                                .saveEventWithOfflineSupport(
+                                                                    eventController
+                                                                        .currentEvent
+                                                                        .value);
+                                                          } else {}
+                                                          _.sakimEditModeOn
+                                                                  .value =
+                                                              !_.sakimEditModeOn
+                                                                  .value;
+                                                          setState(() {
+                                                            editModeOn = _
+                                                                .sakimEditModeOn
+                                                                .value;
+                                                          });
+                                                        },
+                                                        icon: editModeOn
+                                                            ? const Icon(
+                                                                Icons.save)
+                                                            : const Icon(
+                                                                Icons.edit),
+                                                        label: editModeOn
+                                                            ? Text(
+                                                                'סיים',
+                                                                style: TextStyle(
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                    fontSize:
+                                                                        scaledFontSize),
+                                                              )
+                                                            : Text(
+                                                                'עריכה',
+                                                                style: TextStyle(
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                    fontSize:
+                                                                        scaledFontSize),
+                                                              ),
+                                                        iconAlignment:
+                                                            IconAlignment.start,
+                                                      ),
+                                                SizedBox(height: 20),
+                                                ElevatedButton.icon(
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        Colors.orange,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    minimumSize: tablet
+                                                        ? Size(200, 60)
+                                                        : null,
+                                                  ),
+                                                  onPressed: () {
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            ExerciseGradingPage(
+                                                                exerciseType:
+                                                                    'sakim'),
+                                                      ),
+                                                    );
+                                                  },
+                                                  icon: const Icon(Icons.grade),
+                                                  label: Text(
+                                                    'ציון התרגיל',
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize:
+                                                            scaledFontSize),
+                                                  ),
+                                                ),
+                                                SizedBox(height: 20),
+                                                Text(
+                                                  '  התרגיל הסתיים  ',
+                                                  style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: scaledFontSize),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                  ],
+                                );
+                        }),
+                      )
+                    : Padding(
+                        padding: EdgeInsets.only(top: tablet ? 300 : 200),
+                        child: Center(
+                          child: Obx(() => eventController.loading.value
+                              ? SizedBox(
+                                  height: 100,
+                                  width: 100,
+                                  child: CircularProgressIndicator(),
+                                )
+                              : Column(
+                                  children: [
+                                    ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          foregroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary,
+                                          minimumSize:
+                                              tablet ? Size(200, 60) : null,
+                                        ),
+                                        onPressed: () async {
+                                          setState(() {
+                                            eventController.currentEvent.value
+                                                    .sakimStartTime =
+                                                DateTime.now();
+                                            _.currentEvent.value.sakimRounds
+                                                .add(SakimRound(
+                                                    round: 0,
+                                                    participantsInRound: _
+                                                        .currentEvent.value
+                                                        .getParticipantsByStatus(
+                                                            ParticipantStatus
+                                                                .Active)
+                                                        .map((participant) =>
+                                                            participant.number)
+                                                        .toList()));
+                                          });
+                                          // Use non-blocking save to prevent delays when offline
+                                          eventController
+                                              .saveEventWithOfflineSupport(
+                                                  _.currentEvent.value);
+                                        },
+                                        child: Text(
+                                          'תחילת תרגיל',
+                                          style: TextStyle(
+                                              fontSize: scaledFontSize,
+                                              fontWeight: FontWeight.bold),
+                                        )),
+                                  ],
+                                )),
+                        ),
                       ),
-                    ),
-            );
-          }),
-        ),
+              );
+            }),
+          ),
           // Floating PTT Button - OUTSIDE Scaffold, on top of everything
           if (_floatingPttEnabled || _volumeButtonPttEnabled)
             FloatingPttButton(
