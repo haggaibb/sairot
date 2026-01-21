@@ -263,6 +263,7 @@ class EventController extends GetxController {
       if (isConnected.value) {
         gradesUpdate().catchError((e) {
           print('⚠️ Error updating grades (non-critical): $e');
+          return false;
         });
         getSystemSettings().catchError((e) {
           print('⚠️ Error getting system settings (non-critical): $e');
@@ -275,6 +276,7 @@ class EventController extends GetxController {
         });
       } else {
         // If offline, load from local cache only (fast, non-blocking)
+        gradesUpdate(); // Loads from local cache
         getSystemSettings(); // Loads from local cache
         getCurrentEventName(); // Loads from local cache
         getUpdatedInstructorsList(); // Loads from local cache
@@ -566,8 +568,8 @@ class EventController extends GetxController {
           currentEventName == 'playground' || currentEventName.isEmpty;
 
       // LOCAL-FIRST STRATEGY: Load from local storage first
-      final localEvents =
-          await LocalStorageService.instance.getLocalUnfinalizedEvents();
+      final localEvents = await LocalStorageService.instance
+          .getLocalUnfinalizedEvents(currentInstructor.id);
       // Filter by current instructor, exclude playground
       List<Event> filteredLocalEvents;
       if (shouldLoadAllEvents) {
@@ -648,7 +650,8 @@ class EventController extends GetxController {
                         final key = '${event.eventName}/${event.date}';
                         // Check if event was deleted locally (don't restore deleted events)
                         final isDeleted = await LocalStorageService.instance
-                            .isEventDeleted(event.eventName, event.date);
+                            .isEventDeleted(event.eventName, event.date,
+                                currentInstructor.id);
                         if (isDeleted) {
                           print(
                               '⚠️ Skipping deleted event from Firebase: $key');
@@ -699,7 +702,8 @@ class EventController extends GetxController {
                         final key = '${event.eventName}/${event.date}';
                         // Check if event was deleted locally (don't restore deleted events)
                         final isDeleted = await LocalStorageService.instance
-                            .isEventDeleted(event.eventName, event.date);
+                            .isEventDeleted(event.eventName, event.date,
+                                currentInstructor.id);
                         if (isDeleted) {
                           print(
                               '⚠️ Skipping deleted event from Firebase: $key');
@@ -888,14 +892,21 @@ class EventController extends GetxController {
 
       // LOCAL-FIRST STRATEGY: Always try local cache first
       // This prevents stale Firebase data from overwriting fresh local data
-      final localEvent =
-          await LocalStorageService.instance.loadEventLocally(eventName, day);
+      final localEvent = await LocalStorageService.instance
+          .loadEventLocally(eventName, day, currentInstructor.id);
       if (localEvent != null) {
-        currentEvent.value = localEvent;
-        print(
-            '✅ Loaded event from local cache (local-first): $eventName - $day');
-        pastEventsLoading.value = false;
-        return; // Successfully loaded from local cache, exit early
+        // Validate that the loaded event belongs to the current instructor
+        if (localEvent.instructorId == currentInstructor.id) {
+          currentEvent.value = localEvent;
+          print(
+              '✅ Loaded event from local cache (local-first): $eventName - $day');
+          pastEventsLoading.value = false;
+          return; // Successfully loaded from local cache, exit early
+        } else {
+          print(
+              '⚠️ Local event found but belongs to ${localEvent.instructorId} (expected ${currentInstructor.id}). Ignoring local cache.');
+          // Fall through to Firebase load
+        }
       }
 
       // If local cache doesn't exist or failed, try Firebase as fallback
@@ -1102,7 +1113,8 @@ class EventController extends GetxController {
 
           // Check if the event still exists in local storage before auto-loading
           final cachedEvent = await LocalStorageService.instance
-              .loadEventLocally(selectedEvent.value!, selectedDay.value!);
+              .loadEventLocally(selectedEvent.value!, selectedDay.value!,
+                  currentInstructor.id);
 
           if (cachedEvent != null) {
             // Verify the cached event matches currentEventName (if set) to avoid loading wrong events
@@ -1252,8 +1264,8 @@ class EventController extends GetxController {
       }
 
       // 🔥 Step 1: Delete from local storage first (immediate, works offline)
-      await LocalStorageService.instance
-          .deleteEventLocally(event.eventName, event.date);
+      await LocalStorageService.instance.deleteEventLocally(
+          event.eventName, event.date, currentInstructor.id);
 
       // 🔥 Step 2: Refresh eventDays cache for this event
       if (eventDays.containsKey(event.eventName)) {
@@ -1270,8 +1282,8 @@ class EventController extends GetxController {
           try {
             await deleteEventFromFirestore(event);
             // Unmark as deleted after successful Firebase deletion
-            await LocalStorageService.instance
-                .unmarkEventAsDeleted(event.eventName, event.date);
+            await LocalStorageService.instance.unmarkEventAsDeleted(
+                event.eventName, event.date, currentInstructor.id);
             print(
                 "✅ Event '${event.date}' deleted successfully from Firestore.");
           } catch (e) {
@@ -1301,8 +1313,8 @@ class EventController extends GetxController {
         });
 
         // Track deleted event locally to prevent restoration from Firebase
-        await LocalStorageService.instance
-            .markEventAsDeleted(event.eventName, event.date);
+        await LocalStorageService.instance.markEventAsDeleted(
+            event.eventName, event.date, currentInstructor.id);
       }
 
       print("✅ Event '${event.date}' deleted successfully from local storage.");
@@ -1717,25 +1729,110 @@ class EventController extends GetxController {
   }
 
   /// Grades
-  gradesUpdate() async {
+  /// Grades - Get the grades settings from firebase (with local cache fallback)
+  Future<bool?> gradesUpdate() async {
+    bool hasCachedSettings = false;
     try {
-      DocumentSnapshot docSnapshot =
-          await firestore.collection('System').doc('grades').get();
-      if (docSnapshot.exists) {
-        firestoreGradeSettings =
-            GradeSettings.fromJson(docSnapshot.data() as Map<String, dynamic>);
-        gradesData = firestoreGradeSettings;
-        // print(
-        //     'Grades Updated to version ${firestoreGradeSettings.version} !!!!');
-        return true;
+      // First, try to load from local cache (System Hive box)
+      if (systemBox != null && systemBox!.containsKey('grades')) {
+        try {
+          final cachedGradesData = systemBox!.get('grades');
+          // Handle web's stricter typing - convert to Map if needed
+          Map<String, dynamic>? cachedGradesJson;
+
+          if (cachedGradesData != null) {
+            try {
+              // Same map conversion logic as getSystemSettings
+              if (cachedGradesData is Map) {
+                dynamic convertValue(dynamic value) {
+                  if (value is Map) {
+                    final converted = <String, dynamic>{};
+                    for (var entry in value.entries) {
+                      converted[entry.key.toString()] =
+                          convertValue(entry.value);
+                    }
+                    return converted;
+                  } else if (value is List) {
+                    return value.map((item) => convertValue(item)).toList();
+                  }
+                  return value;
+                }
+
+                final tempMap = <String, dynamic>{};
+                for (var entry in cachedGradesData.entries) {
+                  tempMap[entry.key.toString()] = convertValue(entry.value);
+                }
+                cachedGradesJson = tempMap;
+              }
+            } catch (e) {
+              print('⚠️ Could not convert cached grades data: $e');
+              cachedGradesJson = null;
+            }
+          }
+
+          if (cachedGradesJson != null) {
+            firestoreGradeSettings = GradeSettings.fromJson(cachedGradesJson);
+            gradesData = firestoreGradeSettings;
+            hasCachedSettings = true;
+            print('✅ Loaded grades settings from local cache');
+          }
+        } catch (e) {
+          print('⚠️ Error loading cached grades settings: $e');
+        }
+      }
+
+      // If online, try to fetch from Firestore and update cache
+      if (isConnected.value) {
+        try {
+          DocumentSnapshot docSnapshot =
+              await firestore.collection('System').doc('grades').get();
+          if (docSnapshot.exists) {
+            final data = docSnapshot.data();
+            Map<String, dynamic> gradesMap;
+            if (data is Map) {
+              gradesMap = Map<String, dynamic>.from(data);
+            } else {
+              gradesMap = Map<String, dynamic>.from(data as Map);
+            }
+
+            firestoreGradeSettings = GradeSettings.fromJson(gradesMap);
+            gradesData = firestoreGradeSettings;
+
+            // Update local cache
+            if (systemBox != null) {
+              await systemBox!.put('grades', firestoreGradeSettings.toJson());
+              print('✅ Updated grades settings cache from Firestore');
+            }
+            return true;
+          } else {
+            if (!hasCachedSettings) {
+              firestoreGradeSettings = GradeSettings();
+              gradesData = firestoreGradeSettings;
+            }
+            print('⚠️ Document does not exist in Firestore');
+            return hasCachedSettings;
+          }
+        } catch (e) {
+          print('⚠️ Error fetching grades from Firestore: $e');
+          // Keep using cached settings if available
+          return hasCachedSettings;
+        }
       } else {
-        firestoreGradeSettings = GradeSettings();
-        print('Document does not exist');
-        return null;
+        // Offline: use cached settings
+        if (hasCachedSettings) {
+          print('📴 Using cached grades settings (offline mode)');
+          return true;
+        } else {
+          firestoreGradeSettings = GradeSettings();
+          gradesData = firestoreGradeSettings;
+          print('⚠️ No cached grades settings available, using defaults');
+          return false;
+        }
       }
     } catch (e) {
       firestoreGradeSettings = GradeSettings();
-      print('Error fetching document: $e');
+      gradesData = firestoreGradeSettings;
+      print('❌ Grades Settings Error: $e');
       return null;
     }
   }
@@ -2824,7 +2921,7 @@ class EventController extends GetxController {
 
       // Try to load existing playground from local storage first
       final existingPlayground = await LocalStorageService.instance
-          .loadEventLocally('playground', '01-01-2026');
+          .loadEventLocally('playground', '01-01-2026', currentInstructor.id);
 
       if (existingPlayground != null &&
           existingPlayground.participants.isNotEmpty) {
@@ -2900,8 +2997,8 @@ class EventController extends GetxController {
 
       // Delete from local storage
       try {
-        await LocalStorageService.instance
-            .deleteEventLocally('playground', '01-01-2026');
+        await LocalStorageService.instance.deleteEventLocally(
+            'playground', '01-01-2026', currentInstructor.id);
         print('✅ Deleted playground from local storage');
       } catch (e) {
         print('⚠️ Error deleting playground from local storage: $e');

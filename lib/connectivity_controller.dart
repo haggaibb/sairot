@@ -17,15 +17,19 @@ class ConnectivityController extends GetxController {
   bool isLiveBackupDone = false; // 🔒 Prevents multiple backups per interval
   Timer? periodicTimer; // Timer for periodic internet checks
   Timer? checkInternetTimer;
-  bool _isProcessingSyncQueue = false; // 🔒 Prevents concurrent sync queue processing
+  bool _isProcessingSyncQueue =
+      false; // 🔒 Prevents concurrent sync queue processing
 
   final FirebaseStorage _storage = FirebaseStorage.instance;
   // Use Get.find() to avoid circular dependency - EventController should already be initialized
   EventController get eventController => Get.find<EventController>();
 
-  startConnectionCheckInterval(){
+  startConnectionCheckInterval() {
     print("⏲️ Start Connection Interval check...");
-    checkInternetTimer = Timer.periodic(Duration(seconds: eventController.systemSettings.checkIntervalSeconds*3), (Timer checkTimer) async {
+    checkInternetTimer = Timer.periodic(
+        Duration(
+            seconds: eventController.systemSettings.checkIntervalSeconds * 3),
+        (Timer checkTimer) async {
       await connectionEnabled(); // Check internet connection
       if (isConnected.value && !isLiveBackupDone) {
         print("✅ Internet available");
@@ -33,7 +37,6 @@ class ConnectivityController extends GetxController {
         print("⚠️ No internet or!");
       }
     });
-
   }
 
   stopConnectionCheckInterval() {
@@ -41,7 +44,6 @@ class ConnectivityController extends GetxController {
     checkInternetTimer = null;
     print("⏹️ Stopped Connection Check Interval.");
   }
-
 
   /// 📡 Check for internet connectivity
   Future<void> connectionEnabled() async {
@@ -57,30 +59,32 @@ class ConnectivityController extends GetxController {
     // On web, skip HTTP check to avoid CORS errors
     // The connectivity_plus check is sufficient for web
     if (kIsWeb) {
-      print("🌐 Web platform detected - skipping HTTP check (CORS restrictions).");
+      print(
+          "🌐 Web platform detected - skipping HTTP check (CORS restrictions).");
       print("✅ Internet connection assumed OK based on connectivity check.");
       final wasConnected = isConnected.value;
       isConnected.value = true;
-      
-        // If we just gained connection, process sync queue
-        if (!wasConnected) {
-          print("🔄 Connection restored, processing sync queue...");
-          await processSyncQueue();
-          // Reload instructor custom comments after sync to get latest from Firebase
-          try {
-            await eventController.loadInstructorCustomComments();
-            print("✅ Reloaded instructor custom comments after connection restored");
-          } catch (e) {
-            print('⚠️ Error reloading comments after connection restored: $e');
-          }
+
+      // If we just gained connection, process sync queue
+      if (!wasConnected) {
+        print("🔄 Connection restored, processing sync queue...");
+        await processSyncQueue();
+        // Reload instructor custom comments after sync to get latest from Firebase
+        try {
+          await eventController.loadInstructorCustomComments();
+          print(
+              "✅ Reloaded instructor custom comments after connection restored");
+        } catch (e) {
+          print('⚠️ Error reloading comments after connection restored: $e');
         }
+      }
       return;
     }
 
     // ✅ Check actual internet access using an HTTP request (mobile/desktop only)
     try {
       final response =
-      await http.get(Uri.parse("https://www.google.com")).timeout(
+          await http.get(Uri.parse("https://www.google.com")).timeout(
         Duration(seconds: 3), // Timeout to avoid long waiting
         onTimeout: () {
           print("⚠️ Internet request timed out.");
@@ -92,7 +96,7 @@ class ConnectivityController extends GetxController {
         print("✅ Internet connection OK.");
         final wasConnected = isConnected.value;
         isConnected.value = true;
-        
+
         // If we just gained connection, process sync queue
         if (!wasConnected) {
           print("🔄 Connection restored, processing sync queue...");
@@ -100,7 +104,8 @@ class ConnectivityController extends GetxController {
           // Reload instructor custom comments after sync to get latest from Firebase
           try {
             await eventController.loadInstructorCustomComments();
-            print("✅ Reloaded instructor custom comments after connection restored");
+            print(
+                "✅ Reloaded instructor custom comments after connection restored");
           } catch (e) {
             print('⚠️ Error reloading comments after connection restored: $e');
           }
@@ -132,8 +137,9 @@ class ConnectivityController extends GetxController {
     try {
       _isProcessingSyncQueue = true;
       await SyncQueueService.instance.initialize();
-      final pendingOperations = await SyncQueueService.instance.getPendingOperations();
-      
+      final pendingOperations =
+          await SyncQueueService.instance.getPendingOperations();
+
       if (pendingOperations.isEmpty) {
         print("✅ Sync queue is empty");
         _isProcessingSyncQueue = false;
@@ -144,11 +150,12 @@ class ConnectivityController extends GetxController {
 
       // Process operations and collect successfully synced events
       final List<String> syncedEventKeys = [];
-      
+
       for (var operation in pendingOperations) {
         try {
-          final key = '${operation.timestamp.millisecondsSinceEpoch}_${operation.operationType}';
-          
+          final key =
+              '${operation.timestamp.millisecondsSinceEpoch}_${operation.operationType}';
+
           switch (operation.operationType) {
             case 'saveEvent':
               final event = Event.fromJson(operation.data);
@@ -160,28 +167,33 @@ class ConnectivityController extends GetxController {
                 print("✅ Synced event: ${event.eventName} - ${event.date}");
               } else {
                 await SyncQueueService.instance.incrementRetryCount(operation);
-                print("⚠️ Failed to sync event, will retry: ${event.eventName} - ${event.date}");
+                print(
+                    "⚠️ Failed to sync event, will retry: ${event.eventName} - ${event.date}");
               }
               break;
 
             case 'createEvent':
               final event = Event.fromJson(operation.data);
               // Skip local save when called from sync queue to prevent loop
-              final success = await event.createFirestoreEvent(skipLocalSave: true);
+              final success =
+                  await event.createFirestoreEvent(skipLocalSave: true);
               if (success) {
                 await SyncQueueService.instance.removeOperation(key);
                 syncedEventKeys.add('${event.eventName}/${event.date}');
-                print("✅ Synced event creation: ${event.eventName} - ${event.date}");
+                print(
+                    "✅ Synced event creation: ${event.eventName} - ${event.date}");
               } else {
                 await SyncQueueService.instance.incrementRetryCount(operation);
-                print("⚠️ Failed to sync event creation, will retry: ${event.eventName} - ${event.date}");
+                print(
+                    "⚠️ Failed to sync event creation, will retry: ${event.eventName} - ${event.date}");
               }
               break;
 
             case 'updateQualifiedRecruits':
               // This is handled in finalizeEventAndUpdateQualifiedRecruits
               // Queue it separately if needed, or handle in finalization
-              print("⚠️ Qualified recruits update should be handled during finalization");
+              print(
+                  "⚠️ Qualified recruits update should be handled during finalization");
               await SyncQueueService.instance.removeOperation(key);
               break;
 
@@ -198,7 +210,7 @@ class ConnectivityController extends GetxController {
                 final date = operation.data['date'] as String;
                 final instructorId = operation.data['instructorId'] as String;
                 final groupNumber = operation.data['groupNumber'] as int;
-                
+
                 // Create a minimal Event object for deletion
                 final event = Event(
                   eventName: eventName,
@@ -206,12 +218,13 @@ class ConnectivityController extends GetxController {
                   instructorId: instructorId,
                 );
                 event.groupNumber = groupNumber;
-                
+
                 await eventController.deleteEventFromFirestore(event);
-                
+
                 // Unmark as deleted after successful Firebase deletion
-                await LocalStorageService.instance.unmarkEventAsDeleted(eventName, date);
-                
+                await LocalStorageService.instance
+                    .unmarkEventAsDeleted(eventName, date, instructorId);
+
                 await SyncQueueService.instance.removeOperation(key);
                 print("✅ Synced event deletion: $eventName - $date");
               } catch (e) {
@@ -227,7 +240,7 @@ class ConnectivityController extends GetxController {
                 final instructorId = operation.data['instructorId'] as String;
                 final exerciseType = operation.data['exerciseType'] as String;
                 final comment = operation.data['comment'] as String;
-                
+
                 // Load current state from Firebase first (to get latest data)
                 Map<String, List<String>> currentComments = {};
                 try {
@@ -237,20 +250,22 @@ class ConnectivityController extends GetxController {
                       .collection('profile')
                       .doc('customComments')
                       .get();
-                  
+
                   if (docSnapshot.exists && docSnapshot.data() != null) {
                     final data = docSnapshot.data() as Map<String, dynamic>;
                     data.forEach((key, value) {
                       if (value is List) {
-                        currentComments[key] = value.map((e) => e.toString()).toList();
+                        currentComments[key] =
+                            value.map((e) => e.toString()).toList();
                       }
                     });
                   }
                 } catch (e) {
-                  print('⚠️ Error loading current Firebase state for merge: $e');
+                  print(
+                      '⚠️ Error loading current Firebase state for merge: $e');
                   // Continue with empty map, will add the comment
                 }
-                
+
                 // Merge the queued comment with Firebase state (add if not exists)
                 if (!currentComments.containsKey(exerciseType)) {
                   currentComments[exerciseType] = [];
@@ -258,7 +273,7 @@ class ConnectivityController extends GetxController {
                 if (!currentComments[exerciseType]!.contains(comment)) {
                   currentComments[exerciseType]!.add(comment);
                 }
-                
+
                 // Save merged result to Firebase
                 await InstructorProfileService.firestore
                     .collection('Instructors')
@@ -266,13 +281,16 @@ class ConnectivityController extends GetxController {
                     .collection('profile')
                     .doc('customComments')
                     .set(currentComments);
-                
+
                 // Update local cache with merged result
-                await LocalStorageService.instance.saveInstructorCustomCommentsLocally(instructorId, currentComments);
-                
+                await LocalStorageService.instance
+                    .saveInstructorCustomCommentsLocally(
+                        instructorId, currentComments);
+
                 await SyncQueueService.instance.removeOperation(key);
-                print("✅ Synced saveInstructorCustomComment: $exerciseType - $comment");
-                
+                print(
+                    "✅ Synced saveInstructorCustomComment: $exerciseType - $comment");
+
                 // Reload comments in EventController to update UI
                 try {
                   await eventController.loadInstructorCustomComments();
@@ -282,7 +300,8 @@ class ConnectivityController extends GetxController {
               } catch (e) {
                 print("❌ Error syncing saveInstructorCustomComment: $e");
                 await SyncQueueService.instance.incrementRetryCount(operation);
-                print("⚠️ Failed to sync saveInstructorCustomComment, will retry");
+                print(
+                    "⚠️ Failed to sync saveInstructorCustomComment, will retry");
               }
               break;
 
@@ -292,7 +311,7 @@ class ConnectivityController extends GetxController {
                 final instructorId = operation.data['instructorId'] as String;
                 final exerciseType = operation.data['exerciseType'] as String;
                 final comment = operation.data['comment'] as String;
-                
+
                 // Load current state from Firebase first
                 Map<String, List<String>> currentComments = {};
                 try {
@@ -302,20 +321,22 @@ class ConnectivityController extends GetxController {
                       .collection('profile')
                       .doc('customComments')
                       .get();
-                  
+
                   if (docSnapshot.exists && docSnapshot.data() != null) {
                     final data = docSnapshot.data() as Map<String, dynamic>;
                     data.forEach((key, value) {
                       if (value is List) {
-                        currentComments[key] = value.map((e) => e.toString()).toList();
+                        currentComments[key] =
+                            value.map((e) => e.toString()).toList();
                       }
                     });
                   }
                 } catch (e) {
-                  print('⚠️ Error loading current Firebase state for merge: $e');
+                  print(
+                      '⚠️ Error loading current Firebase state for merge: $e');
                   // Continue with empty map
                 }
-                
+
                 // Remove comment from merged state
                 if (currentComments.containsKey(exerciseType)) {
                   currentComments[exerciseType]!.remove(comment);
@@ -323,7 +344,7 @@ class ConnectivityController extends GetxController {
                     currentComments.remove(exerciseType);
                   }
                 }
-                
+
                 // Save to Firebase
                 await InstructorProfileService.firestore
                     .collection('Instructors')
@@ -331,13 +352,16 @@ class ConnectivityController extends GetxController {
                     .collection('profile')
                     .doc('customComments')
                     .set(currentComments);
-                
+
                 // Update local cache
-                await LocalStorageService.instance.saveInstructorCustomCommentsLocally(instructorId, currentComments);
-                
+                await LocalStorageService.instance
+                    .saveInstructorCustomCommentsLocally(
+                        instructorId, currentComments);
+
                 await SyncQueueService.instance.removeOperation(key);
-                print("✅ Synced removeInstructorCustomComment: $exerciseType - $comment");
-                
+                print(
+                    "✅ Synced removeInstructorCustomComment: $exerciseType - $comment");
+
                 // Reload comments in EventController to update UI
                 try {
                   await eventController.loadInstructorCustomComments();
@@ -347,7 +371,8 @@ class ConnectivityController extends GetxController {
               } catch (e) {
                 print("❌ Error syncing removeInstructorCustomComment: $e");
                 await SyncQueueService.instance.incrementRetryCount(operation);
-                print("⚠️ Failed to sync removeInstructorCustomComment, will retry");
+                print(
+                    "⚠️ Failed to sync removeInstructorCustomComment, will retry");
               }
               break;
 
@@ -367,10 +392,12 @@ class ConnectivityController extends GetxController {
         try {
           for (var eventKey in syncedEventKeys) {
             final parts = eventKey.split('/');
-            if (parts.length == 2) {
-              final eventName = parts[0];
-              final date = parts[1];
-              final localEvent = await LocalStorageService.instance.loadEventLocally(eventName, date);
+            if (parts.length == 3) {
+              final instructorId = parts[0];
+              final eventName = parts[1];
+              final date = parts[2];
+              final localEvent = await LocalStorageService.instance
+                  .loadEventLocally(eventName, date, instructorId);
               if (localEvent != null) {
                 localEvent.isBackedUp = true;
                 await localEvent.saveToLocal();
@@ -391,7 +418,6 @@ class ConnectivityController extends GetxController {
     }
   }
 
-
   /// ⏳ Start Live Event Backup Every `X` Minutes
   void startLiveEventUpdating() {
     String eventName = eventController.currentEventName;
@@ -400,34 +426,44 @@ class ConnectivityController extends GetxController {
     // Interval for backup check
     int minutesInterval = eventController.systemSettings.minutesInterval;
     // 🔄 Check internet every 10 seconds
-    int checkIntervalSeconds = eventController.systemSettings.checkIntervalSeconds;
+    int checkIntervalSeconds =
+        eventController.systemSettings.checkIntervalSeconds;
     // number of internet checks per interval
     int totalChecks = eventController.systemSettings.totalChecks;
     stopLiveEventUpdating(); // Ensure no duplicate timers
-    print("🔄 Starting live event backup check every $minutesInterval minutes...");
-    periodicTimer = Timer.periodic(Duration(minutes: minutesInterval), (Timer timer) async {
+    print(
+        "🔄 Starting live event backup check every $minutesInterval minutes...");
+    periodicTimer =
+        Timer.periodic(Duration(minutes: minutesInterval), (Timer timer) async {
       isLiveBackupDone = false; // 🔄 Reset backup flag for the new interval
       //totalChecks = (minutesInterval * 60) ~/ checkIntervalSeconds; // Total attempts in interval
       int checkCount = 0;
-      checkInternetTimer?.cancel(); // Ensure old timer is canceled before starting new cycle
-      checkInternetTimer = Timer.periodic(Duration(seconds: checkIntervalSeconds), (Timer checkTimer) async {
+      checkInternetTimer
+          ?.cancel(); // Ensure old timer is canceled before starting new cycle
+      checkInternetTimer = Timer.periodic(
+          Duration(seconds: checkIntervalSeconds), (Timer checkTimer) async {
         checkCount++;
         await connectionEnabled(); // Check internet connection
         if (isConnected.value && !isLiveBackupDone) {
           print("✅ Internet available, attempting backup...");
-          bool success = await backupHiveToFirebase(eventName, day, instructorId);
+          bool success =
+              await backupHiveToFirebase(eventName, day, instructorId);
           if (success) {
             isLiveBackupDone = true;
-            checkInternetTimer?.cancel(); // 🛑 Stop checking once backup is done
-            print("📦 Backup completed. Next backup will be attempted in $minutesInterval minutes.");
+            checkInternetTimer
+                ?.cancel(); // 🛑 Stop checking once backup is done
+            print(
+                "📦 Backup completed. Next backup will be attempted in $minutesInterval minutes.");
           }
         } else {
-          print("⚠️ No internet or backup already done. Attempt $checkCount of $totalChecks.");
+          print(
+              "⚠️ No internet or backup already done. Attempt $checkCount of $totalChecks.");
         }
 
         // Stop checking if we reach max attempts within the interval
         if (checkCount >= totalChecks) {
-          print("⏳ Finished checking for this cycle. Waiting for next interval...");
+          print(
+              "⏳ Finished checking for this cycle. Waiting for next interval...");
           checkInternetTimer?.cancel();
         }
       });
@@ -435,18 +471,21 @@ class ConnectivityController extends GetxController {
   }
 
   /// 🔥 Backup Local Hive File to Firebase
-  Future<bool> backupHiveToFirebase(String eventName, String day, String instructorId) async {
+  Future<bool> backupHiveToFirebase(
+      String eventName, String day, String instructorId) async {
     try {
       // On web, Hive backup to Firebase Storage is not supported the same way
       // Web uses IndexedDB which doesn't expose file paths
       if (kIsWeb) {
-        print("⚠️ Hive backup to Firebase Storage is not supported on web platform");
+        print(
+            "⚠️ Hive backup to Firebase Storage is not supported on web platform");
         return false;
       }
 
       // 📂 Get local Hive file path
       final dir = await getApplicationDocumentsDirectory();
-      final localFilePath = '${dir.path}/hive/$eventName/$day/$instructorId.hive';
+      final localFilePath =
+          '${dir.path}/hive/$eventName/$day/$instructorId.hive';
       File hiveFile = File(localFilePath);
 
       if (!hiveFile.existsSync()) {
@@ -455,17 +494,20 @@ class ConnectivityController extends GetxController {
       }
 
       // 🔥 Upload to Firebase Storage (hive/admin/live/$day/instructorId.hive)
-      Reference storageRef = _storage.ref('admin/live/$eventName/$day/$instructorId.hive');
+      Reference storageRef =
+          _storage.ref('admin/live/$eventName/$day/$instructorId.hive');
       UploadTask uploadTask = storageRef.putFile(hiveFile);
       print("📤 Upload to: ${storageRef.fullPath}");
       // ✅ Listen for Upload Progress
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-        double progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        double progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         print("📤 Upload Progress: ${progress.toStringAsFixed(2)}%");
       });
 
       // ⏳ Wait for completion
-      await uploadTask.whenComplete(() => print("✅ Backup completed for $instructorId on $day"));
+      await uploadTask.whenComplete(
+          () => print("✅ Backup completed for $instructorId on $day"));
 
       return true; // ✅ Return success
     } catch (e) {

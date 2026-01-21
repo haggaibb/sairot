@@ -57,7 +57,7 @@ class LocalStorageService {
     try {
       if (_eventsBox == null) await initialize();
 
-      final key = '${event.eventName}/${event.date}';
+      final key = '${event.instructorId}/${event.eventName}/${event.date}';
       final eventJson = event.toJson();
 
       await _eventsBox!.put(key, jsonEncode(eventJson));
@@ -74,27 +74,31 @@ class LocalStorageService {
   }
 
   /// Load event from local Hive storage
-  Future<Event?> loadEventLocally(String eventName, String date) async {
+  /// [instructorId] - Required to scope the search to the correct instructor
+  Future<Event?> loadEventLocally(
+      String eventName, String date, String instructorId) async {
     try {
       if (_eventsBox == null) await initialize();
 
-      final key = '$eventName/$date';
-      final eventData = _eventsBox!.get(key);
+      // New key format: "{instructorId}/{eventName}/{date}"
+      final newKey = '$instructorId/$eventName/$date';
+      var eventData = _eventsBox!.get(newKey);
 
-      if (eventData == null) {
-        return null;
+      if (eventData != null) {
+        final eventJson =
+            jsonDecode(eventData as String) as Map<String, dynamic>;
+        return Event.fromJson(eventJson);
       }
 
-      final eventJson = jsonDecode(eventData as String) as Map<String, dynamic>;
-      return Event.fromJson(eventJson);
+      return null;
     } catch (e) {
       print('❌ Error loading event locally: $e');
       return null;
     }
   }
 
-  /// Get all unfinalized events from local storage
-  Future<List<Event>> getLocalUnfinalizedEvents() async {
+  /// Get all unfinalized events from local storage for a specific instructor
+  Future<List<Event>> getLocalUnfinalizedEvents(String instructorId) async {
     try {
       if (_eventsBox == null) await initialize();
 
@@ -102,11 +106,23 @@ class LocalStorageService {
 
       for (var key in _eventsBox!.keys) {
         try {
+          // STRICT FILTER: Only consider keys belonging to this instructor
+          // Key format: instructorId/eventName/date
+          // This ignores legacy unscoped keys ("eventName/date")
+          if (!key.toString().startsWith('$instructorId/')) {
+            continue;
+          }
+
           final eventData = _eventsBox!.get(key);
           if (eventData != null) {
             final eventJson =
                 jsonDecode(eventData as String) as Map<String, dynamic>;
             final event = Event.fromJson(eventJson);
+
+            // Filter by instructor ID
+            if (event.instructorId != instructorId) {
+              continue;
+            }
 
             // Only include unfinalized events
             if (!event.finalized) {
@@ -161,14 +177,18 @@ class LocalStorageService {
   }
 
   /// Delete event from local storage
-  Future<bool> deleteEventLocally(String eventName, String date) async {
+  Future<bool> deleteEventLocally(
+      String eventName, String date, String instructorId) async {
     try {
       if (_eventsBox == null) await initialize();
 
-      final key = '$eventName/$date';
-      await _eventsBox!.delete(key);
+      // Try new key
+      final newKey = '$instructorId/$eventName/$date';
+      if (_eventsBox!.containsKey(newKey)) {
+        await _eventsBox!.delete(newKey);
+        print('✅ Event deleted locally: $newKey');
+      }
 
-      print('✅ Event deleted locally: $key');
       return true;
     } catch (e) {
       print('❌ Error deleting event locally: $e');
@@ -177,12 +197,16 @@ class LocalStorageService {
   }
 
   /// Mark event as deleted to prevent restoration from Firebase
-  Future<bool> markEventAsDeleted(String eventName, String date) async {
+  Future<bool> markEventAsDeleted(
+      String eventName, String date, String instructorId) async {
     try {
       if (_deletedEventsBox == null) await initialize();
 
-      final key = '$eventName/$date';
+      final key = '$instructorId/$eventName/$date';
       await _deletedEventsBox!.put(key, true);
+
+      // Also support legacy key for consistency? No, deleted events are just flags.
+      // If we used a legacy key before, we should check it too.
 
       print('✅ Event marked as deleted: $key');
       return true;
@@ -193,14 +217,14 @@ class LocalStorageService {
   }
 
   /// Check if event is marked as deleted
-  Future<bool> isEventDeleted(String eventName, String date) async {
+  Future<bool> isEventDeleted(
+      String eventName, String date, String instructorId) async {
     try {
       if (_deletedEventsBox == null) await initialize();
 
-      final key = '$eventName/$date';
-      final isDeleted =
-          _deletedEventsBox!.get(key, defaultValue: false) as bool;
-      return isDeleted;
+      // Check new key
+      final newKey = '$instructorId/$eventName/$date';
+      return _deletedEventsBox!.get(newKey, defaultValue: false) as bool;
     } catch (e) {
       print('❌ Error checking if event is deleted: $e');
       return false;
@@ -208,14 +232,15 @@ class LocalStorageService {
   }
 
   /// Remove event from deleted events list (after successful Firebase deletion)
-  Future<bool> unmarkEventAsDeleted(String eventName, String date) async {
+  Future<bool> unmarkEventAsDeleted(
+      String eventName, String date, String instructorId) async {
     try {
       if (_deletedEventsBox == null) await initialize();
 
-      final key = '$eventName/$date';
-      await _deletedEventsBox!.delete(key);
+      final charKey = '$instructorId/$eventName/$date';
+      await _deletedEventsBox!.delete(charKey);
 
-      print('✅ Event unmarked as deleted: $key');
+      print('✅ Event unmarked as deleted: $charKey');
       return true;
     } catch (e) {
       print('❌ Error unmarking event as deleted: $e');
@@ -303,7 +328,8 @@ class LocalStorageService {
           // Check if event is older than retention period
           if (eventDate.isBefore(retentionThreshold)) {
             // Delete the event
-            await deleteEventLocally(event.eventName, event.date);
+            await deleteEventLocally(
+                event.eventName, event.date, event.instructorId);
             deletedCount++;
             print(
                 '🗑️ Deleted old finalized event: $key (age: ${now.difference(eventDate).inDays} days)');
