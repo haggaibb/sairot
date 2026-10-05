@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:get/get.dart';
+import '../event_controller.dart';
 import '../services/platform_service.dart';
 
 /// Reusable WiFi settings button widget
-/// Can be added to AppBar actions or used standalone
+/// Can be added to AppBar actions or used standalone.
+/// Green while the device has a connection, red when it does not.
+/// The tap still opens WiFi settings.
 class WifiSettingsButton extends StatelessWidget {
   final PlatformService platformService;
   final Color? iconColor;
@@ -23,19 +27,23 @@ class WifiSettingsButton extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return IconButton(
-      onPressed: () async {
-        if (await platformService.canOpenKioskSettings()) {
-          await platformService.openWifiPicker();
-        }
-      },
-      icon: Icon(
-        Icons.wifi_find_rounded,
-        color: iconColor ?? Colors.grey,
-        size: iconSize ?? 30.0,
-      ),
-      tooltip: 'הגדרות WiFi',
-    );
+    final eventController = Get.find<EventController>();
+    return Obx(() {
+      final connected = eventController.isConnected.value;
+      return IconButton(
+        onPressed: () async {
+          if (await platformService.canOpenKioskSettings()) {
+            await platformService.openWifiPicker();
+          }
+        },
+        icon: Icon(
+          Icons.wifi_find_rounded,
+          color: iconColor ?? (connected ? Colors.green : Colors.red),
+          size: iconSize ?? 30.0,
+        ),
+        tooltip: 'הגדרות WiFi',
+      );
+    });
   }
 }
 

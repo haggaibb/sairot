@@ -1094,6 +1094,9 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                             if (participants.isNotEmpty && groupNumber.text !='') {
                               eventController.loading.value = true;
                               thisEvent.groupNumber = int.parse(groupNumber.text);
+                              for (final participant in participants) {
+                                participant.groupNumber = thisEvent.groupNumber;
+                              }
                               thisEvent.participants = participants;
                               if (!isNew) {
                                 final lateNumbers = participants

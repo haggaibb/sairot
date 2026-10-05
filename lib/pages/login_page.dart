@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../widgets/logo.dart';
+import '../widgets/wifi_settings_button.dart';
 import '../services/platform_service.dart';
 import '../utils/tablet_utils.dart';
 import '../git_version.dart';
@@ -254,7 +255,6 @@ class _LoginPageState extends State<LoginPage> {
       _connectionTimer.cancel();
       eventController.loading.value = true;
       await eventController.getUnfinalizedEvents();
-      await eventController.fetchInstructorEvents();
       eventController.loading.value = false;
       Get.toNamed('/home');
     } else {
@@ -426,17 +426,7 @@ class _LoginPageState extends State<LoginPage> {
           resizeToAvoidBottomInset:
               true, // 👈 Ensures UI adjusts for the keyboard
           appBar: AppBar(
-            leading: kIsWeb ? null : IconButton(
-                onPressed: () async {
-                  if (await platformService.canOpenKioskSettings()) {
-                    await platformService.openWifiPicker();
-                  }
-                },
-                icon: Icon(
-                  Icons.wifi_find_rounded,
-                  color: Colors.grey,
-                  size: 30.0,
-                )),
+            leading: WifiSettingsButton(),
             //backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             title: GestureDetector(
               onDoubleTap: _showVersionDialog,

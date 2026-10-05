@@ -32,7 +32,6 @@ class EventController extends GetxController {
   var widgetLoading = false.obs;
   var unfinalizedLoading =
       true.obs; // Start as true to show loading message initially
-  var pastEventsLoading = false.obs;
   var backgroundLoading = false.obs; // Track background cache/network loading
   GradeSettings gradesData = GradeSettings();
   final themeController = Get.put(ThemeController());
@@ -40,12 +39,6 @@ class EventController extends GetxController {
 
   /// Event Days
   String currentEventName = '';
-  List<Event> pastEvents = <Event>[].obs;
-  // Removed unused late String instructorId - use currentInstructor.id instead
-  var events = <String>[].obs; // List of Event Names
-  var eventDays = <String, List<String>>{}.obs; // Map: Event -> Days with data
-  var selectedEvent = RxnString();
-  var selectedDay = RxnString();
   Rx<Event> currentEvent =
       Event(date: DateTime.now().toString(), instructorId: '', eventName: '')
           .obs;
@@ -75,6 +68,7 @@ class EventController extends GetxController {
   Instructor currentInstructor =
       Instructor(id: '', firstName: '', lastName: '', mobile: '');
   RxBool isConnected = false.obs;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   /// Hive
   var systemBox;
@@ -96,10 +90,6 @@ class EventController extends GetxController {
 
   /// Instructor UX preferences
   Rx<InstructorUxPreferences> uxPreferences = InstructorUxPreferences().obs;
-
-  /// Retention period for finalized events in local cache (days)
-  /// Default: 30 days - finalized events older than this will be cleaned up
-  static const int finalizedEventRetentionDays = 30;
 
   /// Get sorted list of active participants based on current sort settings
   List<Participant> getSortedActiveParticipants() {
@@ -221,12 +211,7 @@ class EventController extends GetxController {
 
     // Step 4: Show UI immediately if logged in (don't wait for network)
     if (loggedIn.value) {
-      // Don't load unfinalized events here - wait for connectivity check to avoid showing stale data
-      // Only load event list from cache (for dropdown, less critical)
-      await fetchInstructorEvents(); // Loads from local first
-      // Don't auto-load cached event on startup to avoid showing stale data
-      // User can manually select an event from the list
-      // await restoreSelectedEventAndDay(); // Disabled to prevent flash of stale events
+      // The open event is loaded after the connectivity check.
     }
 
     // Step 5: Set loading to false to show UI
@@ -235,6 +220,10 @@ class EventController extends GetxController {
 
     // Step 6: Do network operations in background (non-blocking)
     backgroundLoading.value = true; // Show background loading indicator
+    _connectivitySubscription ??=
+        Connectivity().onConnectivityChanged.listen((_) {
+      connectionEnabled();
+    });
     _initializeInBackground();
   }
 
@@ -293,39 +282,8 @@ class EventController extends GetxController {
           print('⚠️ Error loading UX preferences (non-critical): $e');
         });
 
-        // Load unfinalized events (from Firestore if online, local if offline)
-        // This is done here after connectivity check to avoid showing stale data
-        // Don't await - function returns immediately with local events, Firebase fetch happens in background
+        // Load the single open event after connectivity is known.
         getUnfinalizedEvents();
-
-        // Cleanup old finalized events from local cache (non-blocking)
-        // Run after loading events to ensure we don't delete currently loaded events
-        cleanupOldFinalizedEvents().catchError((e) {
-          print(
-              '⚠️ Error during cleanup of old finalized events (non-critical): $e');
-        });
-
-        // Refresh events from network in background if online (non-blocking)
-        if (isConnected.value) {
-          fetchInstructorEvents().then((_) {
-            // After syncing, restore and load cached event if it's still valid
-            restoreSelectedEventAndDay().catchError((e) {
-              print('⚠️ Error restoring selected event (non-critical): $e');
-            });
-          }).catchError((e) {
-            print('⚠️ Error fetching instructor events (non-critical): $e');
-          });
-        } else {
-          // If offline, load from local and restore cached event (non-blocking)
-          fetchInstructorEvents().then((_) {
-            restoreSelectedEventAndDay().catchError((e) {
-              print('⚠️ Error restoring selected event (non-critical): $e');
-            });
-          }).catchError((e) {
-            print(
-                '⚠️ Error fetching instructor events from local (non-critical): $e');
-          });
-        }
 
         // Process sync queue in background (non-blocking)
         if (isConnected.value) {
@@ -347,6 +305,7 @@ class EventController extends GetxController {
   /// 🚀 Automatically stops the timer when the controller is destroyed
   @override
   void onClose() {
+    _connectivitySubscription?.cancel();
     super.onClose();
   }
 
@@ -555,400 +514,6 @@ class EventController extends GetxController {
     return instructorList.firstWhereOrNull((i) => i.id == id);
   }
 
-  /// 🔎 Get a List of Unfinalized Events for an Instructor in a Specific Event (works offline)
-  getUnfinalizedEvents() async {
-    AppLogger.debug(" ➡️ get Unfinalized Events.");
-    try {
-      unfinalizedLoading.value = true;
-      unfinalizedEvents.clear();
-
-      // If currentEventName is 'playground', load all unfinalized events for the instructor
-      // Otherwise, load only events for the current event name
-      final shouldLoadAllEvents =
-          currentEventName == 'playground' || currentEventName.isEmpty;
-
-      // LOCAL-FIRST STRATEGY: Load from local storage first
-      final localEvents = await LocalStorageService.instance
-          .getLocalUnfinalizedEvents(currentInstructor.id);
-      // Filter by current instructor, exclude playground
-      List<Event> filteredLocalEvents;
-      if (shouldLoadAllEvents) {
-        // Load all unfinalized events for this instructor (excluding playground)
-        filteredLocalEvents = localEvents
-            .where((e) =>
-                e.instructorId == currentInstructor.id &&
-                e.eventName != 'playground')
-            .toList();
-      } else {
-        // Load only events for current event name
-        filteredLocalEvents = localEvents
-            .where((e) =>
-                e.instructorId == currentInstructor.id &&
-                e.eventName == currentEventName &&
-                e.eventName != 'playground')
-            .toList();
-      }
-
-      // Start with local events (these are the most up-to-date)
-      if (filteredLocalEvents.isNotEmpty) {
-        unfinalizedEvents.addAll(filteredLocalEvents);
-        print(
-            '✅ Loaded ${filteredLocalEvents.length} unfinalized events from local cache');
-      }
-
-      // Return immediately with local events to avoid blocking UI
-      // Firebase fetch will happen in background if online
-      unfinalizedLoading.value = false;
-
-      // If online, also fetch from Firebase to catch any events that might not be in local cache
-      // But don't overwrite local events (local is source of truth)
-      // Do this in background (non-blocking) with timeout to prevent delays when offline
-      // IMPORTANT: Start this in background but don't await - return immediately
-      if (isConnected.value) {
-        // Fire and forget - don't await, let it run in background
-        unawaited(Future(() async {
-          try {
-            // Add timeout to prevent blocking when offline but connectivity check says online
-            await Future.any([
-              Future(() async {
-                if (shouldLoadAllEvents) {
-                  // Load all unfinalized events across all event names for this instructor
-                  QuerySnapshot eventsSnapshot = await firestore
-                      .collection('Results')
-                      .doc(currentInstructor.id)
-                      .collection('events')
-                      .get();
-
-                  // Merge Firebase events with local (don't overwrite local events)
-                  // Use a map to track events by key to avoid duplicates
-                  final Map<String, Event> eventMap = {};
-                  // First, add all local events to the map (these take priority)
-                  for (var localEvent in filteredLocalEvents) {
-                    final key = '${localEvent.eventName}/${localEvent.date}';
-                    eventMap[key] = localEvent;
-                  }
-
-                  for (var eventDoc in eventsSnapshot.docs) {
-                    if (eventDoc.id == 'playground')
-                      continue; // Skip playground
-
-                    QuerySnapshot daysSnapshot = await firestore
-                        .collection('Results')
-                        .doc(currentInstructor.id)
-                        .collection('events')
-                        .doc(eventDoc.id)
-                        .collection('days')
-                        .where('finalized', isEqualTo: false)
-                        .get();
-
-                    for (var doc in daysSnapshot.docs) {
-                      Map<String, dynamic> docData =
-                          doc.data() as Map<String, dynamic>;
-                      final event = Event.fromJson(docData);
-                      // Exclude playground events
-                      if (event.eventName != 'playground') {
-                        final key = '${event.eventName}/${event.date}';
-                        // Check if event was deleted locally (don't restore deleted events)
-                        final isDeleted = await LocalStorageService.instance
-                            .isEventDeleted(event.eventName, event.date,
-                                currentInstructor.id);
-                        if (isDeleted) {
-                          print(
-                              '⚠️ Skipping deleted event from Firebase: $key');
-                          continue;
-                        }
-                        // Only add if not already in map (local events take priority)
-                        if (!eventMap.containsKey(key)) {
-                          eventMap[key] = event;
-                          // Save to local storage for future loads
-                          await LocalStorageService.instance
-                              .saveEventLocally(event);
-                        }
-                      }
-                    }
-                  }
-                  // Update unfinalizedEvents with merged results
-                  unfinalizedEvents.clear();
-                  unfinalizedEvents.addAll(eventMap.values);
-                  print(
-                      '✅ Merged ${unfinalizedEvents.length} unfinalized events (local-first, Firebase fallback)');
-                } else {
-                  // Load only for current event name
-                  QuerySnapshot unfinalizedSnapshot = await firestore
-                      .collection('Results')
-                      .doc(currentInstructor.id)
-                      .collection('events')
-                      .doc(currentEventName)
-                      .collection('days')
-                      .where('finalized', isEqualTo: false)
-                      .get();
-
-                  if (unfinalizedSnapshot.docs.isNotEmpty) {
-                    // Merge Firebase events with local (don't overwrite local events)
-                    // Use a map to track events by key to avoid duplicates
-                    final Map<String, Event> eventMap = {};
-                    // First, add all local events to the map (these take priority)
-                    for (var localEvent in filteredLocalEvents) {
-                      final key = '${localEvent.eventName}/${localEvent.date}';
-                      eventMap[key] = localEvent;
-                    }
-
-                    for (var doc in unfinalizedSnapshot.docs) {
-                      Map<String, dynamic> docData =
-                          doc.data() as Map<String, dynamic>;
-                      final event = Event.fromJson(docData);
-                      // Exclude playground events
-                      if (event.eventName != 'playground') {
-                        final key = '${event.eventName}/${event.date}';
-                        // Check if event was deleted locally (don't restore deleted events)
-                        final isDeleted = await LocalStorageService.instance
-                            .isEventDeleted(event.eventName, event.date,
-                                currentInstructor.id);
-                        if (isDeleted) {
-                          print(
-                              '⚠️ Skipping deleted event from Firebase: $key');
-                          continue;
-                        }
-                        // Only add if not already in map (local events take priority)
-                        if (!eventMap.containsKey(key)) {
-                          eventMap[key] = event;
-                          // Save to local storage for future loads
-                          await LocalStorageService.instance
-                              .saveEventLocally(event);
-                        }
-                      }
-                    }
-                    // Update unfinalizedEvents with merged results
-                    unfinalizedEvents.clear();
-                    unfinalizedEvents.addAll(eventMap.values);
-                    print(
-                        '✅ Merged ${unfinalizedEvents.length} unfinalized events (local-first, Firebase fallback)');
-                  }
-                }
-              }),
-              Future.delayed(Duration(seconds: 2), () {
-                print('⏱️ Firebase fetch timeout - using local events only');
-                throw TimeoutException('Firebase fetch timeout');
-              })
-            ]);
-          } catch (e) {
-            if (e is TimeoutException) {
-              print("⏱️ Firebase fetch timed out - using local events");
-            } else {
-              print("⚠️ Error fetching unfinalized events from Firestore: $e");
-            }
-            // Fall through to use local events
-          }
-        }).catchError((e) {
-          print("⚠️ Background Firebase fetch error: $e");
-        }));
-      }
-
-      // Return immediately - don't wait for Firebase fetch
-      // If offline or no events loaded yet, ensure we have local events
-      if (!isConnected.value && unfinalizedEvents.isEmpty) {
-        // Already loaded local events above, but if we're offline and nothing was loaded, use local
-        if (filteredLocalEvents.isNotEmpty) {
-          unfinalizedEvents.addAll(filteredLocalEvents);
-          print(
-              '📴 Using local unfinalized events (offline mode): ${filteredLocalEvents.length} events');
-        }
-      }
-
-      // Final check: if still empty and we have local events, use them
-      if (unfinalizedEvents.isEmpty && filteredLocalEvents.isNotEmpty) {
-        unfinalizedEvents.addAll(filteredLocalEvents);
-        print(
-            '✅ Using local unfinalized events as fallback: ${filteredLocalEvents.length} events');
-      }
-    } catch (e) {
-      unfinalizedLoading.value = false;
-      print("❌ Error in getUnfinalizedEvents: $e");
-    }
-    // Ensure loading is false (already set above, but ensure it's set on error paths)
-    unfinalizedLoading.value = false;
-    // Return immediately - function completes here, Firebase fetch continues in background
-    return unfinalizedEvents;
-  }
-
-  /// 📂 Fetch Main Event list from firebase Where Current Instructor Has Data for dropdown (works offline)
-  Future<void> fetchInstructorEvents() async {
-    pastEventsLoading.value = true;
-    try {
-      // First, load from local cache
-      final localEventList =
-          await LocalStorageService.instance.getLocalEventList();
-      if (localEventList.isNotEmpty) {
-        final filteredList = localEventList
-            .where((eventName) => eventName != 'playground')
-            .toList();
-        events.value = filteredList;
-        print(
-            '✅ Loaded ${filteredList.length} events from local cache (playground filtered)');
-      }
-
-      // If online, sync with Firestore and update cache
-      if (isConnected.value) {
-        try {
-          QuerySnapshot eventsSnapshot = await firestore
-              .collection('Results')
-              .doc(currentInstructor.id)
-              .collection('events')
-              .get();
-          if (eventsSnapshot.docs.isNotEmpty) {
-            events.value = eventsSnapshot.docs
-                .map((doc) => doc.id)
-                .where((eventName) => eventName != 'playground')
-                .toList();
-            final monthMap = {
-              'January': 1,
-              'February': 2,
-              'March': 3,
-              'April': 4,
-              'May': 5,
-              'June': 6,
-              'July': 7,
-              'August': 8,
-              'September': 9,
-              'October': 10,
-              'November': 11,
-              'December': 12,
-            };
-            events.sort((a, b) {
-              final aParts = a.split(' ');
-              final bParts = b.split(' ');
-
-              final aMonth = monthMap[aParts[0]] ?? 0;
-              final aYear = int.tryParse(aParts[1]) ?? 0;
-
-              final bMonth = monthMap[bParts[0]] ?? 0;
-              final bYear = int.tryParse(bParts[1]) ?? 0;
-
-              // Sort by year, then by month
-              if (aYear != bYear) {
-                return aYear.compareTo(bYear);
-              } else {
-                return aMonth.compareTo(bMonth);
-              }
-            });
-            print('✅ Synced ${events.length} events from Firestore');
-          } else {
-            print('⚠️ No Main Events Found in Firestore');
-            // Keep using local events if available
-          }
-        } catch (e) {
-          print('⚠️ Error fetching events from Firestore: $e');
-          // Keep using local events if Firestore fetch fails
-        }
-      } else {
-        print('📴 Using local event list (offline mode)');
-      }
-    } catch (e) {
-      print('❌ Error in fetchInstructorEvents: $e');
-    }
-    pastEventsLoading.value = false;
-    AppLogger.debug("📂 Found events: ${events.toList()}");
-  }
-
-  /// 📅 Fetch Available Days for Selected Event
-  Future<void> fetchEventDays(String eventName) async {
-    pastEventsLoading.value = true;
-    // Skip fetching days for playground
-    if (eventName == 'playground') {
-      pastEventsLoading.value = false;
-      return;
-    }
-    try {
-      QuerySnapshot daysSnapshot = await firestore
-          .collection('Results')
-          .doc(currentInstructor.id)
-          .collection('events')
-          .doc(eventName)
-          .collection('days')
-          .where('finalized', isEqualTo: true)
-          .get();
-      if (daysSnapshot.docs.isNotEmpty) {
-        eventDays[eventName] = daysSnapshot.docs.map((doc) => doc.id).toList();
-      } else {
-        print('No Main Events Found');
-      }
-    } catch (e) {
-      print('Error fetching events: $e');
-    }
-    pastEventsLoading.value = false;
-  }
-
-  /// 📥 Load Selected Event for the Instructor (works offline, local-first)
-  /// Always prioritizes local cache to prevent stale cloud data from overwriting fresh local data
-  Future<void> loadInstructorEvent(String eventName, String day) async {
-    pastEventsLoading.value = true;
-    try {
-      // Clear current event to avoid showing stale data during load
-      // Only clear if we're loading a different event than what's currently loaded
-      if (currentEvent.value.eventName != eventName ||
-          currentEvent.value.date != day) {
-        currentEvent.value = Event(date: '', instructorId: '', eventName: '');
-      }
-
-      // LOCAL-FIRST STRATEGY: Always try local cache first
-      // This prevents stale Firebase data from overwriting fresh local data
-      final localEvent = await LocalStorageService.instance
-          .loadEventLocally(eventName, day, currentInstructor.id);
-      if (localEvent != null) {
-        // Validate that the loaded event belongs to the current instructor
-        if (localEvent.instructorId == currentInstructor.id) {
-          currentEvent.value = localEvent;
-          print(
-              '✅ Loaded event from local cache (local-first): $eventName - $day');
-          pastEventsLoading.value = false;
-          return; // Successfully loaded from local cache, exit early
-        } else {
-          print(
-              '⚠️ Local event found but belongs to ${localEvent.instructorId} (expected ${currentInstructor.id}). Ignoring local cache.');
-          // Fall through to Firebase load
-        }
-      }
-
-      // If local cache doesn't exist or failed, try Firebase as fallback
-      if (isConnected.value) {
-        try {
-          DocumentSnapshot eventSnapshot = await firestore
-              .collection('Results')
-              .doc(currentInstructor.id)
-              .collection('events')
-              .doc(eventName)
-              .collection('days')
-              .doc(day)
-              .get();
-          if (eventSnapshot.exists && eventSnapshot.data() != null) {
-            Map<String, dynamic> eventData =
-                eventSnapshot.data() as Map<String, dynamic>;
-            currentEvent.value = Event.fromJson(eventData);
-
-            // Update local cache for future loads
-            await LocalStorageService.instance
-                .saveEventLocally(currentEvent.value);
-            print(
-                '✅ Loaded event from Firebase (fallback, cached locally): $eventName - $day');
-            pastEventsLoading.value = false;
-            return; // Successfully loaded from Firebase, exit early
-          }
-        } catch (e) {
-          print("⚠️ Error loading event from Firestore: $e");
-          // Fall through to error message
-        }
-      }
-
-      // Neither local nor Firebase had the event
-      print('⚠️ Event not found in local cache or Firebase: $eventName - $day');
-    } catch (e) {
-      pastEventsLoading.value = false;
-      print("❌ Error in loadInstructorEvent: $e");
-    } finally {
-      pastEventsLoading.value = false;
-    }
-  }
-
   getCurrentEventName() async {
     try {
       // First, try to load from local cache (System Hive box)
@@ -1032,128 +597,225 @@ class EventController extends GetxController {
     return _eventDays;
   }
 
-  /// Save selected event and day to cache
-  Future<void> saveSelectedEventAndDay(String? event, String? day) async {
+  /// Time used to choose the single open event. lastUpdate wins over the day date.
+  DateTime? _eventSortTime(Event event) {
+    if (event.lastUpdate != null) return event.lastUpdate;
+    final parts = event.date.split('-');
+    if (parts.length != 3) return null;
+    final day = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == null || year == null) return null;
+    return DateTime(year, month, day);
+  }
+
+  bool _isNewerEvent(Event candidate, Event current) {
+    final candidateTime = _eventSortTime(candidate);
+    final currentTime = _eventSortTime(current);
+    if (candidateTime == null) return false;
+    if (currentTime == null) return true;
+    return candidateTime.isAfter(currentTime);
+  }
+
+  /// True only when Firestore has this day and it is already closed.
+  /// A missing document or a failed read leaves the local day open.
+  Future<bool> _isOpenEventClosedOnServer(Event event) async {
     try {
-      if (systemBox != null) {
-        if (event != null) {
-          await systemBox!.put('selectedEvent', event);
-        }
-        if (day != null) {
-          await systemBox!.put('selectedDay', day);
-        }
-        print('✅ Saved selected event and day to cache: $event / $day');
-      }
+      final snapshot = await firestore
+          .collection('Results')
+          .doc(event.instructorId)
+          .collection('events')
+          .doc(event.eventName)
+          .collection('days')
+          .doc(event.date)
+          .get()
+          .timeout(const Duration(seconds: 8));
+      if (!snapshot.exists || snapshot.data() == null) return false;
+      return snapshot.data()!['finalized'] == true;
     } catch (e) {
-      print('⚠️ Error saving selected event and day: $e');
+      print('⚠️ Could not verify open event on Firestore: $e');
+      return false;
     }
   }
 
-  /// Restore selected event and day from cache, then load the event
-  Future<void> restoreSelectedEventAndDay() async {
+  Future<List<Event>> _remoteOpenDaysForCurrentEvent() async {
+    if (currentEventName.isEmpty ||
+        currentEventName == 'NA' ||
+        currentEventName == 'playground') {
+      return [];
+    }
+    final snapshot = await firestore
+        .collection('Results')
+        .doc(currentInstructor.id)
+        .collection('events')
+        .doc(currentEventName)
+        .collection('days')
+        .where('finalized', isEqualTo: false)
+        .get()
+        .timeout(const Duration(seconds: 8));
+    final openDays = <Event>[];
+    for (final doc in snapshot.docs) {
+      final event = Event.fromJson(doc.data());
+      if (event.eventName == 'playground' || event.eventName.isEmpty) {
+        continue;
+      }
+      final deleted = await LocalStorageService.instance.isEventDeleted(
+          event.eventName, event.date, currentInstructor.id);
+      if (deleted) continue;
+      openDays.add(event);
+    }
+    return openDays;
+  }
+
+  /// Remember extra open days so the app does not bring them back after this one is closed.
+  /// Firestore copies stay where they are. A null [keep] hides every open day of the current event.
+  Future<void> _hideOtherRemoteOpenDays(Event? keep) async {
+    if (keep != null && keep.eventName != currentEventName) return;
     try {
-      if (systemBox != null) {
-        // Restore selected event
-        if (systemBox!.containsKey('selectedEvent')) {
-          try {
-            final cachedEventData = systemBox!.get('selectedEvent');
-            String? cachedEvent;
-            if (cachedEventData is String) {
-              cachedEvent = cachedEventData;
-            } else if (cachedEventData != null) {
-              cachedEvent = cachedEventData.toString();
-            }
-
-            if (cachedEvent != null && cachedEvent.isNotEmpty) {
-              selectedEvent.value = cachedEvent;
-              print('✅ Restored selected event from cache: $cachedEvent');
-            }
-          } catch (e) {
-            print('⚠️ Error restoring selected event: $e');
-          }
+      final openDays = await _remoteOpenDaysForCurrentEvent();
+      for (final event in openDays) {
+        if (keep != null &&
+            event.date == keep.date &&
+            event.eventName == keep.eventName) {
+          continue;
         }
-
-        // Restore selected day
-        if (systemBox!.containsKey('selectedDay')) {
-          try {
-            final cachedDayData = systemBox!.get('selectedDay');
-            String? cachedDay;
-            if (cachedDayData is String) {
-              cachedDay = cachedDayData;
-            } else if (cachedDayData != null) {
-              cachedDay = cachedDayData.toString();
-            }
-
-            if (cachedDay != null && cachedDay.isNotEmpty) {
-              selectedDay.value = cachedDay;
-              print('✅ Restored selected day from cache: $cachedDay');
-            }
-          } catch (e) {
-            print('⚠️ Error restoring selected day: $e');
-          }
-        }
-
-        // If both event and day are available, verify the event still exists in current unfinalized events
-        // This prevents loading stale cached events that no longer exist or are from different dates
-        if (selectedEvent.value != null && selectedDay.value != null) {
-          // Check if this event/day combination exists in the current unfinalized events list
-          bool eventExistsInUnfinalized = unfinalizedEvents.any((e) =>
-              e.eventName == selectedEvent.value &&
-              e.date == selectedDay.value);
-
-          if (!eventExistsInUnfinalized) {
-            // Cached event is not in current unfinalized events, clear the cache
-            print(
-                '⚠️ Cached event not in current unfinalized events, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
-            selectedEvent.value = null;
-            selectedDay.value = null;
-            await saveSelectedEventAndDay(null, null);
-            return; // Don't load stale event
-          }
-
-          // Check if the event still exists in local storage before auto-loading
-          final cachedEvent = await LocalStorageService.instance
-              .loadEventLocally(selectedEvent.value!, selectedDay.value!,
-                  currentInstructor.id);
-
-          if (cachedEvent != null) {
-            // Verify the cached event matches currentEventName (if set) to avoid loading wrong events
-            // Only auto-load if it's a valid, current event
-            bool shouldLoad = true;
-            if (currentEventName.isNotEmpty &&
-                cachedEvent.eventName != currentEventName) {
-              print(
-                  '⚠️ Cached event name mismatch: cached=${cachedEvent.eventName}, current=$currentEventName');
-              shouldLoad = false;
-            }
-
-            if (shouldLoad) {
-              print(
-                  '🔄 Auto-loading cached event: ${selectedEvent.value} / ${selectedDay.value}');
-              await loadInstructorEvent(
-                  selectedEvent.value!, selectedDay.value!);
-            } else {
-              // Clear stale cache if event doesn't match
-              print(
-                  '⚠️ Cached event is stale, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
-              selectedEvent.value = null;
-              selectedDay.value = null;
-              await saveSelectedEventAndDay(null, null);
-            }
-          } else {
-            // Clear stale cache if event no longer exists
-            print(
-                '⚠️ Cached event no longer exists, clearing cache: ${selectedEvent.value} / ${selectedDay.value}');
-            selectedEvent.value = null;
-            selectedDay.value = null;
-            await saveSelectedEventAndDay(null, null);
-          }
-        }
+        await LocalStorageService.instance.markEventAsDeleted(
+            event.eventName, event.date, currentInstructor.id);
+        print(
+            '⚠️ Leaving extra open day on the server, hidden in the app: ${event.eventName} / ${event.date}');
       }
     } catch (e) {
-      print('❌ Error in restoreSelectedEventAndDay: $e');
+      print('⚠️ Could not hide extra open days: $e');
     }
   }
+
+  /// Newest unfinalized day of the current event name.
+  Future<Event?> _newestRemoteOpenEvent() async {
+    try {
+      final openDays = await _remoteOpenDaysForCurrentEvent();
+      Event? newest;
+      for (final event in openDays) {
+        if (newest == null || _isNewerEvent(event, newest)) {
+          newest = event;
+        }
+      }
+      if (newest != null) {
+        await _hideOtherRemoteOpenDays(newest);
+      }
+      return newest;
+    } catch (e) {
+      print('⚠️ Could not load the open event from Firestore: $e');
+      return null;
+    }
+  }
+
+  /// The instructor has one open event until it is closed or deleted.
+  /// Local finalized:false does not override a day Firestore already closed.
+  getUnfinalizedEvents() async {
+    AppLogger.debug(" ➡️ get open event.");
+    try {
+      unfinalizedLoading.value = true;
+      unfinalizedEvents.clear();
+
+      await getCurrentEventName();
+      await _uploadClosedEventsStillOnDevice();
+
+      final localEvents = await LocalStorageService.instance
+          .getLocalUnfinalizedEvents(currentInstructor.id);
+      final candidates = localEvents
+          .where((event) => event.eventName != 'playground')
+          .toList();
+
+      Event? openEvent;
+      for (final event in candidates) {
+        if (openEvent == null || _isNewerEvent(event, openEvent)) {
+          openEvent = event;
+        }
+      }
+
+      var skipRemoteAdopt = false;
+      if (openEvent != null && isConnected.value) {
+        final closedOnServer = await _isOpenEventClosedOnServer(openEvent);
+        if (closedOnServer) {
+          final droppedCurrentEvent = openEvent.eventName == currentEventName;
+          print(
+              '🗑️ Local event is closed on the server, dropping cache: ${openEvent.eventName} / ${openEvent.date}');
+          await LocalStorageService.instance.deleteEventLocally(
+              openEvent.eventName, openEvent.date, openEvent.instructorId);
+          openEvent = null;
+          // The cached day was already closed. Do not replace it with an older open day.
+          if (droppedCurrentEvent) {
+            await _hideOtherRemoteOpenDays(null);
+            skipRemoteAdopt = true;
+          }
+        } else {
+          await _hideOtherRemoteOpenDays(openEvent);
+        }
+      }
+
+      if (openEvent == null && isConnected.value && !skipRemoteAdopt) {
+        final remoteEvent = await _newestRemoteOpenEvent();
+        if (remoteEvent != null) {
+          await LocalStorageService.instance.saveEventLocally(remoteEvent);
+          openEvent = remoteEvent;
+          print(
+              '✅ Loaded the open event from Firestore: ${openEvent.eventName} / ${openEvent.date}');
+        }
+      }
+
+      await LocalStorageService.instance.pruneLocalEvents(
+        instructorId: currentInstructor.id,
+        keep: openEvent,
+      );
+
+      if (openEvent != null) {
+        unfinalizedEvents.add(openEvent);
+      }
+    } catch (e) {
+      print("❌ Error in getUnfinalizedEvents: $e");
+    }
+    unfinalizedLoading.value = false;
+    return unfinalizedEvents;
+  }
+
+  /// Upload a close that was saved on the device and then remove that copy.
+  Future<void> _uploadClosedEventsStillOnDevice() async {
+    if (!isConnected.value) return;
+    final localEvents = await LocalStorageService.instance
+        .getLocalEvents(currentInstructor.id);
+    for (final event in localEvents) {
+      if (event.eventName == 'playground') continue;
+      if (!event.finalized || event.isBackedUp) continue;
+      final saved = await event.saveToFirestore(
+        skipLocalSave: true,
+        queueOnFailure: true,
+      );
+      if (!saved) continue;
+      await LocalStorageService.instance.deleteEventLocally(
+          event.eventName, event.date, event.instructorId);
+    }
+  }
+
+  /// Close the working event. The local copy is removed only after Firestore accepts it.
+  Future<bool> closeCurrentEvent() async {
+    final event = currentEvent.value;
+    event.finalized = true;
+    currentEvent.refresh();
+    final saved = await event.saveToFirestore(queueOnFailure: false);
+    if (!saved) {
+      event.finalized = false;
+      event.isBackedUp = false;
+      currentEvent.refresh();
+      await event.saveToLocal();
+      return false;
+    }
+    await LocalStorageService.instance.deleteEventLocally(
+        event.eventName, event.date, event.instructorId);
+    unfinalizedEvents.removeWhere((open) =>
+        open.eventName == event.eventName && open.date == event.date);
+    return true;
+  }
+
 
   /// Helper method to save event with offline support
   /// Always saves locally first, then syncs to Firestore if online (non-blocking)
@@ -1247,7 +909,16 @@ class EventController extends GetxController {
       participant.status = ParticipantStatus.Active;
     }
     currentEvent.value = event;
-    await saveEventWithOfflineSupport(event, isCreate: true);
+    final saved = await saveEventWithOfflineSupport(event, isCreate: true);
+    if (saved) {
+      unfinalizedEvents
+        ..clear()
+        ..add(event);
+      await LocalStorageService.instance.pruneLocalEvents(
+        instructorId: currentInstructor.id,
+        keep: event,
+      );
+    }
     loading.value = false;
   }
 
@@ -1267,13 +938,6 @@ class EventController extends GetxController {
       await LocalStorageService.instance.deleteEventLocally(
           event.eventName, event.date, currentInstructor.id);
 
-      // 🔥 Step 2: Refresh eventDays cache for this event
-      if (eventDays.containsKey(event.eventName)) {
-        eventDays[event.eventName]?.remove(event.date);
-        if (eventDays[event.eventName]!.isEmpty) {
-          eventDays.remove(event.eventName);
-        }
-      }
 
       // 🔥 Step 3: Delete from Firestore (queue if offline, execute if online)
       if (isConnected.value) {
@@ -3177,44 +2841,6 @@ class EventController extends GetxController {
     } catch (e) {
       print('❌ Error getting instructor custom comments for exercise: $e');
       return [];
-    }
-  }
-
-  /// Cleanup old finalized events from local cache
-  /// This is called on app initialization and after event finalization
-  /// Excludes currently loaded events for safety
-  Future<void> cleanupOldFinalizedEvents() async {
-    try {
-      // Build list of event keys to exclude (currently loaded events)
-      List<String> excludeKeys = [];
-
-      // Exclude currently loaded event if it exists
-      if (currentEvent.value.eventName.isNotEmpty &&
-          currentEvent.value.date.isNotEmpty) {
-        excludeKeys
-            .add('${currentEvent.value.eventName}/${currentEvent.value.date}');
-      }
-
-      // Exclude all unfinalized events (they should never be deleted)
-      for (var event in unfinalizedEvents) {
-        if (event.eventName.isNotEmpty && event.date.isNotEmpty) {
-          excludeKeys.add('${event.eventName}/${event.date}');
-        }
-      }
-
-      // Run cleanup with safety exclusions
-      final deletedCount =
-          await LocalStorageService.instance.cleanupOldFinalizedEvents(
-        retentionDays: finalizedEventRetentionDays,
-        excludeEventKeys: excludeKeys,
-      );
-
-      if (deletedCount > 0) {
-        print(
-            '🧹 Cleaned up $deletedCount old finalized event(s) from local cache');
-      }
-    } catch (e) {
-      print('❌ Error in cleanupOldFinalizedEvents: $e');
     }
   }
 }

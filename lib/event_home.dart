@@ -408,21 +408,11 @@ class _EventHomeState extends State<EventHome> with EventValidationMixin {
                                   }
                                 }
                                 
-                                // Save the event with finalized flag AND all instructorGrade values
-                                // Save locally first (immediate), then try Firebase in background
-                                final localSuccess = await eventController.currentEvent.value.saveToLocal();
-                                if (localSuccess) {
-                                  // Show success immediately after local save
+                                // Firestore must accept the close before the day leaves the device.
+                                final closed = await eventController.closeCurrentEvent();
+                                if (closed) {
                                   showCustomMessageAlert(context, "הצלחה",
                                       "הארוע נסגר בהצלחה", Icons.check);
-                                  // Try Firebase in background (non-blocking)
-                                  eventController.saveEventWithOfflineSupport(
-                                    eventController.currentEvent.value
-                                  );
-                                  // Trigger cleanup of old finalized events (non-blocking)
-                                  eventController.cleanupOldFinalizedEvents().catchError((e) {
-                                    print('⚠️ Error during cleanup after finalization (non-critical): $e');
-                                  });
                                 } else {
                                   showCustomMessageAlert(context, "תקלה",
                                       "שגיאה בשמירת האירוע", Icons.error);

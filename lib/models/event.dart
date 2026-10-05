@@ -171,7 +171,11 @@ class Event {
   /// Note: This method should be called through EventController.saveEventWithOfflineSupport()
   /// for proper offline support, but can be called directly if needed
   /// [skipLocalSave] - If true, skips the local saves (used when called from sync queue to prevent loops)
-  Future<bool> saveToFirestore({bool skipLocalSave = false}) async {
+  /// [queueOnFailure] - If false, a failed write is not queued and the caller keeps the event open
+  Future<bool> saveToFirestore({
+    bool skipLocalSave = false,
+    bool queueOnFailure = true,
+  }) async {
     try {
       if (!skipLocalSave) {
         lastUpdate = DateTime.now();
@@ -255,6 +259,7 @@ class Event {
       return true;
     } catch (e) {
       print("❌ Error saving Event to Firestore: $eventName - $date: $e");
+      if (!queueOnFailure) return false;
       // Queue for retry when online (local save already succeeded)
       try {
         await SyncQueueService.instance.queueFirestoreOperation('saveEvent', toJson());

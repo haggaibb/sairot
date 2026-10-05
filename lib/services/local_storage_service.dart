@@ -18,7 +18,6 @@ class LocalStorageService {
 
   Box<dynamic>? _eventsBox;
   Box<Instructor>? _instructorsBox;
-  Box<dynamic>? _eventListBox;
   Box<dynamic>? _deletedEventsBox;
 
   /// Initialize Hive boxes for local storage
@@ -35,14 +34,12 @@ class LocalStorageService {
       if (kIsWeb) {
         _eventsBox = await Hive.openBox('events');
         _instructorsBox = await Hive.openBox<Instructor>('instructors');
-        _eventListBox = await Hive.openBox('event_list');
         _deletedEventsBox = await Hive.openBox('deleted_events');
       } else {
         var dir = await getApplicationDocumentsDirectory();
         _eventsBox = await Hive.openBox('events', path: dir.path);
         _instructorsBox =
             await Hive.openBox<Instructor>('instructors', path: dir.path);
-        _eventListBox = await Hive.openBox('event_list', path: dir.path);
         _deletedEventsBox =
             await Hive.openBox('deleted_events', path: dir.path);
       }
@@ -61,9 +58,6 @@ class LocalStorageService {
       final eventJson = event.toJson();
 
       await _eventsBox!.put(key, jsonEncode(eventJson));
-
-      // Also update event list
-      await _updateEventList(event.eventName);
 
       print('✅ Event saved locally: $key');
       return true;
@@ -142,37 +136,30 @@ class LocalStorageService {
     }
   }
 
-  /// Get list of event names from local storage
-  Future<List<String>> getLocalEventList() async {
+  /// Every locally stored event for this instructor, including closed days.
+  Future<List<Event>> getLocalEvents(String instructorId) async {
     try {
-      if (_eventListBox == null) await initialize();
+      if (_eventsBox == null) await initialize();
 
-      final eventList = _eventListBox!.get('list', defaultValue: <String>[])
-          as List<dynamic>?;
-      return eventList?.map((e) => e.toString()).toList() ?? [];
+      final events = <Event>[];
+      for (final key in _eventsBox!.keys) {
+        try {
+          if (!key.toString().startsWith('$instructorId/')) continue;
+          final eventData = _eventsBox!.get(key);
+          if (eventData == null) continue;
+          final eventJson =
+              jsonDecode(eventData as String) as Map<String, dynamic>;
+          final event = Event.fromJson(eventJson);
+          if (event.instructorId != instructorId) continue;
+          events.add(event);
+        } catch (e) {
+          print('❌ Error parsing event $key: $e');
+        }
+      }
+      return events;
     } catch (e) {
-      print('❌ Error getting local event list: $e');
+      print('❌ Error getting local events: $e');
       return [];
-    }
-  }
-
-  /// Update event list with new event name
-  Future<void> _updateEventList(String eventName) async {
-    try {
-      // Skip playground events - they should not appear in the event list
-      if (eventName == 'playground') {
-        return;
-      }
-
-      if (_eventListBox == null) await initialize();
-
-      final currentList = await getLocalEventList();
-      if (!currentList.contains(eventName)) {
-        currentList.add(eventName);
-        await _eventListBox!.put('list', currentList);
-      }
-    } catch (e) {
-      print('❌ Error updating event list: $e');
     }
   }
 
@@ -248,109 +235,50 @@ class LocalStorageService {
     }
   }
 
-  /// Cleanup old finalized events from local storage
-  /// Deletes finalized events that are backed up and older than retention period
-  /// [retentionDays] - Number of days to keep finalized events (default: 30)
-  /// [excludeEventKeys] - List of event keys to exclude from deletion (e.g., currently loaded events)
-  /// Returns count of deleted events
-  Future<int> cleanupOldFinalizedEvents({
-    int retentionDays = 30,
-    List<String> excludeEventKeys = const [],
+  /// Keep this instructor's playground and [keep]. Delete every other local day.
+  Future<void> pruneLocalEvents({
+    required String instructorId,
+    Event? keep,
   }) async {
     try {
+      if (instructorId.isEmpty) return;
       if (_eventsBox == null) await initialize();
 
-      int deletedCount = 0;
-      final now = DateTime.now();
-      final retentionThreshold = now.subtract(Duration(days: retentionDays));
+      final keys = _eventsBox!.keys.toList();
+      for (final key in keys) {
+        final keyString = key.toString();
+        if (!keyString.startsWith('$instructorId/')) continue;
 
-      print(
-          '🧹 Starting cleanup of finalized events older than $retentionDays days...');
-
-      // Get all keys from events box
-      final allKeys = _eventsBox!.keys.toList();
-
-      for (var key in allKeys) {
         try {
-          // Skip if this event should be excluded (e.g., currently loaded)
-          if (excludeEventKeys.contains(key)) {
+          final eventData = _eventsBox!.get(key);
+          if (eventData == null) {
+            await _eventsBox!.delete(key);
             continue;
           }
-
-          final eventData = _eventsBox!.get(key);
-          if (eventData == null) continue;
 
           final eventJson =
               jsonDecode(eventData as String) as Map<String, dynamic>;
           final event = Event.fromJson(eventJson);
 
-          // Only delete finalized events
-          if (!event.finalized) {
+          if (event.eventName == 'playground') continue;
+          // A close that has not reached Firestore yet must stay on the device.
+          if (event.finalized && !event.isBackedUp) continue;
+          if (keep != null &&
+              event.instructorId == keep.instructorId &&
+              event.eventName == keep.eventName &&
+              event.date == keep.date) {
             continue;
           }
 
-          // Only delete if backed up (or assume true if finalized and successfully saved)
-          // For safety, we'll check isBackedUp flag, but if it's finalized we assume it's backed up
-          if (!event.isBackedUp && event.finalized) {
-            // If finalized but not explicitly marked as backed up, we'll still consider it
-            // as potentially backed up (might be from older version without the flag)
-            // But to be safe, we'll skip it if isBackedUp is explicitly false
-            print(
-                '⚠️ Skipping finalized event $key - isBackedUp flag is false');
-            continue;
-          }
-
-          // Calculate age using lastUpdate or use a default if null
-          DateTime eventDate;
-          if (event.lastUpdate != null) {
-            eventDate = event.lastUpdate!;
-          } else {
-            // If no lastUpdate, try to parse from date string or use current time
-            try {
-              // Try to parse date string (format: DD-MM-YYYY)
-              final dateParts = event.date.split('-');
-              if (dateParts.length == 3) {
-                eventDate = DateTime(
-                  int.parse(dateParts[2]), // year
-                  int.parse(dateParts[1]), // month
-                  int.parse(dateParts[0]), // day
-                );
-              } else {
-                // Fallback to current time (will not delete)
-                eventDate = now;
-              }
-            } catch (e) {
-              // Fallback to current time (will not delete)
-              eventDate = now;
-            }
-          }
-
-          // Check if event is older than retention period
-          if (eventDate.isBefore(retentionThreshold)) {
-            // Delete the event
-            await deleteEventLocally(
-                event.eventName, event.date, event.instructorId);
-            deletedCount++;
-            print(
-                '🗑️ Deleted old finalized event: $key (age: ${now.difference(eventDate).inDays} days)');
-          }
+          await _eventsBox!.delete(key);
+          print('🗑️ Pruned local event: $keyString');
         } catch (e) {
-          print('❌ Error processing event $key during cleanup: $e');
-          continue;
+          print('❌ Error pruning event $keyString: $e');
+          await _eventsBox!.delete(key);
         }
       }
-
-      if (deletedCount > 0) {
-        print(
-            '✅ Cleanup completed: Deleted $deletedCount old finalized event(s)');
-      } else {
-        print('✅ Cleanup completed: No events to delete');
-      }
-
-      return deletedCount;
     } catch (e) {
-      print('❌ Error during cleanup of old finalized events: $e');
-      return 0;
+      print('❌ Error pruning local events: $e');
     }
   }
 
@@ -405,7 +333,6 @@ class LocalStorageService {
   Future<void> clearAllEvents() async {
     try {
       if (_eventsBox != null) await _eventsBox!.clear();
-      if (_eventListBox != null) await _eventListBox!.clear();
       print('✅ All local events cleared');
     } catch (e) {
       print('❌ Error clearing events: $e');

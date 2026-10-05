@@ -1,18 +1,16 @@
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
 import 'event_controller.dart';
 import 'models/instructor.dart';
-import 'dart:async';
 import 'widgets/unfinalized_panel.dart';
 import 'theme_controller.dart';
 import 'package:sairot/models/system.dart';
 import 'git_version.dart';
 import 'widgets/guideWebView.dart';
 import 'utils/tablet_utils.dart';
-import 'services/platform_service.dart';
 import 'widgets/date_input_dialog.dart';
+import 'widgets/wifi_settings_button.dart';
 
 
 
@@ -27,30 +25,6 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   final eventController = Get.put(EventController());
   final themeController = Get.put(ThemeController());
-  final platformService = PlatformService.create();
-
-
-  /// Load Selected Instructor's Event
-  Future<void> loadSelectedEvent() async {
-    eventController.pastEventsLoading.value = true;
-    if (eventController.selectedEvent.value == null ||
-        eventController.selectedDay.value == null) {
-      eventController.pastEventsLoading.value = false;
-      return;
-    }
-
-    // Save to cache before loading
-    await eventController.saveSelectedEventAndDay(
-      eventController.selectedEvent.value,
-      eventController.selectedDay.value,
-    );
-
-    await eventController.loadInstructorEvent(
-      eventController.selectedEvent.value!,
-      eventController.selectedDay.value!,
-    );
-    eventController.pastEventsLoading.value = false;
-  }
 
   @override
   void initState() {
@@ -271,9 +245,7 @@ class _HomeState extends State<Home> {
                     ),
                     onTap: () async {
                       Navigator.pop(context); // Close drawer
-                      eventController.pastEventsLoading.value = true;
                       await eventController.loadPlaygroundEvent();
-                      eventController.pastEventsLoading.value = false;
                       Get.toNamed('/event_home');
                     },
                   ),
@@ -286,18 +258,7 @@ class _HomeState extends State<Home> {
               title: Text('ימי סיירות'),
               centerTitle: true,
               actions: [
-                if (!kIsWeb)
-                  IconButton(
-                      onPressed: () async {
-                        if (await platformService.canOpenKioskSettings()) {
-                          await platformService.openWifiPicker();
-                        }
-                      },
-                      icon: Icon(
-                        Icons.wifi_find_rounded,
-                        color: Colors.grey,
-                        size: 30.0,
-                      )),
+                WifiSettingsButton(),
                 IconButton(
                   icon: const Icon(Icons.info_outline),
                   tooltip: 'מדריך למשתמש',
@@ -377,8 +338,13 @@ class _HomeState extends State<Home> {
                         ),
                       ))),
                 ),
-                /// new day button
-                Padding(
+                /// new day button — hidden while one event is already open
+                Obx(() {
+                  if (eventController.unfinalizedLoading.value ||
+                      eventController.unfinalizedEvents.isNotEmpty) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
                   padding: const EdgeInsets.all(1.0),
                   child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -387,6 +353,11 @@ class _HomeState extends State<Home> {
                         foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       ),
                     onPressed: () async {
+                      await eventController.getUnfinalizedEvents();
+                      if (!mounted ||
+                          eventController.unfinalizedEvents.isNotEmpty) {
+                        return;
+                      }
                       DateTime today = DateTime.now();
                       // Remove time component to compare only dates
                       today = DateTime(today.year, today.month, today.day);
@@ -405,7 +376,8 @@ class _HomeState extends State<Home> {
                       child: const Text('פתיחת יום חדש',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       )),
-                ),
+                );
+                }),
                 const SizedBox(
                   height: 10,
                 ),
@@ -463,209 +435,6 @@ class _HomeState extends State<Home> {
                     ),
                   );
                 }),
-                /// Past Events
-                const Text(
-                  'ארועי עבר',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-                Builder(
-                  builder: (context) {
-                    bool tablet = isTablet(context);
-                    double maxWidth = tablet ? 480.0 : 400.0;
-                    
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: maxWidth),
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 30.0, right: 30),
-                          child: Container(
-                    margin: EdgeInsets.symmetric(horizontal: 0, vertical: 10),
-                    padding:
-                    EdgeInsets.only(left: 40, right: 40, top: 10, bottom: 10),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest, // 🆕
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black54,
-                          blurRadius: 6,
-                          offset: Offset(0, 3),
-                        ),
-                      ],
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Column(
-                      children: [
-                        // 📌 Event Dropdown
-                        Obx(() {
-                          return Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: DropdownButtonFormField<String>(
-                              decoration: InputDecoration(
-                                labelText: "בחר אירוע",
-                                labelStyle: TextStyle(
-                                  //color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                filled: true,
-                                //fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    //color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    color:
-                                    Theme.of(context).colorScheme.secondary,
-                                    width: 2,
-                                  ),
-                                ),
-                                prefixIcon: Icon(Icons.event,
-                                    color: Theme.of(context).colorScheme.primary),
-                              ),
-                              value: eventController.selectedEvent.value,
-                              onChanged: (String? newValue) async {
-                                eventController.selectedEvent.value = newValue;
-                                eventController.selectedDay.value = null;
-                                // Save to cache
-                                await eventController.saveSelectedEventAndDay(newValue, null);
-                                if (newValue != null) {
-                                  await eventController.fetchEventDays(newValue);
-                                }
-                              },
-                              items: eventController.events
-                                  .map((event) => DropdownMenuItem(
-                                value: event,
-                                child: Text(event),
-                              ))
-                                  .toList(),
-                              icon: Icon(Icons.arrow_drop_down,
-                                  color: Theme.of(context).colorScheme.primary),
-                            ),
-                          );
-                        }),
-                        SizedBox(height: 10),
-                        // 📅 Days Dropdown
-                        Obx(() {
-                          if (eventController.selectedEvent.value == null) {
-                            return SizedBox();
-                          }
-                          var days = eventController.eventDays[
-                          eventController.selectedEvent.value] ??
-                              [];
-                          return Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: DropdownButtonFormField<String>(
-                              decoration: InputDecoration(
-                                labelText: "בחר יום",
-                                labelStyle: TextStyle(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                filled: true,
-                                //fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    color:
-                                    Theme.of(context).colorScheme.secondary,
-                                    width: 2,
-                                  ),
-                                ),
-                                prefixIcon: Icon(Icons.calendar_today,
-                                    color: Theme.of(context).colorScheme.primary),
-                              ),
-                              value: eventController.selectedDay.value,
-                              onChanged: (String? newValue) async {
-                                eventController.selectedDay.value = newValue;
-                                // Save to cache
-                                await eventController.saveSelectedEventAndDay(
-                                  eventController.selectedEvent.value,
-                                  newValue,
-                                );
-                              },
-                              items: days
-                                  .map((day) => DropdownMenuItem(
-                                value: day,
-                                child: Text(day),
-                              ))
-                                  .toList(),
-                              icon: Icon(Icons.arrow_drop_down,
-                                  color: Theme.of(context).colorScheme.primary),
-                            ),
-                          );
-                        }),
-                        SizedBox(height: 10),
-                        // ▶️ Load Data Button
-                        Obx(() {
-                          if (eventController.selectedDay.value == null) {
-                            return SizedBox();
-                          }
-                          return ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                elevation: 10,
-                                backgroundColor:
-                                Theme.of(context).colorScheme.primary,
-                                foregroundColor:
-                                Theme.of(context).colorScheme.onPrimary,
-                              ),
-                              onPressed: () async {
-                                await loadSelectedEvent();
-                                Get.toNamed('/event_home');
-                              },
-                              child: Text('הצג אירוע',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ));
-                        }),
-                        Obx(() => eventController.pastEventsLoading
-                            .value // || eventController.events.isEmpty
-                            ? SizedBox(
-                            width: 150, child: LinearProgressIndicator())
-                            : SizedBox.shrink()),
-                        SizedBox(height: 10),
-                      ],
-                    ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
                 SizedBox(height: 50,)
               ]),
             )),
