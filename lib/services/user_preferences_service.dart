@@ -82,7 +82,7 @@ class UserPreferencesService {
       final prefs = await SharedPreferences.getInstance();
       final x = prefs.getDouble(_floatingPttButtonXKey);
       final y = prefs.getDouble(_floatingPttButtonYKey);
-      
+
       if (x != null && y != null) {
         return Offset(x, y);
       }
@@ -107,4 +107,3 @@ class UserPreferencesService {
     }
   }
 }
-

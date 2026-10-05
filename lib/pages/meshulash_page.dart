@@ -76,6 +76,7 @@ class _MeshulashPageState extends State<MeshulashPage>
             '✅ Initialized meshulashRounds with ${activeParticipants.length} participants');
       }
     }
+    eventController.syncLateArrivalsIntoOpenExercises();
 
     if (eventController.currentEvent.value.meshulashEndTime != null) {
       eventController.meshulashEditModeOn.value = false;

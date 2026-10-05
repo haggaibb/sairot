@@ -466,5 +466,122 @@ class Event {
     }
   }
 
+  /// Keeps one participant when their shirt number was typed wrong.
+  /// Grades and comments stay on that person, including inside exercises
+  /// that already started.
+  void renameParticipantNumber(int from, int to) {
+    if (from == to) return;
+
+    void replace(List<int> numbers) {
+      for (var i = 0; i < numbers.length; i++) {
+        if (numbers[i] == from) numbers[i] = to;
+      }
+    }
+
+    for (final round in sakimRounds) {
+      replace(round.participantsInRound);
+    }
+    for (final round in meshulashRounds) {
+      replace(round.participantsInRound);
+    }
+    for (final sprint in alonkaSprints) {
+      replace(sprint.activeParticipants);
+      replace(sprint.alonkaCredits);
+      replace(sprint.gerikanCredits);
+      replace(sprint.runCredits);
+      replace(sprint.participationCredits);
+    }
+    for (final participant in activeParticipants) {
+      if (participant.number == from) participant.number = to;
+    }
+    final burIndex = burGrades.indexWhere((bur) => bur.id == from);
+    if (burIndex != -1) {
+      final previous = burGrades[burIndex];
+      burGrades[burIndex] = Bur(id: to)
+        ..burGrade = previous.burGrade
+        ..instructorComments = List<String>.from(previous.instructorComments);
+    }
+  }
+
+  /// Puts shirt numbers that joined after an exercise started into that
+  /// exercise's live roster. A finished exercise is left unchanged.
+  /// Returns true when any roster changed.
+  bool enrollLateArrivals(Iterable<int> numbers) {
+    var changed = false;
+    for (final number in numbers) {
+      if (_enrollInOpenSakim(number)) changed = true;
+      if (_enrollInOpenMeshulash(number)) changed = true;
+      if (_enrollInOpenAlonka(number)) changed = true;
+      if (_enrollInOpenBur(number)) changed = true;
+    }
+    return changed;
+  }
+
+  bool _enrollInOpenSakim(int number) {
+    if (sakimEndTime != null || sakimRounds.isEmpty) return false;
+    if (sakimRounds.any((round) => round.participantsInRound.contains(number))) {
+      return false;
+    }
+    final startRound = sakimRounds.cast<SakimRound?>().firstWhere(
+          (round) => round!.round == 0,
+          orElse: () => sakimRounds.first,
+        )!;
+    startRound.participantsInRound.add(number);
+    return true;
+  }
+
+  bool _enrollInOpenMeshulash(int number) {
+    if (meshulashEndTime != null || meshulashRounds.isEmpty) return false;
+    if (meshulashRounds
+        .any((round) => round.participantsInRound.contains(number))) {
+      return false;
+    }
+    final startRound = meshulashRounds.cast<MeshulashRound?>().firstWhere(
+          (round) => round!.round == 0,
+          orElse: () => meshulashRounds.first,
+        )!;
+    startRound.participantsInRound.add(number);
+    return true;
+  }
+
+  bool _enrollInOpenAlonka(int number) {
+    if (alonkaEndTime != null || alonkaSprints.isEmpty) return false;
+    AlonkaSprint? openSprint;
+    for (var i = alonkaSprints.length - 1; i >= 0; i--) {
+      if (alonkaSprints[i].activeParticipants.isNotEmpty) {
+        openSprint = alonkaSprints[i];
+        break;
+      }
+    }
+    if (openSprint == null || openSprint.activeParticipants.contains(number)) {
+      return false;
+    }
+    openSprint.activeParticipants.add(number);
+    return true;
+  }
+
+  bool _enrollInOpenBur(int number) {
+    if (burStartTime == null || burEndTime != null) return false;
+    var changed = false;
+    if (!burGrades.any((bur) => bur.id == number)) {
+      burGrades.add(Bur(id: number));
+      changed = true;
+    }
+    if (!activeParticipants.any((participant) => participant.number == number)) {
+      Participant? participant;
+      for (final existing in participants) {
+        if (existing.number == number) {
+          participant = existing;
+          break;
+        }
+      }
+      if (participant != null) {
+        activeParticipants.add(participant);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
 
 }

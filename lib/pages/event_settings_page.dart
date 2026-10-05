@@ -31,6 +31,7 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
   List<Participant> participants = [];
   bool isNew = true;
   late Event thisEvent;
+  final Set<int> _rosterAtOpen = {};
 
  /// OCR
   ///
@@ -735,10 +736,15 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                 setState(() {
                   final index = participants.indexWhere((p) => p.number == originalNumber);
                   if (index != -1) {
-                    participants[index] = Participant(
-                      number: newNumber,
-                      name: newName,
-                    );
+                    final existing = participants[index];
+                    if (newNumber != originalNumber) {
+                      thisEvent.renameParticipantNumber(originalNumber, newNumber);
+                      if (_rosterAtOpen.remove(originalNumber)) {
+                        _rosterAtOpen.add(newNumber);
+                      }
+                    }
+                    existing.name = newName;
+                    existing.number = newNumber;
                     participants.sort((a, b) => a.number.compareTo(b.number));
                   }
                 });
@@ -760,6 +766,7 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
       instructorId.text = eventController.currentInstructor.id;
       thisEvent = eventController.currentEvent.value;
       participants =  eventController.currentEvent.value.participants;
+      _rosterAtOpen.addAll(participants.map((participant) => participant.number));
       isNew = false;
     } else {
       thisEvent = Event(date: dateKey, instructorId:eventController.currentInstructor.id, eventName: eventController.currentEventName);
@@ -1088,6 +1095,16 @@ class _EventSettingsPageState extends State<EventSettingsPage> {
                               eventController.loading.value = true;
                               thisEvent.groupNumber = int.parse(groupNumber.text);
                               thisEvent.participants = participants;
+                              if (!isNew) {
+                                final lateNumbers = participants
+                                    .map((participant) => participant.number)
+                                    .where((number) =>
+                                        !_rosterAtOpen.contains(number));
+                                if (thisEvent.enrollLateArrivals(lateNumbers)) {
+                                  eventController.currentEvent.refresh();
+                                  eventController.update();
+                                }
+                              }
                               if (eventController.firestoreGradeSettings.version>thisEvent.gradeSettings.version) {
                                 thisEvent.gradeSettings = eventController.firestoreGradeSettings;
                               }

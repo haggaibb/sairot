@@ -50,6 +50,7 @@ class _SakimPageState extends State<SakimPage> with EventValidationMixin {
   void initState() {
     super.initState();
     checkEventValidity();
+    eventController.syncLateArrivalsIntoOpenExercises();
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('sakim');
     _loadSttPreferences();

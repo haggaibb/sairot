@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:firebase_ai/firebase_ai.dart' show FirebaseAI;
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:path_provider/path_provider.dart';
 import '../event_controller.dart';
@@ -12,7 +13,10 @@ import 'package:get/get.dart';
 class OCRService {
   final TextRecognizer _textRecognizer = TextRecognizer();
   final EventController _eventController = Get.find<EventController>();
-  final _vertexAIModel = FirebaseVertexAI.instance.generativeModel(model: 'gemini-2.0-flash-001');
+  // gemini-2.0-flash-001 was shut down, and current models are served from
+  // the global location rather than us-central1.
+  final _vertexAIModel = FirebaseAI.vertexAI(location: 'global')
+      .generativeModel(model: 'gemini-3.5-flash');
 
   /// Process image with ML Kit (offline OCR)
   /// Note: ML Kit is not available on web, so this will throw on web platform

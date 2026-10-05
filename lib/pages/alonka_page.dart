@@ -39,6 +39,7 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
   void initState() {
     super.initState();
     checkEventValidity();
+    eventController.syncLateArrivalsIntoOpenExercises();
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('alonka');
     _loadSttPreferences();
@@ -206,6 +207,7 @@ class _AlonkaPageState extends State<AlonkaPage> with EventValidationMixin {
                     );
                   },
                 ),
+
                 WifiSettingsButton(),
               ],
               leading: IconButton(

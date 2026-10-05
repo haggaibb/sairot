@@ -32,7 +32,8 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
   int? _currentParticipantNumber;
   bool _isProcessing = false;
   bool _isShowingDialog = false; // Prevent duplicate dialogs
-  Offset _buttonPosition = Offset.zero; // Button position (will be set after layout)
+  Offset _buttonPosition =
+      Offset.zero; // Button position (will be set after layout)
   bool _isDragging = false; // Track if button is being dragged
   bool _positionLoaded = false; // Track if position has been loaded
   static const double _buttonSize = 56.0; // FloatingActionButton default size
@@ -82,9 +83,10 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     if (!_isInitialized) {
       return;
     }
-    
-    final volumeButtonPttEnabled = await UserPreferencesService.getVolumeButtonPtt();
-    
+
+    final volumeButtonPttEnabled =
+        await UserPreferencesService.getVolumeButtonPtt();
+
     if (volumeButtonPttEnabled) {
       await _pttService.enableAudioMode();
     } else {
@@ -100,17 +102,17 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
       if (_isShowingDialog) {
         return;
       }
-      
+
       // Clear processing state when result is received
       print('🎤 Result received - clearing processing state');
       if (mounted) {
         setState(() {
           _isProcessing = false;
         });
-        
+
         // Small delay to ensure UI updates
         await Future.delayed(const Duration(milliseconds: 50));
-        
+
         if (mounted && !_isShowingDialog) {
           // Check if result is empty before handling
           if (text.trim().isEmpty) {
@@ -125,7 +127,7 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
             }
             return;
           }
-          
+
           await _handlePttResult(text);
         }
       }
@@ -145,7 +147,9 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     };
     _pttService.onProcessingStarted = () {
       // Don't start processing if we're already showing a dialog
-      if (mounted && !_isShowingDialog && _pttService.shouldShowProcessingIndicator) {
+      if (mounted &&
+          !_isShowingDialog &&
+          _pttService.shouldShowProcessingIndicator) {
         print('🎤 Processing started - showing indicator');
         setState(() {
           _isProcessing = true;
@@ -164,7 +168,7 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
 
     await _pttService.initialize();
     _isInitialized = true;
-    
+
     // Update volume button PTT state after initialization
     await _updateVolumeButtonPttState();
   }
@@ -180,7 +184,7 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     if (_isShowingDialog) {
       return;
     }
-    
+
     // Processing state is already cleared by onResult wrapper before this is called
     // Empty text is already handled in onResult callback, so this shouldn't be reached with empty text
     if (text.trim().isEmpty) {
@@ -210,27 +214,34 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
 
     // Try to extract participant number and comment from Hebrew text
     final extracted = _extractParticipantNumberAndComment(text);
-    
+
     int? extractedParticipantNumber;
     String commentText = text;
-    
-    if (extracted != null && extracted['participantNumber'] != null && extracted['comment'] != null) {
-      extractedParticipantNumber = int.tryParse(extracted['participantNumber']!);
+
+    if (extracted != null &&
+        extracted['participantNumber'] != null &&
+        extracted['comment'] != null) {
+      extractedParticipantNumber =
+          int.tryParse(extracted['participantNumber']!);
       commentText = extracted['comment']!;
-      print('🎤 Successfully extracted participant number: $extractedParticipantNumber, comment: "$commentText"');
+      print(
+          '🎤 Successfully extracted participant number: $extractedParticipantNumber, comment: "$commentText"');
     } else {
       print('🎤 Could not extract participant number from text: "$text"');
     }
-    
-    // Check if we're in event home (no exercise context)
+
+    // Check for Alonka specific commands if in Alonka context
+    // final exerciseContext = ExerciseContextService().getCurrentExercise();
+    // Reverted Alonka voice commands as per user request
     final exerciseContext = ExerciseContextService().getCurrentExercise();
-    
+
     if (exerciseContext == null) {
       // No exercise context - show participant selection then generic comments dialog
       if (mounted && !_isShowingDialog) {
         _isShowingDialog = true;
         try {
-          await _showGenericCommentDialog(commentText, preselectedParticipantNumber: extractedParticipantNumber);
+          await _showGenericCommentDialog(commentText,
+              preselectedParticipantNumber: extractedParticipantNumber);
         } finally {
           _isShowingDialog = false;
         }
@@ -240,7 +251,8 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
       if (mounted && !_isShowingDialog) {
         _isShowingDialog = true;
         try {
-          await _showParticipantSelectionDialog(commentText, preselectedParticipantNumber: extractedParticipantNumber);
+          await _showParticipantSelectionDialog(commentText,
+              preselectedParticipantNumber: extractedParticipantNumber);
         } finally {
           _isShowingDialog = false;
         }
@@ -261,10 +273,10 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     // This is especially important for web STT which may concatenate numbers with words
     final cleaned = TextCleaningUtil.cleanText(text);
     final trimmed = cleaned.trim();
-    
+
     // Debug logging to help diagnose extraction issues
     print('🎤 Extracting participant number from text: "$trimmed"');
-    
+
     if (trimmed.isEmpty) {
       return null;
     }
@@ -275,18 +287,20 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     // Match sequences of digits separated by single spaces (e.g., "2 7", "3 5 8")
     // Also handle cases where a single digit is followed by Hebrew text that might be another digit
     // Pattern: digit, space, Hebrew word that might be a digit, space, more digits
-    normalizedText = normalizedText.replaceAllMapped(RegExp(r'\b(\d+)(?:\s+(\d+))+\b'), (match) {
+    normalizedText = normalizedText
+        .replaceAllMapped(RegExp(r'\b(\d+)(?:\s+(\d+))+\b'), (match) {
       // Combine all digits in the sequence
       final allDigits = match.group(0)!.replaceAll(RegExp(r'\s+'), '');
       print('🎤 Combined split number: "${match.group(0)}" -> "$allDigits"');
       return allDigits;
     });
-    
+
     // Also try to detect if a single digit at the start might be part of a larger number
     // Check if there's a pattern like "4 זו" where "זו" might be misrecognized digits
-    // This is a heuristic - if we have a single digit followed by very short Hebrew text, 
+    // This is a heuristic - if we have a single digit followed by very short Hebrew text,
     // it might be a misrecognized multi-digit number
-    final singleDigitAtStart = RegExp(r'^(\d)\s+([א-ת]{1,3})\s').firstMatch(normalizedText);
+    final singleDigitAtStart =
+        RegExp(r'^(\d)\s+([א-ת]{1,3})\s').firstMatch(normalizedText);
     if (singleDigitAtStart != null) {
       final firstDigit = singleDigitAtStart.group(1)!;
       final nextText = singleDigitAtStart.group(2)!;
@@ -296,21 +310,22 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
       if (moreDigits != null) {
         // Found pattern like "4 זו 4" - might be "44" split
         final combined = '$firstDigit${moreDigits.group(1)!}';
-        print('🎤 Detected possible split number: "$firstDigit $nextText ${moreDigits.group(1)!}" -> "$combined"');
+        print(
+            '🎤 Detected possible split number: "$firstDigit $nextText ${moreDigits.group(1)!}" -> "$combined"');
         normalizedText = normalizedText.replaceFirst(
           RegExp(r'^(\d)\s+([א-ת]{1,3})\s+(\d+)'),
           combined,
         );
       }
     }
-    
+
     if (normalizedText != trimmed) {
       print('🎤 Normalized text: "$trimmed" -> "$normalizedText"');
     }
 
     // Now try to extract all numbers from the normalized text
     final allNumbers = RegExp(r'\d+').allMatches(normalizedText);
-    
+
     if (allNumbers.isEmpty) {
       return null;
     }
@@ -319,12 +334,15 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     final firstNumberMatch = allNumbers.first;
     final firstNumber = firstNumberMatch.group(0)!;
     final numberIndex = normalizedText.indexOf(firstNumber);
-    
+
     // Get text after the number
-    final afterNumber = normalizedText.substring(numberIndex + firstNumber.length).trim();
-    
+    final afterNumber =
+        normalizedText.substring(numberIndex + firstNumber.length).trim();
+
     // Pattern 1: "הערה ל 222" or "comment to 222" followed by comment
-    var match = RegExp(r'^(?:הערה\s+ל|comment\s+to)\s+(\d+)\s+(.+)$', caseSensitive: false).firstMatch(normalizedText);
+    var match = RegExp(r'^(?:הערה\s+ל|comment\s+to)\s+(\d+)\s+(.+)$',
+            caseSensitive: false)
+        .firstMatch(normalizedText);
     if (match != null && match.group(1) == firstNumber) {
       return {
         'participantNumber': match.group(1)!,
@@ -333,7 +351,8 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     }
 
     // Pattern 2: "222 הוסף הערה ל" followed by comment
-    match = RegExp(r'^(\d+)\s+הוסף\s+הערה\s+ל\s+(.+)$').firstMatch(normalizedText);
+    match =
+        RegExp(r'^(\d+)\s+הוסף\s+הערה\s+ל\s+(.+)$').firstMatch(normalizedText);
     if (match != null && match.group(1) == firstNumber) {
       return {
         'participantNumber': match.group(1)!,
@@ -346,9 +365,12 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     if (numberIndex == 0 && afterNumber.isNotEmpty) {
       // Remove command words from the comment part
       String comment = afterNumber;
-      comment = comment.replaceAll(RegExp(r'^(?:הערה\s+ל|comment\s+to|הוסף\s+הערה\s+ל|הוסף|הערה)\s*', caseSensitive: false), '');
+      comment = comment.replaceAll(
+          RegExp(r'^(?:הערה\s+ל|comment\s+to|הוסף\s+הערה\s+ל|הוסף|הערה)\s*',
+              caseSensitive: false),
+          '');
       comment = comment.trim();
-      
+
       if (comment.isNotEmpty && !comment.startsWith(firstNumber)) {
         return {
           'participantNumber': firstNumber,
@@ -379,11 +401,15 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     if (afterNumber.length >= 2) {
       // Remove command words from the comment part
       String comment = afterNumber;
-      comment = comment.replaceAll(RegExp(r'^(?:הערה\s+ל|comment\s+to|הוסף\s+הערה\s+ל|הוסף|הערה)\s*', caseSensitive: false), '');
+      comment = comment.replaceAll(
+          RegExp(r'^(?:הערה\s+ל|comment\s+to|הוסף\s+הערה\s+ל|הוסף|הערה)\s*',
+              caseSensitive: false),
+          '');
       comment = comment.trim();
-      
+
       if (comment.isNotEmpty) {
-        print('🎤 Extracted participant number (fallback): $firstNumber, comment: "$comment"');
+        print(
+            '🎤 Extracted participant number (fallback): $firstNumber, comment: "$comment"');
         return {
           'participantNumber': firstNumber,
           'comment': comment,
@@ -415,79 +441,92 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     try {
       // Get current exercise context
       final exerciseContext = ExerciseContextService().getCurrentExercise();
-      
+
       // If no exercise context, this should not be called (should use _showGenericCommentDialog instead)
       if (exerciseContext == null) {
-        print('⚠️ _saveComment called with no exercise context - this should not happen');
+        print(
+            '⚠️ _saveComment called with no exercise context - this should not happen');
         return;
       }
-      
+
       // Save to appropriate field based on exercise context
       switch (exerciseContext) {
         case 'meshulash':
           // Get existing comments and add new one
-          final existingComments = _eventController.currentEvent.value.participants
+          final existingComments = _eventController
+              .currentEvent.value.participants
               .firstWhere((p) => p.number == participantNumber)
               .meshulashInstructorComments;
           if (!existingComments.contains(comment)) {
             existingComments.add(comment);
-            _eventController.addMeshulashComments(existingComments, participantNumber);
+            _eventController.addMeshulashComments(
+                existingComments, participantNumber);
           }
           break;
-          
+
         case 'alonka':
-          final existingComments = _eventController.currentEvent.value.participants
+          final existingComments = _eventController
+              .currentEvent.value.participants
               .firstWhere((p) => p.number == participantNumber)
               .alonkaInstructorComments;
           if (!existingComments.contains(comment)) {
             existingComments.add(comment);
-            _eventController.addAlonkaComments(existingComments, participantNumber);
+            _eventController.addAlonkaComments(
+                existingComments, participantNumber);
           }
           break;
-          
+
         case 'sakim':
-          final existingComments = _eventController.currentEvent.value.participants
+          final existingComments = _eventController
+              .currentEvent.value.participants
               .firstWhere((p) => p.number == participantNumber)
               .sakimInstructorComments;
           if (!existingComments.contains(comment)) {
             existingComments.add(comment);
-            _eventController.addSakimComments(existingComments, participantNumber);
+            _eventController.addSakimComments(
+                existingComments, participantNumber);
           }
           break;
-          
+
         case 'bur':
           // Bur uses a different structure - comments are on the Bur object itself
           _eventController.addBurComment(comment, participantNumber);
           break;
-          
+
         case 'leadership':
-          final existingComments = _eventController.currentEvent.value.participants
+          final existingComments = _eventController
+              .currentEvent.value.participants
               .firstWhere((p) => p.number == participantNumber)
               .leadershipInstructorComments;
           if (!existingComments.contains(comment)) {
             existingComments.add(comment);
-            _eventController.addLeadershipComments(existingComments, participantNumber);
+            _eventController.addLeadershipComments(
+                existingComments, participantNumber);
           }
           break;
-          
+
         case 'interview':
-          final existingComments = _eventController.currentEvent.value.participants
+          final existingComments = _eventController
+              .currentEvent.value.participants
               .firstWhere((p) => p.number == participantNumber)
               .interviewInstructorComments;
           if (!existingComments.contains(comment)) {
             existingComments.add(comment);
-            _eventController.addInterviewComments(existingComments, participantNumber);
+            _eventController.addInterviewComments(
+                existingComments, participantNumber);
           }
           break;
-          
+
         default:
           // Unknown exercise context - fallback to interview comments
-          final existingComments = _eventController.currentEvent.value.participants
+          final existingComments = _eventController
+              .currentEvent.value.participants
               .firstWhere((p) => p.number == participantNumber)
               .interviewInstructorComments;
           if (!existingComments.contains(comment)) {
             existingComments.add(comment);
-            _eventController.addInterviewComments(existingComments, participantNumber);
+            _eventController.addInterviewComments(
+                existingComments, participantNumber);
           }
           break;
       }
@@ -516,57 +555,70 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
 
   /// Show dialog to select participant
   /// preselectedParticipantNumber: If provided, pre-select this participant in the dropdown
-  Future<void> _showParticipantSelectionDialog(String commentText, {int? preselectedParticipantNumber}) async {
+  Future<void> _showParticipantSelectionDialog(String commentText,
+      {int? preselectedParticipantNumber}) async {
     // Load participants for dropdown
     final participants = _eventController.currentEvent.value.participants
         .where((p) => p.status == ParticipantStatus.Active)
         .toList();
-    
+
     participants.sort((a, b) => a.number.compareTo(b.number));
 
     // Find preselected participant if number was provided
     Participant? preselectedParticipant;
     if (preselectedParticipantNumber != null) {
       print('🎤 Looking for participant number: $preselectedParticipantNumber');
-      print('🎤 Available participants: ${participants.map((p) => p.number).toList()}');
-      
+      print(
+          '🎤 Available participants: ${participants.map((p) => p.number).toList()}');
+
       // Try exact match first
       preselectedParticipant = participants.firstWhere(
         (p) => p.number == preselectedParticipantNumber,
         orElse: () => Participant(number: -1, name: ''),
       );
-      
+
       if (preselectedParticipant.number == -1) {
-        print('🎤 Participant number $preselectedParticipantNumber not found in active participants');
-        
+        print(
+            '🎤 Participant number $preselectedParticipantNumber not found in active participants');
+
         // Try to find a similar number (e.g., if extracted "4" but user might have said "44")
         // Check if any participant number contains the extracted number as a substring
-        final similarParticipants = participants.where((p) => 
-          p.number.toString().contains(preselectedParticipantNumber.toString()) ||
-          preselectedParticipantNumber.toString().contains(p.number.toString())
-        ).toList();
-        
+        final similarParticipants = participants
+            .where((p) =>
+                p.number
+                    .toString()
+                    .contains(preselectedParticipantNumber.toString()) ||
+                preselectedParticipantNumber
+                    .toString()
+                    .contains(p.number.toString()))
+            .toList();
+
         if (similarParticipants.isNotEmpty) {
           // Use the first similar participant (prefer exact substring match)
           final similar = similarParticipants.firstWhere(
-            (p) => p.number.toString().startsWith(preselectedParticipantNumber.toString()),
+            (p) => p.number
+                .toString()
+                .startsWith(preselectedParticipantNumber.toString()),
             orElse: () => similarParticipants.first,
           );
-          print('🎤 Found similar participant: ${similar.number} (extracted: $preselectedParticipantNumber)');
+          print(
+              '🎤 Found similar participant: ${similar.number} (extracted: $preselectedParticipantNumber)');
           preselectedParticipant = similar;
         } else {
           preselectedParticipant = null; // Participant not found
         }
       } else {
-        print('🎤 Found preselected participant: ${preselectedParticipant.number}');
+        print(
+            '🎤 Found preselected participant: ${preselectedParticipant.number}');
       }
     } else {
       print('🎤 No preselected participant number provided');
     }
 
     if (mounted) {
-      final selectedParticipantNotifier = ValueNotifier<Participant?>(preselectedParticipant);
-      
+      final selectedParticipantNotifier =
+          ValueNotifier<Participant?>(preselectedParticipant);
+
       final result = await showDialog<int>(
         context: context,
         builder: (context) => Directionality(
@@ -585,7 +637,9 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -629,12 +683,12 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
                           Navigator.of(context).pop(selectedParticipant.number);
                         }
                       },
-                      child: const Text('שמור'            ),
-          ),
-        ],
-      ),
-    );
-  },
+                      child: const Text('שמור'),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       );
@@ -642,18 +696,19 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
       if (result != null) {
         await _saveComment(commentText, result);
       }
-      
+
       selectedParticipantNotifier.dispose();
     }
   }
 
   /// Show dialog to add generic comments for a participant (when no exercise context)
-  Future<void> _showGenericCommentDialog(String commentText, {int? preselectedParticipantNumber}) async {
+  Future<void> _showGenericCommentDialog(String commentText,
+      {int? preselectedParticipantNumber}) async {
     // Load participants for dropdown
     final participants = _eventController.currentEvent.value.participants
         .where((p) => p.status == ParticipantStatus.Active)
         .toList();
-    
+
     participants.sort((a, b) => a.number.compareTo(b.number));
 
     if (participants.isEmpty) {
@@ -675,7 +730,7 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
         (p) => p.number == preselectedParticipantNumber,
         orElse: () => Participant(number: -1, name: ''),
       );
-      
+
       if (preselectedParticipant.number == -1) {
         preselectedParticipant = participants.first;
       }
@@ -691,7 +746,7 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
         child: StatefulBuilder(
           builder: (context, setState) {
             Participant? selectedParticipant = preselectedParticipant;
-            
+
             return AlertDialog(
               title: const Text('בחר משתתף'),
               content: Column(
@@ -703,7 +758,8 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                        color:
+                            Theme.of(context).colorScheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -764,17 +820,20 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
           selectedComments: participantResult.genericInstructorComments,
           title: participantResult.number.toString(),
           exerciseType: ExerciseType.generic,
-          instructorCustomComments: _eventController.getInstructorCustomCommentsForExercise('generic'),
+          instructorCustomComments: _eventController
+              .getInstructorCustomCommentsForExercise('generic'),
         );
       },
     );
 
     if (commentsResult != null) {
-      _eventController.addGenericComments(commentsResult, participantResult.number);
+      _eventController.addGenericComments(
+          commentsResult, participantResult.number);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('הערות כלליות נשמרו למשתתף ${participantResult.number}'),
+            content:
+                Text('הערות כלליות נשמרו למשתתף ${participantResult.number}'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -786,13 +845,14 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
   /// Load saved button position from preferences
   Future<void> _loadButtonPosition() async {
     if (!mounted) return;
-    
-    final savedPosition = await UserPreferencesService.getFloatingPttButtonPosition();
+
+    final savedPosition =
+        await UserPreferencesService.getFloatingPttButtonPosition();
     final screenSize = MediaQuery.of(context).size;
     final constraints = _getButtonConstraints();
-    
+
     Offset newPosition;
-    
+
     if (savedPosition != null) {
       // Convert percentage to absolute position
       newPosition = Offset(
@@ -808,13 +868,14 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
       // Use default position (bottom center)
       newPosition = _getDefaultPosition(context);
     }
-    
+
     if (mounted) {
       setState(() {
         _buttonPosition = newPosition;
         _positionLoaded = true;
       });
-      print('🎤 Floating button position set to: x=${_buttonPosition.dx}, y=${_buttonPosition.dy}');
+      print(
+          '🎤 Floating button position set to: x=${_buttonPosition.dx}, y=${_buttonPosition.dy}');
     }
   }
 
@@ -823,17 +884,17 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     final screenSize = MediaQuery.of(context).size;
     final padding = MediaQuery.of(context).padding;
     final safeBottom = padding.bottom;
-    
+
     // Calculate position: center horizontally, near bottom with safe area
     final x = (screenSize.width / 2) - (_buttonSize / 2);
     final y = screenSize.height - safeBottom - _buttonSize - 16;
-    
+
     // Ensure position is within bounds
     final minX = padding.left;
     final maxX = screenSize.width - _buttonSize - padding.right;
     final minY = padding.top + 56; // AppBar height
     final maxY = screenSize.height - _buttonSize - safeBottom;
-    
+
     return Offset(
       x.clamp(minX, maxX),
       y.clamp(minY, maxY),
@@ -841,11 +902,12 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
   }
 
   /// Get button position constraints based on screen bounds and safe areas
-  ({double minX, double maxX, double minY, double maxY}) _getButtonConstraints() {
+  ({double minX, double maxX, double minY, double maxY})
+      _getButtonConstraints() {
     final screenSize = MediaQuery.of(context).size;
     final padding = MediaQuery.of(context).padding;
     final appBarHeight = 56.0; // Standard AppBar height
-    
+
     return (
       minX: padding.left,
       maxX: screenSize.width - _buttonSize - padding.right,
@@ -857,17 +919,17 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
   /// Handle drag update - move button to new position
   void _handlePanUpdate(DragUpdateDetails details) {
     if (!mounted) return;
-    
+
     final constraints = _getButtonConstraints();
-    
+
     // Calculate new position
     double newX = _buttonPosition.dx + details.delta.dx;
     double newY = _buttonPosition.dy + details.delta.dy;
-    
+
     // Clamp to screen bounds
     newX = newX.clamp(constraints.minX, constraints.maxX);
     newY = newY.clamp(constraints.minY, constraints.maxY);
-    
+
     setState(() {
       _buttonPosition = Offset(newX, newY);
       _isDragging = true;
@@ -877,17 +939,18 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
   /// Handle drag end - save position to preferences
   void _handlePanEnd(DragEndDetails details) async {
     if (!mounted) return;
-    
+
     setState(() {
       _isDragging = false;
     });
-    
+
     // Save position as percentage of screen size
     final screenSize = MediaQuery.of(context).size;
     final xPercent = (_buttonPosition.dx / screenSize.width).clamp(0.0, 1.0);
     final yPercent = (_buttonPosition.dy / screenSize.height).clamp(0.0, 1.0);
-    
-    await UserPreferencesService.saveFloatingPttButtonPosition(xPercent, yPercent);
+
+    await UserPreferencesService.saveFloatingPttButtonPosition(
+        xPercent, yPercent);
   }
 
   @override
@@ -909,7 +972,8 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
       final defaultPos = _getDefaultPosition(context);
       _buttonPosition = defaultPos;
       _positionLoaded = true;
-      print('🎤 Floating button default position: x=${_buttonPosition.dx}, y=${_buttonPosition.dy}');
+      print(
+          '🎤 Floating button default position: x=${_buttonPosition.dx}, y=${_buttonPosition.dy}');
       // Load saved position asynchronously (will override default if exists)
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -921,22 +985,26 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     // Ensure current position is within bounds
     final constraints = _getButtonConstraints();
     final screenSize = MediaQuery.of(context).size;
-    print('🎤 Screen size: ${screenSize.width}x${screenSize.height}, Button position: x=${_buttonPosition.dx}, y=${_buttonPosition.dy}');
-    
-    if (_buttonPosition.dx < constraints.minX || 
+    print(
+        '🎤 Screen size: ${screenSize.width}x${screenSize.height}, Button position: x=${_buttonPosition.dx}, y=${_buttonPosition.dy}');
+
+    if (_buttonPosition.dx < constraints.minX ||
         _buttonPosition.dx > constraints.maxX ||
-        _buttonPosition.dy < constraints.minY || 
+        _buttonPosition.dy < constraints.minY ||
         _buttonPosition.dy > constraints.maxY) {
       // Position is out of bounds, reset to default
       _buttonPosition = _getDefaultPosition(context);
-      print('🎤 Floating button position was out of bounds, reset to: x=${_buttonPosition.dx}, y=${_buttonPosition.dy}');
+      print(
+          '🎤 Floating button position was out of bounds, reset to: x=${_buttonPosition.dx}, y=${_buttonPosition.dy}');
     }
-    
+
     // Debug: Print button visibility info
     if (widget.showButton) {
-      print('🎤 Floating button SHOULD BE VISIBLE at: x=${_buttonPosition.dx}, y=${_buttonPosition.dy}, enabled=${widget.enabled}, showButton=${widget.showButton}');
+      print(
+          '🎤 Floating button SHOULD BE VISIBLE at: x=${_buttonPosition.dx}, y=${_buttonPosition.dy}, enabled=${widget.enabled}, showButton=${widget.showButton}');
     } else {
-      print('🎤 Floating button HIDDEN: showButton=${widget.showButton}, enabled=${widget.enabled}');
+      print(
+          '🎤 Floating button HIDDEN: showButton=${widget.showButton}, enabled=${widget.enabled}');
     }
 
     // Return a Stack that fills the parent and positions the button
@@ -944,66 +1012,70 @@ class _FloatingPttButtonState extends State<FloatingPttButton> {
     return Positioned.fill(
       child: Stack(
         clipBehavior: Clip.none,
-      children: [
-        // Floating button (only shown if showButton is true)
-        if (widget.showButton)
-          Positioned(
-            left: _buttonPosition.dx,
-            top: _buttonPosition.dy,
-            child: Material(
-              elevation: 8.0,
-              borderRadius: BorderRadius.circular(28.0),
-              shadowColor: Colors.black.withValues(alpha: 0.5),
-              child: GestureDetector(
-                onPanUpdate: _handlePanUpdate,
-                onPanEnd: _handlePanEnd,
-                child: Opacity(
-                  opacity: _isDragging ? 0.8 : 1.0,
-                  child: Container(
-                    width: 56.0,
-                    height: 56.0,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _pttService.isRecording ? Colors.red : Colors.blue,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 8.0,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: _pttService.isRecording
-                          ? () {
-                              _pttService.stopRecording();
-                            }
-                          : () {
-                              _pttService.startRecording();
-                            },
-                      icon: Icon(
-                        _pttService.isRecording ? Icons.stop : Icons.mic,
-                        color: Colors.white,
-                        size: 24,
+        children: [
+          // Floating button (only shown if showButton is true)
+          if (widget.showButton)
+            Positioned(
+              left: _buttonPosition.dx,
+              top: _buttonPosition.dy,
+              child: Material(
+                elevation: 8.0,
+                borderRadius: BorderRadius.circular(28.0),
+                shadowColor: Colors.black.withValues(alpha: 0.5),
+                child: GestureDetector(
+                  onPanUpdate: _handlePanUpdate,
+                  onPanEnd: _handlePanEnd,
+                  child: Opacity(
+                    opacity: _isDragging ? 0.8 : 1.0,
+                    child: Container(
+                      width: 56.0,
+                      height: 56.0,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color:
+                            _pttService.isRecording ? Colors.red : Colors.blue,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 8.0,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      padding: EdgeInsets.zero,
+                      child: IconButton(
+                        onPressed: _pttService.isRecording
+                            ? () {
+                                _pttService.stopRecording();
+                              }
+                            : () {
+                                _pttService.startRecording();
+                              },
+                        icon: Icon(
+                          _pttService.isRecording ? Icons.stop : Icons.mic,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        padding: EdgeInsets.zero,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        // Recording/Processing indicator overlay (ALWAYS on top, shown when recording or processing)
-        if (_pttService.isRecording || (_isProcessing && _pttService.shouldShowProcessingIndicator))
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 56 + 8, // Status bar + AppBar height + margin
-            right: 16,
-            child: Material(
-              elevation: 8.0,
-              borderRadius: BorderRadius.circular(28.0),
-              child: _buildIndicator(context),
+          // Recording/Processing indicator overlay (ALWAYS on top, shown when recording or processing)
+          if (_pttService.isRecording ||
+              (_isProcessing && _pttService.shouldShowProcessingIndicator))
+            Positioned(
+              top: MediaQuery.of(context).padding.top +
+                  56 +
+                  8, // Status bar + AppBar height + margin
+              right: 16,
+              child: Material(
+                elevation: 8.0,
+                borderRadius: BorderRadius.circular(28.0),
+                child: _buildIndicator(context),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -1112,4 +1184,3 @@ class _ProcessingIndicator extends StatelessWidget {
     );
   }
 }
-

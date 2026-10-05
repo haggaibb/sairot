@@ -34,6 +34,7 @@ class _BurPageState extends State<BurPage> with EventValidationMixin {
   void initState() {
     super.initState();
     checkEventValidity();
+    eventController.syncLateArrivalsIntoOpenExercises();
     // Set exercise context for STT
     ExerciseContextService().setCurrentExercise('bur');
     _loadSttPreferences();

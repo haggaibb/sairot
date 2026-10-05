@@ -1,5 +1,12 @@
 import 'dart:convert';
 
+List<String> _withClinicComment(dynamic raw) {
+  final comments = List<String>.from(raw ?? []);
+  if (!comments.contains('מרפאה')) {
+    comments.add('מרפאה');
+  }
+  return comments;
+}
 
 class GradeSettings {
   GradeSettings();
@@ -9,12 +16,12 @@ class GradeSettings {
   double RUNNER_CREDIT = 0.2;
   double PARTICIPATION_CREDIT = 0.1;
   Map<String, dynamic> weighted = {};
-  List<String> listOfCommentsBur = ['לא הבין את התרגיל','הבין את התרגיל','השקיע','לא השקיע','מתרץ','לוקח אחריות','בור יפה'];
-  List<String> listOfCommentsMeshulash = ['מרים אגן','מחפף','אגרסיבי','שומר כוח','זוחל יפה','משקיע'];
-  List<String> listOfCommentsAlonka = ['אגרסיבי','שומר כוח','משקיע','מחפף'];
-  List<String> listOfCommentsSakim = ['מחפף','אגרסיבי','שומר כוח','משקיע'];
-  List<String> listOfCommentsLeadership= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן מעט','התאמן הרבה','ספורטאי'];
-  List<String> listOfCommentsInterview= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן מעט','התאמן הרבה','ספורטאי'];
+  List<String> listOfCommentsBur = ['לא הבין את התרגיל','הבין את התרגיל','השקיע','לא השקיע','מתרץ','לוקח אחריות','בור יפה','מרפאה'];
+  List<String> listOfCommentsMeshulash = ['מרים אגן','מחפף','אגרסיבי','שומר כוח','זוחל יפה','משקיע','מרפאה'];
+  List<String> listOfCommentsAlonka = ['אגרסיבי','שומר כוח','משקיע','מחפף','מרפאה'];
+  List<String> listOfCommentsSakim = ['מחפף','אגרסיבי','שומר כוח','משקיע','מרפאה'];
+  List<String> listOfCommentsLeadership= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן מעט','התאמן הרבה','ספורטאי','מרפאה'];
+  List<String> listOfCommentsInterview= ['מכינה או שנת שרות','תלמיד רציני','מחובר לים','מראה מנהיגות','התאמן מעט','התאמן הרבה','ספורטאי','מרפאה'];
   double systemGradeFactor = 0.7;
 
   /// Convert to JSON
@@ -45,12 +52,12 @@ class GradeSettings {
       ..RUNNER_CREDIT = (json["RUNNER_CREDIT"] ?? 0.2).toDouble()
       ..PARTICIPATION_CREDIT = (json["PARTICIPATION_CREDIT"] ?? 0.1).toDouble()
       ..weighted = (json['weighted']) ?? {}
-      ..listOfCommentsBur = List<String>.from(json["listOfCommentsBur"] ?? [])
-      ..listOfCommentsMeshulash = List<String>.from(json["listOfCommentsMeshulash"] ?? [])
-      ..listOfCommentsAlonka = List<String>.from(json["listOfCommentsAlonka"] ?? [])
-      ..listOfCommentsSakim = List<String>.from(json["listOfCommentsSakim"] ?? [])
-      ..listOfCommentsLeadership = List<String>.from(json["listOfCommentsLeadership"] ?? [])
-      ..listOfCommentsInterview = List<String>.from(json["listOfCommentsInterview"] ?? [])
+      ..listOfCommentsBur = _withClinicComment(json["listOfCommentsBur"])
+      ..listOfCommentsMeshulash = _withClinicComment(json["listOfCommentsMeshulash"])
+      ..listOfCommentsAlonka = _withClinicComment(json["listOfCommentsAlonka"])
+      ..listOfCommentsSakim = _withClinicComment(json["listOfCommentsSakim"])
+      ..listOfCommentsLeadership = _withClinicComment(json["listOfCommentsLeadership"])
+      ..listOfCommentsInterview = _withClinicComment(json["listOfCommentsInterview"])
       ..systemGradeFactor = (json["systemGradeFactor"] ?? 1).toDouble()
       ..version = (json["version"] ?? 0).toInt();
   }

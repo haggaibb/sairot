@@ -2181,6 +2181,21 @@ class EventController extends GetxController {
     update(); // Trigger GetX UI refresh
   }
 
+  /// Adds active participants who joined after an exercise started into that
+  /// exercise, then saves when the roster changed.
+  void syncLateArrivalsIntoOpenExercises() {
+    final event = currentEvent.value;
+    final numbers = event
+        .getParticipantsByStatus(ParticipantStatus.Active)
+        .map((participant) => participant.number);
+    if (!event.enrollLateArrivals(numbers)) return;
+    currentEvent.refresh();
+    update();
+    if (!event.finalized) {
+      saveEventWithOfflineSupport(event);
+    }
+  }
+
   calculateGrades() {
     for (Participant p in currentEvent.value
         .getParticipantsByStatus(ParticipantStatus.Active)) {

@@ -1,18 +1,51 @@
 #!/bin/bash
-
 set -e  # Exit on any error
+
+# apk | aab | web, plus optional rt9 / --rt9 for an arm64-only tablet APK
+BUILD_TYPE="apk"
+PLATFORM_FLAG=""
+PLATFORM_SUFFIX=""
+
+for arg in "$@"; do
+  case $arg in
+    --rt9|--tr9|rt9)
+      PLATFORM_FLAG="--target-platform android-arm64"
+      PLATFORM_SUFFIX="_rt9"
+      export BUILD_RT9=true
+      ;;
+    apk|aab|web)
+      BUILD_TYPE="$arg"
+      ;;
+    --help|-h)
+      echo "Usage: $0 [apk|aab|web] [rt9|--rt9]"
+      echo "  rt9, --rt9, --tr9   arm64-only APK for the RT9 tablet (smaller than the universal APK)"
+      exit 0
+      ;;
+    *)
+      echo "❌ Unknown option: $arg"
+      echo "Usage: $0 [apk|aab|web] [rt9|--rt9]"
+      exit 1
+      ;;
+  esac
+done
+
+if [ -n "$PLATFORM_SUFFIX" ] && [ "$BUILD_TYPE" != "apk" ]; then
+  echo "❌ rt9 only applies to an APK build"
+  exit 1
+fi
 
 # 📁 Ensure we're at the Flutter project root
 cd "$(dirname "$0")"
 
-# 🎯 Extract project name from pubspec.yaml
+# 🎯 Extract project name and version from pubspec.yaml
 PROJECT_NAME=$(grep '^name:' pubspec.yaml | awk '{print $2}')
+APP_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}')
 
 # 🔖 Git version (tag or short commit hash)
-GIT_VERSION=$(git describe --tags --always)
+GIT_VERSION=$(git describe --tags --always 2>/dev/null || echo "unknown")
 
 # 🌿 Git branch name
-GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
 # 📄 Generate Dart file with version and branch
 echo "⚙️ Generating lib/git_version.dart..."
@@ -28,52 +61,37 @@ echo "🧹 Cleaning project..."
 flutter clean
 flutter pub get
 
-# 🛠️ Choose build type: apk, aab, or web
-BUILD_TYPE=${1:-apk}  # default = apk
-ARCHITECTURE=${2:-}   # optional: rt9 for arm64-v8a only
-
-# Check if RT9 build is requested
-if [ "$ARCHITECTURE" = "rt9" ]; then
-  export BUILD_RT9=true
-  echo "📱 RT9 build enabled: Building only for arm64-v8a architecture"
+if [ -n "$PLATFORM_SUFFIX" ]; then
+  echo "📱 Platform: arm64-v8a only (RT9)"
 fi
 
 echo "🚀 Building $PROJECT_NAME ($GIT_BRANCH → $GIT_VERSION) as $BUILD_TYPE..."
 
 if [ "$BUILD_TYPE" = "apk" ]; then
-  if [ "$ARCHITECTURE" = "rt9" ]; then
-    flutter build apk --release --target-platform android-arm64
-    ORIGINAL_OUTPUT="build/app/outputs/flutter-apk/app-release.apk"
-    echo "📦 RT9 APK (arm64-v8a only) available at: $ORIGINAL_OUTPUT"
-  else
-    flutter build apk --release
-    ORIGINAL_OUTPUT="build/app/outputs/flutter-apk/app-release.apk"
-    echo "📦 APK available at: $ORIGINAL_OUTPUT"
-  fi
+  flutter build apk --release $PLATFORM_FLAG
+  ORIGINAL_OUTPUT="build/app/outputs/flutter-apk/app-release.apk"
+  NAMED_APK="${PROJECT_NAME}_${APP_VERSION}${PLATFORM_SUFFIX}.apk"
+  FINAL_OUTPUT="build/app/outputs/flutter-apk/${NAMED_APK}"
+  # Flutter always writes app-release.apk. Replace that file with the versioned name.
+  mv "$ORIGINAL_OUTPUT" "$FINAL_OUTPUT"
+  cp "$FINAL_OUTPUT" "$NAMED_APK"
+  echo ""
+  echo "📦 APK ready: $NAMED_APK"
 elif [ "$BUILD_TYPE" = "aab" ]; then
-  if [ "$ARCHITECTURE" = "rt9" ]; then
-    flutter build appbundle --release --target-platform android-arm64
-    ORIGINAL_OUTPUT="build/app/outputs/bundle/release/app-release.aab"
-    echo "📦 RT9 AAB (arm64-v8a only) available at: $ORIGINAL_OUTPUT"
-  else
-    flutter build appbundle --release
-    ORIGINAL_OUTPUT="build/app/outputs/bundle/release/app-release.aab"
-    echo "📦 AAB available at: $ORIGINAL_OUTPUT"
-  fi
+  flutter build appbundle --release
+  ORIGINAL_OUTPUT="build/app/outputs/bundle/release/app-release.aab"
+  FINAL_OUTPUT="${PROJECT_NAME}_${GIT_BRANCH}_${GIT_VERSION}.aab"
+  echo "📦 Output: $FINAL_OUTPUT"
+  cp "$ORIGINAL_OUTPUT" "$FINAL_OUTPUT"
 elif [ "$BUILD_TYPE" = "web" ]; then
-  # Flutter 3.10+ automatically selects the renderer (HTML by default)
-  # The --web-renderer flag was removed in newer Flutter versions
   flutter build web --release
   WEB_OUTPUT_DIR="build/web"
-  # ✅ Build output is in build/web as expected by firebase.json
   echo "📦 Web build output: $WEB_OUTPUT_DIR/"
   echo "✅ Web build available in: $WEB_OUTPUT_DIR/"
   echo "   Firebase hosting expects build in: $WEB_OUTPUT_DIR/"
-  echo "   Renderer is automatically selected by Flutter"
 else
   echo "❌ Invalid build type: $BUILD_TYPE"
   echo "   Supported types: apk, aab, web"
-  echo "   Optional: Add 'rt9' as second parameter for arm64-v8a only build"
   exit 1
 fi
 
