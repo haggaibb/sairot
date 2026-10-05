@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:sairot/models/bur.dart';
 import '../event_controller.dart';
+import '../utils/instructor_grade.dart';
+import 'instructor_grade_dialog.dart';
 import 'comment_save_confirmation_dialog.dart';
 
 class BurGradePanel extends StatefulWidget {
@@ -30,8 +32,8 @@ class _BurGradePanelState extends State<BurGradePanel> {
     burIndex = eventController.currentEvent.value.burGrades
         .indexWhere((Bur bur) => bur.id == widget.bur.id);
 
-    gradeCtrl.text =
-        eventController.currentEvent.value.burGrades[burIndex].burGrade.toString();
+    gradeCtrl.text = formatInstructorGrade(
+        eventController.currentEvent.value.burGrades[burIndex].burGrade);
 
     instructorComments = List.from(widget.bur.instructorComments);
 
@@ -294,45 +296,45 @@ class _BurGradePanelState extends State<BurGradePanel> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const SizedBox(width: 10),
-                        Container(
+                        SizedBox(
                           width: 80,
                           height: 60,
-                          child: TextField(
-                            controller: gradeCtrl,
-                            onTap: () {
-                              gradeCtrl.selection = TextSelection(
-                                baseOffset: 0,
-                                extentOffset: gradeCtrl.text.length,
-                              );
-                            },
-                            onChanged: (val) {
-                              widget.bur.burGrade = double.parse(val);
-                              eventController.currentEvent.value.burGrades[burIndex] = widget.bur;
-                              // Trigger refresh so grid updates
-                              eventController.currentEvent.refresh();
-                              eventController.update();
-                              // Use non-blocking save to prevent delays when offline
-                              eventController.saveEventWithOfflineSupport(
+                          child: Material(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () async {
+                                final picked = await showInstructorGradeDialog(
+                                  context,
+                                  selected: int.tryParse(gradeCtrl.text),
+                                );
+                                if (picked == null || !mounted) return;
+                                final grade = picked.toDouble();
+                                gradeCtrl.text = formatInstructorGrade(grade);
+                                widget.bur.burGrade = grade;
                                 eventController.currentEvent.value
-                              );
-                              eventController.update();
-                            },
-                            textAlign: TextAlign.center,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: Colors.blue.shade50,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
-                                borderSide: BorderSide.none,
+                                    .burGrades[burIndex] = widget.bur;
+                                eventController.currentEvent.refresh();
+                                eventController.update();
+                                eventController.saveEventWithOfflineSupport(
+                                  eventController.currentEvent.value,
+                                );
+                                setState(() {});
+                              },
+                              child: Center(
+                                child: Text(
+                                  gradeCtrl.text.isEmpty ? '1-9' : gradeCtrl.text,
+                                  style: TextStyle(
+                                    fontSize: eventController.userFontSize.value,
+                                    fontWeight: FontWeight.bold,
+                                    color: gradeCtrl.text.isEmpty
+                                        ? Colors.grey
+                                        : Colors.black,
+                                  ),
+                                ),
                               ),
-                              hintText: "0",
-                              hintStyle: const TextStyle(color: Colors.grey),
                             ),
-                            style: TextStyle(
-                                fontSize: eventController.userFontSize.value,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black),
                           ),
                         ),
                         const SizedBox(width: 10),

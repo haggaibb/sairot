@@ -311,11 +311,62 @@ class _GradesPageState extends State<GradesPage> with EventValidationMixin {
             body: Container(
               color: Colors.white,
               padding: const EdgeInsets.all(8),
-              child: CustomGradesTable(
-                eventController: eventController,
-                isTablet: tablet,
-                showSystemGrades: _showSystemGrades,
-                showInstructorGrades: _showInstructorGrades,
+              child: Column(
+                children: [
+                  Obx(() {
+                    final missingFinalGrades = eventController
+                        .currentEvent.value
+                        .getParticipantsByStatus(ParticipantStatus.Active)
+                        .where((participant) => participant.instructorGrade <= 0)
+                        .length;
+                    if (missingFinalGrades == 0) {
+                      return const SizedBox.shrink();
+                    }
+                    final label = missingFinalGrades == 1
+                        ? 'משתתף אחד ללא ציון סופי'
+                        : '$missingFinalGrades משתתפים ללא ציון סופי';
+                    return Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        border: Border.all(color: Colors.red.shade700),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.red.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: TextStyle(
+                                color: Colors.red.shade900,
+                                fontWeight: FontWeight.bold,
+                                fontSize: tablet ? 18 : 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  Expanded(
+                    child: CustomGradesTable(
+                      eventController: eventController,
+                      isTablet: tablet,
+                      showSystemGrades: _showSystemGrades,
+                      showInstructorGrades: _showInstructorGrades,
+                    ),
+                  ),
+                ],
               ),
             )),
       ),

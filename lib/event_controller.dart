@@ -26,6 +26,7 @@ import 'services/sync_queue_service.dart';
 import 'services/instructor_profile_service.dart';
 import 'connectivity_controller.dart';
 import 'models/instructor_ux_preferences.dart';
+import 'utils/instructor_grade.dart';
 
 class EventController extends GetxController {
   var loading = false.obs;
@@ -1941,10 +1942,11 @@ class EventController extends GetxController {
   setParticipantsGrade(int number, dynamic grade) {
     int participantIndex = currentEvent.value.participants
         .indexWhere((Participant p) => p.number == number);
-    // Convert to double and round to 2 decimal places
-    double gradeValue = grade is double ? grade : (grade as num).toDouble();
+    final gradeValue = grade is num
+        ? normalizeInstructorGrade(grade)
+        : parseInstructorGrade(grade.toString());
     currentEvent.value.participants[participantIndex].instructorGrade =
-        double.parse(gradeValue.toStringAsFixed(2));
+        gradeValue;
     // Use non-blocking save to prevent delays when offline
     saveEventWithOfflineSupport(currentEvent.value);
     // Trigger refresh to update UI
@@ -1961,35 +1963,32 @@ class EventController extends GetxController {
 
     switch (exercise) {
       case 'meshulash':
-        // Convert to double and round to 2 decimal places
-        double meshulashGradeValue =
-            grade is double ? grade : (grade as num).toDouble();
         currentEvent
                 .value.participants[participantIndex].instructorMeshulashGrade =
-            double.parse(meshulashGradeValue.toStringAsFixed(2));
+            grade is num
+                ? normalizeInstructorGrade(grade)
+                : parseInstructorGrade(grade.toString());
         // Instructor grade for meshulash doesn't affect system grade (system uses system-calculated grade)
         // But it affects final instructor grade, so recalculate
         calculateInstructorGrade(
             currentEvent.value.participants[participantIndex]);
         break;
       case 'alonka':
-        // Convert to double and round to 2 decimal places
-        double alonkaGradeValue =
-            grade is double ? grade : (grade as num).toDouble();
         currentEvent
                 .value.participants[participantIndex].instructorAlonkaGrade =
-            double.parse(alonkaGradeValue.toStringAsFixed(2));
+            grade is num
+                ? normalizeInstructorGrade(grade)
+                : parseInstructorGrade(grade.toString());
         // Instructor grade for alonka doesn't affect system grade (system uses system-calculated grade)
         // But it affects final instructor grade, so recalculate
         calculateInstructorGrade(
             currentEvent.value.participants[participantIndex]);
         break;
       case 'sakim':
-        // Convert to double and round to 2 decimal places
-        double sakimGradeValue =
-            grade is double ? grade : (grade as num).toDouble();
         currentEvent.value.participants[participantIndex].instructorSakimGrade =
-            double.parse(sakimGradeValue.toStringAsFixed(2));
+            grade is num
+                ? normalizeInstructorGrade(grade)
+                : parseInstructorGrade(grade.toString());
         // Instructor grade for sakim doesn't affect system grade (system uses system-calculated grade)
         // But it affects final instructor grade, so recalculate
         calculateInstructorGrade(
@@ -1997,14 +1996,9 @@ class EventController extends GetxController {
         break;
       case 'bur':
         // Bur grades are stored only in burGrades collection (single source of truth)
-        // Bur has no system grade, only instructor grade, so it affects system grade calculation
-        // Grade can be int or double for Bur
-        double burGradeValue;
-        if (grade is double) {
-          burGradeValue = grade;
-        } else {
-          burGradeValue = (grade as num).toDouble();
-        }
+        final burGradeValue = grade is num
+            ? normalizeInstructorGrade(grade)
+            : parseInstructorGrade(grade.toString());
         int burIndex = currentEvent.value.burGrades
             .indexWhere((Bur bur) => bur.id == number);
         if (burIndex != -1) {

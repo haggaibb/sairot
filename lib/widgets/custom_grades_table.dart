@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../event_controller.dart';
 import '../models/participant.dart';
 import '../models/types.dart';
+import '../utils/instructor_grade.dart';
+import 'instructor_grade_dialog.dart';
 import 'exercise_ranking_dialog.dart';
 import 'system_grade_breakdown_dialog.dart';
 
@@ -106,28 +108,25 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
       String initialText = '';
       if (participant.instructorGrade > 0.0) {
         // Always show saved instructorGrade value (it's the saved final grade)
-        initialText = participant.instructorGrade.toStringAsFixed(
-          participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2
-        );
+        initialText = formatInstructorGrade(participant.instructorGrade);
       }
       _gradeControllers[participant.number] = TextEditingController(
         text: initialText,
       );
       _gradeFocusNodes[participant.number] = FocusNode();
       _meshulashGradeControllers[participant.number] = TextEditingController(
-        text: participant.instructorMeshulashGrade.toStringAsFixed(participant.instructorMeshulashGrade == participant.instructorMeshulashGrade.roundToDouble() ? 0 : 2),
+        text: formatInstructorGrade(participant.instructorMeshulashGrade),
       );
       _meshulashGradeFocusNodes[participant.number] = FocusNode();
       _alonkaGradeControllers[participant.number] = TextEditingController(
-        text: participant.instructorAlonkaGrade.toStringAsFixed(participant.instructorAlonkaGrade == participant.instructorAlonkaGrade.roundToDouble() ? 0 : 2),
+        text: formatInstructorGrade(participant.instructorAlonkaGrade),
       );
       _alonkaGradeFocusNodes[participant.number] = FocusNode();
       _sakimGradeControllers[participant.number] = TextEditingController(
-        text: participant.instructorSakimGrade.toStringAsFixed(participant.instructorSakimGrade == participant.instructorSakimGrade.roundToDouble() ? 0 : 2),
+        text: formatInstructorGrade(participant.instructorSakimGrade),
       );
       _sakimGradeFocusNodes[participant.number] = FocusNode();
       // Get Bur grade from burGrades collection, not from participant.instructorBurGrade
-      // Bur grades support doubles, so we keep the decimal value
       int burIndex = widget.eventController.currentEvent.value.burGrades
           .indexWhere((bur) => bur.id == participant.number);
       double burGradeValue = 0.0;
@@ -135,7 +134,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
         burGradeValue = widget.eventController.currentEvent.value.burGrades[burIndex].burGrade;
       }
       _burGradeControllers[participant.number] = TextEditingController(
-        text: burGradeValue.toStringAsFixed(burGradeValue == burGradeValue.roundToDouble() ? 0 : 2),
+        text: formatInstructorGrade(burGradeValue),
       );
       _burGradeFocusNodes[participant.number] = FocusNode();
     }
@@ -157,9 +156,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
           // Always show saved instructorGrade if it exists (it's the saved final grade)
           String displayText = '';
           if (participant.instructorGrade > 0.0) {
-            displayText = participant.instructorGrade.toStringAsFixed(
-              participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2
-            );
+            displayText = formatInstructorGrade(participant.instructorGrade);
           }
           // Only update if text changed (to avoid clearing user input)
           if (controller.text != displayText) {
@@ -174,9 +171,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
         // Update Meshulash grade controller
         final meshulashController = _meshulashGradeControllers[participant.number];
         if (meshulashController != null) {
-          String formattedGrade = participant.instructorMeshulashGrade.toStringAsFixed(
-            participant.instructorMeshulashGrade == participant.instructorMeshulashGrade.roundToDouble() ? 0 : 2
-          );
+          String formattedGrade = formatInstructorGrade(participant.instructorMeshulashGrade);
           if (meshulashController.text != formattedGrade && 
               !_meshulashGradeFocusNodes[participant.number]!.hasFocus) {
             meshulashController.text = formattedGrade;
@@ -189,9 +184,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
         // Update Alonka grade controller
         final alonkaController = _alonkaGradeControllers[participant.number];
         if (alonkaController != null) {
-          String formattedGrade = participant.instructorAlonkaGrade.toStringAsFixed(
-            participant.instructorAlonkaGrade == participant.instructorAlonkaGrade.roundToDouble() ? 0 : 2
-          );
+          String formattedGrade = formatInstructorGrade(participant.instructorAlonkaGrade);
           if (alonkaController.text != formattedGrade && 
               !_alonkaGradeFocusNodes[participant.number]!.hasFocus) {
             alonkaController.text = formattedGrade;
@@ -204,9 +197,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
         // Update Sakim grade controller
         final sakimController = _sakimGradeControllers[participant.number];
         if (sakimController != null) {
-          String formattedGrade = participant.instructorSakimGrade.toStringAsFixed(
-            participant.instructorSakimGrade == participant.instructorSakimGrade.roundToDouble() ? 0 : 2
-          );
+          String formattedGrade = formatInstructorGrade(participant.instructorSakimGrade);
           if (sakimController.text != formattedGrade && 
               !_sakimGradeFocusNodes[participant.number]!.hasFocus) {
             sakimController.text = formattedGrade;
@@ -225,7 +216,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
           if (burIndex != -1) {
             burGradeValue = widget.eventController.currentEvent.value.burGrades[burIndex].burGrade;
           }
-          String formattedGrade = burGradeValue.toStringAsFixed(burGradeValue == burGradeValue.roundToDouble() ? 0 : 2);
+          String formattedGrade = formatInstructorGrade(burGradeValue);
           if (burController.text != formattedGrade && 
               !_burGradeFocusNodes[participant.number]!.hasFocus) {
             burController.text = formattedGrade;
@@ -309,9 +300,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
     // Only show hint if there's no saved final grade (instructorGrade is 0)
     if (participant.instructorGrade == 0.0) {
       double calculatedGrade = widget.eventController.getCalculatedInstructorGrade(participant);
-      return calculatedGrade.toStringAsFixed(
-        calculatedGrade == calculatedGrade.roundToDouble() ? 0 : 2
-      );
+      return formatInstructorGrade(calculatedGrade);
     }
     return ''; // Don't show hint if there's a saved value (it will be shown in regular text)
   }
@@ -511,9 +500,38 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
     required bool isFinalized,
   }) {
     return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
+      onTap: isFinalized
+          ? null
+          : () async {
+              final picked = await showInstructorGradeDialog(
+                context,
+                selected: int.tryParse(controller.text),
+              );
+              if (picked == null || !mounted) return;
+              controller.text = formatInstructorGrade(picked);
+              widget.eventController.setParticipantExerciseGrade(
+                participantNumber,
+                exercise,
+                picked.toDouble(),
+              );
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                final participant = widget
+                    .eventController.currentEvent.value.participants
+                    .firstWhere((p) => p.number == participantNumber);
+                final finalGradeController =
+                    _gradeControllers[participantNumber];
+                if (finalGradeController == null ||
+                    _gradeFocusNodes[participantNumber]!.hasFocus) {
+                  return;
+                }
+                final displayText =
+                    formatInstructorGrade(participant.instructorGrade);
+                if (finalGradeController.text != displayText) {
+                  finalGradeController.text = displayText;
+                }
+              });
+            },
       behavior: HitTestBehavior.opaque,
       child: Container(
         width: width,
@@ -526,89 +544,15 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
             right: BorderSide(color: Colors.grey[300]!, width: 1),
           ),
         ),
-        child: isFinalized
-            ? Center(
-                child: Text(
-                  controller.text,
-                  style: const TextStyle(color: Colors.black),
-                ),
-              )
-            : TextField(
-                controller: controller,
-                focusNode: focusNode,
-                textAlign: TextAlign.center,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 14,
-                ),
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 12,
-                  ),
-                  isDense: false,
-                  hintText: '-',
-                  hintStyle: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                  ),
-                ),
-                onTap: () {
-                  // Select all text when focused
-                  // Use a post-frame callback to ensure selection happens after focus
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted && controller.text.isNotEmpty) {
-                      controller.selection = TextSelection(
-                        baseOffset: 0,
-                        extentOffset: controller.text.length,
-                      );
-                    }
-                  });
-                  // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
-                },
-                onEditingComplete: () {
-                  // Unfocus when editing is complete (Enter key)
-                  FocusScope.of(context).unfocus();
-                },
-                onChanged: (value) {
-                  // All instructor grades support doubles with up to 2 decimal places
-                  final grade = double.tryParse(value) ?? 0.0;
-                  // Round to 2 decimal places
-                  final roundedGrade = double.parse(grade.toStringAsFixed(2));
-                  widget.eventController.setParticipantExerciseGrade(
-                    participantNumber,
-                    exercise,
-                    roundedGrade,
-                  );
-                  // Update final grade hint after calculation (don't overwrite manual values)
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      final participant = widget.eventController.currentEvent.value.participants
-                          .firstWhere((p) => p.number == participantNumber);
-                      final finalGradeController = _gradeControllers[participantNumber];
-                      if (finalGradeController != null && 
-                          !_gradeFocusNodes[participantNumber]!.hasFocus) {
-                        // Always show saved instructorGrade if it exists
-                        String displayText = '';
-                        if (participant.instructorGrade > 0.0) {
-                          displayText = participant.instructorGrade.toStringAsFixed(
-                            participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2
-                          );
-                        }
-                        // Only update if text changed
-                        if (finalGradeController.text != displayText) {
-                          finalGradeController.text = displayText;
-                        }
-                      }
-                    }
-                  });
-                },
-              ),
+        child: Center(
+          child: Text(
+            controller.text.isEmpty ? '-' : controller.text,
+            style: TextStyle(
+              color: controller.text.isEmpty ? Colors.grey : Colors.black,
+              fontSize: 14,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -831,22 +775,14 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
               // Ensure controllers exist and are up to date
               if (!_gradeControllers.containsKey(participant.number)) {
                 _gradeControllers[participant.number] = TextEditingController(
-                  text: participant.instructorGrade > 0.0
-                      ? participant.instructorGrade.toStringAsFixed(
-                          participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2
-                        )
-                      : '',
+                  text: formatInstructorGrade(participant.instructorGrade),
                 );
                 _gradeFocusNodes[participant.number] = FocusNode();
               } else {
                 // Update controller if grade changed and field is not focused
                 final controller = _gradeControllers[participant.number]!;
                 if (!_gradeFocusNodes[participant.number]!.hasFocus) {
-                  final expectedText = participant.instructorGrade > 0.0
-                      ? participant.instructorGrade.toStringAsFixed(
-                          participant.instructorGrade == participant.instructorGrade.roundToDouble() ? 0 : 2
-                        )
-                      : '';
+                  final expectedText = formatInstructorGrade(participant.instructorGrade);
                   if (controller.text != expectedText) {
                     controller.text = expectedText;
                   }
@@ -854,21 +790,21 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
               }
               if (!_meshulashGradeControllers.containsKey(participant.number)) {
                 _meshulashGradeControllers[participant.number] = TextEditingController(
-                  text: participant.instructorMeshulashGrade.toString(),
+                  text: formatInstructorGrade(participant.instructorMeshulashGrade),
                 );
               }
               if (!_alonkaGradeControllers.containsKey(participant.number)) {
                 _alonkaGradeControllers[participant.number] = TextEditingController(
-                  text: participant.instructorAlonkaGrade.toString(),
+                  text: formatInstructorGrade(participant.instructorAlonkaGrade),
                 );
               }
               if (!_sakimGradeControllers.containsKey(participant.number)) {
                 _sakimGradeControllers[participant.number] = TextEditingController(
-                  text: participant.instructorSakimGrade.toString(),
+                  text: formatInstructorGrade(participant.instructorSakimGrade),
                 );
               }
               // Always update Bur grade controller from burGrades collection (single source of truth)
-              // Bur grades support doubles, so we keep the decimal value
+              // Instructor bur grade, shown as a whole number from 1 to 9.
               int burIndex = widget.eventController.currentEvent.value.burGrades
                   .indexWhere((bur) => bur.id == participant.number);
               double burGradeValue = 0.0;
@@ -878,12 +814,12 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
               
               if (!_burGradeControllers.containsKey(participant.number)) {
                 _burGradeControllers[participant.number] = TextEditingController(
-                  text: burGradeValue.toStringAsFixed(burGradeValue == burGradeValue.roundToDouble() ? 0 : 2),
+                  text: formatInstructorGrade(burGradeValue),
                 );
               } else {
                 // Update existing controller if value has changed
                 final burController = _burGradeControllers[participant.number]!;
-                String formattedBurGrade = burGradeValue.toStringAsFixed(burGradeValue == burGradeValue.roundToDouble() ? 0 : 2);
+                String formattedBurGrade = formatInstructorGrade(burGradeValue);
                 if (burController.text != formattedBurGrade && 
                     !_burGradeFocusNodes[participant.number]!.hasFocus) {
                   burController.text = formattedBurGrade;
@@ -924,21 +860,20 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                   children: [
                   // Final grade cell (editable)
                   GestureDetector(
-                    // Focus the TextField when clicking anywhere on the cell
-                    onTap: () {
-                      if (!isFinalized) {
-                        _gradeFocusNodes[participant.number]?.requestFocus();
-                        // Select all text when focused
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted && gradeController.text.isNotEmpty) {
-                            gradeController.selection = TextSelection(
-                              baseOffset: 0,
-                              extentOffset: gradeController.text.length,
+                    onTap: isFinalized
+                        ? null
+                        : () async {
+                            final picked = await showInstructorGradeDialog(
+                              context,
+                              selected: int.tryParse(gradeController.text),
                             );
-                          }
-                        });
-                      }
-                    },
+                            if (picked == null || !mounted) return;
+                            gradeController.text = formatInstructorGrade(picked);
+                            widget.eventController.setParticipantsGrade(
+                              participant.number,
+                              picked.toDouble(),
+                            );
+                          },
                     behavior: HitTestBehavior.opaque,
                     child: Container(
                       width: finalGradeWidth,
@@ -959,7 +894,9 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                               final currentGrade = currentParticipant.instructorGrade;
                               return Center(
                                 child: Text(
-                                  currentGrade.toStringAsFixed(currentGrade == currentGrade.roundToDouble() ? 0 : 2),
+                                  formatInstructorGrade(currentGrade).isEmpty
+                                      ? '-'
+                                      : formatInstructorGrade(currentGrade),
                                   style: const TextStyle(color: Colors.black),
                                 ),
                               );
@@ -973,9 +910,7 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                               // Update controller if grade changed externally and field is not focused
                               if (!_gradeFocusNodes[participant.number]!.hasFocus) {
                                 if (currentGrade > 0.0) {
-                                  final expectedText = currentGrade.toStringAsFixed(
-                                    currentGrade == currentGrade.roundToDouble() ? 0 : 2
-                                  );
+                                  final expectedText = formatInstructorGrade(currentGrade);
                                   if (gradeController.text != expectedText) {
                                     gradeController.text = expectedText;
                                   }
@@ -987,62 +922,19 @@ class _CustomGradesTableState extends State<CustomGradesTable> {
                               return Stack(
                                 alignment: Alignment.center,
                                 children: [
-                                  TextField(
-                                    controller: gradeController,
-                                    focusNode: _gradeFocusNodes[participant.number],
-                                    textAlign: TextAlign.center,
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    style: const TextStyle(
-                                      color: Colors.black,
+                                  Text(
+                                    formatInstructorGrade(currentGrade).isEmpty
+                                        ? _getCalculatedGradeHint(
+                                            currentParticipant)
+                                        : formatInstructorGrade(currentGrade),
+                                    style: TextStyle(
+                                      color: currentGrade <= 0.0
+                                          ? Colors.grey
+                                          : Colors.black,
                                       fontSize: 14,
                                     ),
-                                    decoration: InputDecoration(
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      disabledBorder: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        horizontal: currentGrade <= 0.0 ? 20 : 4, // Extra padding for icon
-                                        vertical: 12,
-                                      ),
-                                      isDense: false,
-                                      // Show calculated grade as hint when field is empty or matches calculated
-                                      hintText: _getCalculatedGradeHint(currentParticipant),
-                                      hintStyle: TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      // Select all text when focused
-                                      // Use a post-frame callback to ensure selection happens after focus
-                                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                                        if (mounted && gradeController.text.isNotEmpty) {
-                                          gradeController.selection = TextSelection(
-                                            baseOffset: 0,
-                                            extentOffset: gradeController.text.length,
-                                          );
-                                        }
-                                      });
-                                      // Don't set _selectedParticipantNumber here - only set it when clicking the recruit number cell
-                                    },
-                                    onEditingComplete: () {
-                                      // Unfocus when editing is complete (Enter key)
-                                      FocusScope.of(context).unfocus();
-                                    },
-                                    onChanged: (value) {
-                                      // Parse as double, allowing up to 2 decimal places
-                                      final grade = double.tryParse(value) ?? 0.0;
-                                      // Round to 2 decimal places
-                                      final roundedGrade = double.parse(grade.toStringAsFixed(2));
-                                      widget.eventController.setParticipantsGrade(
-                                        participant.number,
-                                        roundedGrade,
-                                      );
-                                    },
                                   ),
-                                  // Show reminder icon when no instructor grade is entered
-                                  if (currentGrade <= 0.0 && !_gradeFocusNodes[participant.number]!.hasFocus)
+                                  if (currentGrade <= 0.0)
                                     Positioned(
                                       right: 4,
                                       child: Tooltip(

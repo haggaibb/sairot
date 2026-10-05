@@ -7,6 +7,8 @@ import '../widgets/wifi_settings_button.dart';
 import '../mixins/event_validation_mixin.dart';
 import '../models/types.dart';
 import '../models/participant.dart';
+import '../utils/instructor_grade.dart';
+import '../widgets/instructor_grade_dialog.dart';
 import '../widgets/custom_grades_table.dart';
 import '../widgets/exercise_ranking_dialog.dart';
 import '../widgets/meshulash_charts.dart';
@@ -540,9 +542,7 @@ class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
     }
 
     if (grade > 0.0) {
-      final displayText = grade.toStringAsFixed(
-        grade == grade.roundToDouble() ? 0 : 2
-      );
+      final displayText = formatInstructorGrade(grade);
       if (controller.text != displayText && !_gradeFocusNodes[participant.number]!.hasFocus) {
         controller.text = displayText;
       }
@@ -960,19 +960,39 @@ class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
     required bool isFinalized,
   }) {
     return GestureDetector(
-      onTap: () {
-        if (!isFinalized) {
-          focusNode.requestFocus();
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && controller.text.isNotEmpty) {
-              controller.selection = TextSelection(
-                baseOffset: 0,
-                extentOffset: controller.text.length,
+      onTap: isFinalized
+          ? null
+          : () async {
+              final picked = await showInstructorGradeDialog(
+                context,
+                selected: int.tryParse(controller.text),
               );
-            }
-          });
-        }
-      },
+              if (picked == null || !mounted) return;
+              controller.text = formatInstructorGrade(picked);
+              switch (widget.exerciseType) {
+                case 'meshulash':
+                  widget.eventController.setParticipantExerciseGrade(
+                    participant.number,
+                    'meshulash',
+                    picked.toDouble(),
+                  );
+                  break;
+                case 'alonka':
+                  widget.eventController.setParticipantExerciseGrade(
+                    participant.number,
+                    'alonka',
+                    picked.toDouble(),
+                  );
+                  break;
+                case 'sakim':
+                  widget.eventController.setParticipantExerciseGrade(
+                    participant.number,
+                    'sakim',
+                    picked.toDouble(),
+                  );
+                  break;
+              }
+            },
       behavior: HitTestBehavior.opaque,
       child: Container(
         width: width,
@@ -985,84 +1005,26 @@ class _ExerciseGradingTableState extends State<_ExerciseGradingTable> {
             right: BorderSide(color: Colors.grey[300]!, width: 1),
           ),
         ),
-        child: isFinalized
-            ? Center(
-                child: Text(
-                  _getInstructorGrade(participant) > 0.0
-                      ? _getInstructorGrade(participant).toStringAsFixed(
-                          _getInstructorGrade(participant) == _getInstructorGrade(participant).roundToDouble() ? 0 : 2
-                        )
-                      : '-',
-                  style: const TextStyle(color: Colors.black),
-                ),
-              )
-            : TextField(
-                controller: controller,
-                focusNode: focusNode,
-                textAlign: TextAlign.center,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 14,
-                ),
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 12,
-                  ),
-                  isDense: false,
-                  hintText: '-',
-                  hintStyle: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                  ),
-                ),
-                onTap: () {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted && controller.text.isNotEmpty) {
-                      controller.selection = TextSelection(
-                        baseOffset: 0,
-                        extentOffset: controller.text.length,
-                      );
-                    }
-                  });
-                },
-                onEditingComplete: () {
-                  FocusScope.of(context).unfocus();
-                },
-                onChanged: (value) {
-                  final grade = double.tryParse(value) ?? 0.0;
-                  final roundedGrade = double.parse(grade.toStringAsFixed(2));
-                  
-                  switch (widget.exerciseType) {
-                    case 'meshulash':
-                      widget.eventController.setParticipantExerciseGrade(
-                        participant.number,
-                        'meshulash',
-                        roundedGrade,
-                      );
-                      break;
-                    case 'alonka':
-                      widget.eventController.setParticipantExerciseGrade(
-                        participant.number,
-                        'alonka',
-                        roundedGrade,
-                      );
-                      break;
-                    case 'sakim':
-                      widget.eventController.setParticipantExerciseGrade(
-                        participant.number,
-                        'sakim',
-                        roundedGrade,
-                      );
-                      break;
-                  }
-                },
-              ),
+        child: Center(
+          child: Text(
+            isFinalized
+                ? (formatInstructorGrade(_getInstructorGrade(participant))
+                        .isEmpty
+                    ? '-'
+                    : formatInstructorGrade(_getInstructorGrade(participant)))
+                : (controller.text.isEmpty ? '-' : controller.text),
+            style: TextStyle(
+              color: (isFinalized
+                          ? formatInstructorGrade(
+                                  _getInstructorGrade(participant))
+                              .isEmpty
+                          : controller.text.isEmpty)
+                      ? Colors.grey
+                      : Colors.black,
+              fontSize: 14,
+            ),
+          ),
+        ),
       ),
     );
   }

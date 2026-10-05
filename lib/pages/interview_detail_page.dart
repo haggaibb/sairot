@@ -12,6 +12,8 @@ import '../widgets/leadership_chart.dart';
 import '../utils/tablet_utils.dart';
 import '../widgets/wifi_settings_button.dart';
 import '../widgets/comment_save_confirmation_dialog.dart';
+import '../utils/instructor_grade.dart';
+import '../widgets/instructor_grade_dialog.dart';
 
 final eventController = Get.put(EventController());
 
@@ -286,26 +288,20 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
   void _saveFinalInstructorGrade(String value) {
     if (eventController.currentEvent.value.finalized) return;
 
-    final grade = double.tryParse(value) ?? 0.0;
-    final roundedGrade =
-        double.parse(grade.clamp(0.0, 10.0).toStringAsFixed(2));
+    final roundedGrade = parseInstructorGrade(value);
 
     eventController.setParticipantsGrade(
         widget.participantNumber, roundedGrade);
 
-    // Update controller text to show saved value
-    _finalInstructorGradeController.text = roundedGrade > 0
-        ? roundedGrade.toStringAsFixed(
-            roundedGrade == roundedGrade.roundToDouble() ? 0 : 2)
-        : '';
+    _finalInstructorGradeController.text = formatInstructorGrade(roundedGrade);
 
-    // Unfocus
     _finalGradeFocusNode.unfocus();
 
-    // Show confirmation
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('ציון מדריך נשמר: ${roundedGrade.toStringAsFixed(2)}'),
+        content: Text(roundedGrade > 0
+            ? 'ציון מדריך נשמר: ${roundedGrade.toInt()}'
+            : 'ציון מדריך נמחק'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -320,7 +316,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
     // Save final instructor grade if it was entered but not saved
     final gradeText = _finalInstructorGradeController.text.trim();
     if (gradeText.isNotEmpty) {
-      final enteredGrade = double.tryParse(gradeText) ?? 0.0;
+      final enteredGrade = parseInstructorGrade(gradeText);
       final participant =
           eventController.getParticipant(widget.participantNumber);
       final savedGrade = participant.instructorGrade;
@@ -804,7 +800,7 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                   fontWeight: FontWeight.bold,
                   color:
                       isDark ? colorScheme.onSurfaceVariant : Colors.white70)),
-          Text(' ציון ${p.burGrade.toStringAsFixed(2)} ',
+          Text(' ציון ${formatInstructorGrade(p.burGrade).isEmpty ? '-' : formatInstructorGrade(p.burGrade)} ',
               style: TextStyle(
                   fontSize: subtitleFontSize,
                   fontWeight: FontWeight.bold,
@@ -939,9 +935,9 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
       {
         'exercise': 'משולש',
         'systemGrade': adjustedMeshulash.toStringAsFixed(2),
-        'instructorGrade': p.instructorMeshulashGrade > 0
-            ? p.instructorMeshulashGrade.toStringAsFixed(2)
-            : null,
+        'instructorGrade': formatInstructorGrade(p.instructorMeshulashGrade).isEmpty
+            ? null
+            : formatInstructorGrade(p.instructorMeshulashGrade),
         'rank':
             '${allRanks['meshulash']!['rank']}/${allRanks['meshulash']!['total']}',
         'comments': p.meshulashInstructorComments,
@@ -949,16 +945,18 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
       {
         'exercise': 'אלונקה',
         'systemGrade': adjustedAlonka.toStringAsFixed(2),
-        'instructorGrade': p.instructorAlonkaGrade > 0
-            ? p.instructorAlonkaGrade.toStringAsFixed(2)
-            : null,
+        'instructorGrade': formatInstructorGrade(p.instructorAlonkaGrade).isEmpty
+            ? null
+            : formatInstructorGrade(p.instructorAlonkaGrade),
         'rank':
             '${allRanks['alonka']!['rank']}/${allRanks['alonka']!['total']}',
         'comments': p.alonkaInstructorComments,
       },
       {
         'exercise': 'בור',
-        'systemGrade': burGrade.toStringAsFixed(2),
+        'systemGrade': formatInstructorGrade(burGrade).isEmpty
+            ? '-'
+            : formatInstructorGrade(burGrade),
         'instructorGrade':
             null, // Bur doesn't have instructor grade in the same way
         'rank': '${allRanks['bur']!['rank']}/${allRanks['bur']!['total']}',
@@ -967,9 +965,9 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
       {
         'exercise': 'שקים',
         'systemGrade': adjustedSakim.toStringAsFixed(2),
-        'instructorGrade': p.instructorSakimGrade > 0
-            ? p.instructorSakimGrade.toStringAsFixed(2)
-            : null,
+        'instructorGrade': formatInstructorGrade(p.instructorSakimGrade).isEmpty
+            ? null
+            : formatInstructorGrade(p.instructorSakimGrade),
         'rank': '${allRanks['sakim']!['rank']}/${allRanks['sakim']!['total']}',
         'comments': p.sakimInstructorComments,
       },
@@ -983,17 +981,10 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
     ];
 
     // Initialize final instructor grade controller if not already set
-    if (_finalInstructorGradeController.text.isEmpty ||
-        (p.instructorGrade > 0 &&
-            _finalInstructorGradeController.text !=
-                p.instructorGrade.toStringAsFixed(
-                    p.instructorGrade == p.instructorGrade.roundToDouble()
-                        ? 0
-                        : 2))) {
-      _finalInstructorGradeController.text = p.instructorGrade > 0
-          ? p.instructorGrade.toStringAsFixed(
-              p.instructorGrade == p.instructorGrade.roundToDouble() ? 0 : 2)
-          : '';
+    final shownGrade = formatInstructorGrade(p.instructorGrade);
+    if (_finalInstructorGradeController.text != shownGrade &&
+        !_finalGradeFocusNode.hasFocus) {
+      _finalInstructorGradeController.text = shownGrade;
     }
 
     return SingleChildScrollView(
@@ -1023,87 +1014,60 @@ class _InterviewDetailPageState extends State<InterviewDetailPage> {
                   ),
                 ),
                 SizedBox(width: 8),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: isTablet ? 18 : 14,
-                      vertical: isTablet ? 9 : 7),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[700],
+                Material(
+                  color: Colors.blue[700],
+                  borderRadius: BorderRadius.circular(6),
+                  child: InkWell(
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.blue[300]!, width: 1),
-                  ),
-                  child: IntrinsicHeight(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          'מדריך: ',
-                          style: TextStyle(
-                            fontSize: isTablet ? 16 : 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            height: 1.1,
-                          ),
-                        ),
-                        SizedBox(
-                          width: isTablet ? 60 : 50,
-                          child: TextField(
-                            controller: _finalInstructorGradeController,
-                            focusNode: _finalGradeFocusNode,
-                            textAlign: TextAlign.center,
-                            keyboardType:
-                                TextInputType.numberWithOptions(decimal: true),
-                            enabled:
-                                !eventController.currentEvent.value.finalized,
+                    onTap: eventController.currentEvent.value.finalized
+                        ? null
+                        : () async {
+                            final picked = await showInstructorGradeDialog(
+                              context,
+                              selected: int.tryParse(
+                                  _finalInstructorGradeController.text),
+                            );
+                            if (picked == null || !mounted) return;
+                            _saveFinalInstructorGrade(
+                                formatInstructorGrade(picked));
+                          },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 18 : 14,
+                          vertical: isTablet ? 9 : 7),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue[300]!, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            'מדריך: ',
                             style: TextStyle(
                               fontSize: isTablet ? 16 : 14,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,
                               height: 1.1,
                             ),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              disabledBorder: InputBorder.none,
-                              hintText: '0.00',
-                              hintStyle: TextStyle(
-                                color: Colors.white70,
-                                fontSize: isTablet ? 16 : 14,
-                                height: 1.1,
-                              ),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 2, vertical: 2),
-                              isDense: true,
-                            ),
-                            onSubmitted: (value) {
-                              _saveFinalInstructorGrade(value);
-                            },
-                            onChanged: (value) {
-                              // Auto-save on change
-                              if (value.isNotEmpty &&
-                                  !eventController
-                                      .currentEvent.value.finalized) {
-                                final grade = double.tryParse(value);
-                                if (grade != null &&
-                                    grade >= 0 &&
-                                    grade <= 10) {
-                                  // Debounce: save after user stops typing
-                                  Future.delayed(Duration(milliseconds: 500),
-                                      () {
-                                    if (_finalInstructorGradeController.text ==
-                                            value &&
-                                        mounted) {
-                                      _saveFinalInstructorGrade(value);
-                                    }
-                                  });
-                                }
-                              }
-                            },
                           ),
-                        ),
-                      ],
+                          Text(
+                            _finalInstructorGradeController.text.isEmpty
+                                ? '1-9'
+                                : _finalInstructorGradeController.text,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: isTablet ? 16 : 14,
+                              fontWeight: FontWeight.w600,
+                              color: _finalInstructorGradeController.text.isEmpty
+                                  ? Colors.white70
+                                  : Colors.white,
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

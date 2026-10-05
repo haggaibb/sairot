@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../event_controller.dart';
 import '../models/types.dart';
+import '../utils/instructor_grade.dart';
 
 /// Helper method to get adjusted system grade based on group strength
 double getAdjustedSystemGrade(double baseGrade, GroupStrength groupStrength) {
@@ -162,7 +163,7 @@ class SystemGradeBreakdownDialog extends StatelessWidget {
     final rows = [
       {'exercise': 'משולש', 'grade': getAdjustedSystemGrade(participant.meshulashGrade, groupStrength).toStringAsFixed(2), 'rank': '${allRanks['meshulash']!['rank']}/${allRanks['meshulash']!['total']}'},
       {'exercise': 'אלונקה', 'grade': getAdjustedSystemGrade(participant.alonkaGrade, groupStrength).toStringAsFixed(2), 'rank': '${allRanks['alonka']!['rank']}/${allRanks['alonka']!['total']}'},
-      {'exercise': 'בור', 'grade': participant.burGrade.toStringAsFixed(2), 'rank': '${allRanks['bur']!['rank']}/${allRanks['bur']!['total']}'},
+      {'exercise': 'בור', 'grade': formatInstructorGrade(participant.burGrade).isEmpty ? '-' : formatInstructorGrade(participant.burGrade), 'rank': '${allRanks['bur']!['rank']}/${allRanks['bur']!['total']}'},
       {'exercise': 'שקים', 'grade': getAdjustedSystemGrade(participant.sakimGrade, groupStrength).toStringAsFixed(2), 'rank': '${allRanks['sakim']!['rank']}/${allRanks['sakim']!['total']}'},
     ];
 

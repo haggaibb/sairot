@@ -9,6 +9,8 @@ import '../widgets/sakim_charts.dart';
 import '../widgets/interview_chart.dart';
 import '../widgets/leadership_chart.dart';
 import '../widgets/wifi_settings_button.dart';
+import '../utils/instructor_grade.dart';
+import '../widgets/instructor_grade_dialog.dart';
 
 final eventController = Get.put(EventController());
 
@@ -40,8 +42,7 @@ class _PerformancePageState extends State<PerformancePage> {
     Participant p = eventController.getParticipant(number);
     // Initialize controller with current grade
     if (p.instructorGrade > 0) {
-      _finalGradeController.text = p.instructorGrade.toStringAsFixed(
-          p.instructorGrade == p.instructorGrade.roundToDouble() ? 0 : 2);
+      _finalGradeController.text = formatInstructorGrade(p.instructorGrade);
     }
   }
 
@@ -208,8 +209,7 @@ class _PerformancePageState extends State<PerformancePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (p.instructorGrade > 0) {
         final currentText = _finalGradeController.text;
-        final expectedText = p.instructorGrade.toStringAsFixed(
-            p.instructorGrade == p.instructorGrade.roundToDouble() ? 0 : 2);
+        final expectedText = formatInstructorGrade(p.instructorGrade);
         if (currentText != expectedText && !_finalGradeFocusNode.hasFocus) {
           _finalGradeController.text = expectedText;
         }
@@ -317,67 +317,48 @@ class _PerformancePageState extends State<PerformancePage> {
                               ),
                             ),
                             SizedBox(width: 15),
-                            Container(
+                            SizedBox(
                               width: isTablet ? 120 : 100,
-                              child: TextField(
-                                controller: _finalGradeController,
-                                focusNode: _finalGradeFocusNode,
-                                textAlign: TextAlign.center,
-                                keyboardType: TextInputType.numberWithOptions(
-                                    decimal: true),
-                                style: TextStyle(
-                                  fontSize: baseFontSize,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: Colors.white.withOpacity(0.3),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.6),
-                                      width: 2,
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.6),
-                                      width: 2,
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: BorderSide(
-                                      color: Colors.white,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 12,
-                                  ),
-                                  hintText: '0.00',
-                                  hintStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.6),
-                                  ),
-                                ),
-                                onChanged: (value) {
-                                  // Update grade as user types
-                                  final grade = double.tryParse(value) ?? 0.0;
-                                  if (grade >= 0) {
-                                    // Round to 2 decimal places
-                                    final roundedGrade =
-                                        double.parse(grade.toStringAsFixed(2));
+                              child: Material(
+                                color: Colors.white.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () async {
+                                    final picked =
+                                        await showInstructorGradeDialog(
+                                      context,
+                                      selected: int.tryParse(
+                                          _finalGradeController.text),
+                                    );
+                                    if (picked == null || !mounted) return;
+                                    _finalGradeController.text =
+                                        formatInstructorGrade(picked);
                                     eventController.setParticipantsGrade(
-                                        number, roundedGrade);
-                                  }
-                                },
-                                onEditingComplete: () {
-                                  // Unfocus when editing is complete
-                                  _finalGradeFocusNode.unfocus();
-                                },
+                                        number, picked.toDouble());
+                                    setState(() {});
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 12,
+                                    ),
+                                    child: Text(
+                                      _finalGradeController.text.isEmpty
+                                          ? '1-9'
+                                          : _finalGradeController.text,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: baseFontSize,
+                                        fontWeight: FontWeight.bold,
+                                        color: _finalGradeController
+                                                .text.isEmpty
+                                            ? Colors.white.withOpacity(0.6)
+                                            : Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -575,7 +556,7 @@ class _PerformancePageState extends State<PerformancePage> {
                           style: TextStyle(
                               fontSize: subtitleFontSize,
                               fontWeight: FontWeight.bold)),
-                      Text(' ציון ${p.burGrade.toStringAsFixed(2)} ',
+                      Text(' ציון ${formatInstructorGrade(p.burGrade).isEmpty ? '-' : formatInstructorGrade(p.burGrade)} ',
                           style: TextStyle(
                               fontSize: subtitleFontSize,
                               fontWeight: FontWeight.bold)),
